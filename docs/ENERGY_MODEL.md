@@ -63,6 +63,15 @@ Energy transfer between electrical sections is currently disabled.
 
 ## Flywheel reference
 
+The storage model uses published parameters of the
+[VYCON REGEN wayside flywheel system](https://vyconenergy.com/wp-content/uploads/2018/06/Saving-Money-Every-Day-LA-Metro-Subway-Wayside-Energy-Storage-Substation-March-2015.pdf)
+as an engineering reference.
+
+VYCON REGEN is a third-party commercial product. The simulated banks are
+research configurations and do not imply that VYCON equipment is installed in
+the modelled Nizhny Novgorod or İzmir networks, or that this project is
+affiliated with or endorsed by VYCON.
+
 The storage model references the VYCON REGEN wayside module:
 
 | Property | Per module |
