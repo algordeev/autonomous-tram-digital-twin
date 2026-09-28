@@ -64,8 +64,7 @@ npm run preview
 ```
 
 The generated `dist/` directory is deployable to GitHub Pages, Netlify,
-Cloudflare Pages, Vercel or an ordinary static server. The app does not require
-ChatGPT Sites, a database or a server-side runtime.
+Cloudflare Pages, Vercel or an ordinary static server. The app does not require a database or a server-side runtime.
 
 ## Tests
 
