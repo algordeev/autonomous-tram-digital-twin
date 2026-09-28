@@ -29,7 +29,7 @@
 ## Stops and passengers
 
 - Time-of-day passenger arrival demand;
-- stop-importance weighting;
+- stop-specific passenger demand variation;
 - boarding, alighting and retained overflow;
 - 110-passenger vehicle capacity;
 - three-door dwell calculation between 8 and 45 seconds;
@@ -45,7 +45,7 @@
 - depot withdrawal and release;
 - demand-triggered emergency extra tram;
 - short-turn and tactical siding states;
-- two-berth İzmir terminal assignment and entry queue.
+- two-berth Izmir terminal assignment and entry queue.
 
 ## Infrastructure
 
