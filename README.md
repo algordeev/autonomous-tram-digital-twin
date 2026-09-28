@@ -19,6 +19,11 @@ storage.
 
 ![İzmir simulation overview](docs/assets/simulator-overview.png)
 
+> This project extends the earlier
+> [physical Arduino tram prototype](https://github.com/algordeev/autonomous-tram-system)
+> into a scalable software digital twin for network-level operations,
+> passenger-service and traction-energy experiments.
+
 ## What is implemented
 
 | Area | Current implementation |
