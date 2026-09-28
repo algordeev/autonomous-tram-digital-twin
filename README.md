@@ -1,5 +1,7 @@
 # Autonomous Tram Digital Twin
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Launch_Simulator-00a86b?style=for-the-badge&logo=githubpages&logoColor=white)](https://algordeev.github.io/autonomous-tram-digital-twin/)
+
 An open research prototype for autonomous tram operations, passenger service,
 network dispatch and traction-energy management.
 
