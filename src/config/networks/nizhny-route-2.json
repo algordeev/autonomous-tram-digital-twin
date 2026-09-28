@@ -1,0 +1,1749 @@
+{
+  "id": "nizhny-route-2",
+  "name": "Nizhny Novgorod · Tram 2",
+  "shortName": "Route 2 · real map",
+  "description": "The real city-centre ring projected from stop coordinates, with both travel directions, five mapped turnout complexes and five independent priority-controlled street junctions.",
+  "useCase": "Replay the 2021 Route 2 analysis, then stress-test headways, obstacles and signal priority with ten trams.",
+  "segments": [
+    {
+      "id": "N2A01",
+      "from": "A01",
+      "to": "A02",
+      "points": [
+        {
+          "x": 237.30056676963704,
+          "y": 523.6160234515659
+        },
+        {
+          "x": 366.74557718574107,
+          "y": 496.5335814175073
+        }
+      ],
+      "label": "Рынок Средной → Студёная",
+      "lengthMeters": 589.0842463918791,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2A02",
+      "from": "A02",
+      "to": "A03",
+      "points": [
+        {
+          "x": 366.74557718574107,
+          "y": 496.5335814175073
+        },
+        {
+          "x": 469.02217501602036,
+          "y": 436.55907139975113
+        }
+      ],
+      "label": "Студёная → Ашхабадская",
+      "lengthMeters": 527.475527672821,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2A03",
+      "from": "A03",
+      "to": "A04",
+      "points": [
+        {
+          "x": 469.02217501602036,
+          "y": 436.55907139975113
+        },
+        {
+          "x": 561.2499475119857,
+          "y": 379.4923100017373
+        },
+        {
+          "x": 623.7626566839643,
+          "y": 340.8120105418669
+        }
+      ],
+      "label": "Ашхабадская → Оперный театр",
+      "lengthMeters": 793.4498200393366,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2A04",
+      "from": "A04",
+      "to": "A05",
+      "points": [
+        {
+          "x": 623.7626566839643,
+          "y": 340.8120105418669
+        },
+        {
+          "x": 724.0493812627409,
+          "y": 291.4728734281354
+        }
+      ],
+      "label": "Оперный театр → Полтавская",
+      "lengthMeters": 486.26604360250735,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2A05",
+      "from": "A05",
+      "to": "A06",
+      "points": [
+        {
+          "x": 724.0493812627409,
+          "y": 291.4728734281354
+        },
+        {
+          "x": 769.4085685838511,
+          "y": 268.4724385206406
+        }
+      ],
+      "label": "Полтавская → Белинского",
+      "lengthMeters": 233.27047058601326,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2A06",
+      "from": "A06",
+      "to": "A07",
+      "points": [
+        {
+          "x": 769.4085685838511,
+          "y": 268.4724385206406
+        },
+        {
+          "x": 854.5567415042759,
+          "y": 172.40831566157775
+        }
+      ],
+      "label": "Белинского → Большая Печёрская",
+      "lengthMeters": 624.845623079072,
+      "elevationChangeMeters": 17
+    },
+    {
+      "id": "N2A07",
+      "from": "A07",
+      "to": "A08",
+      "points": [
+        {
+          "x": 854.5567415042759,
+          "y": 172.40831566157775
+        },
+        {
+          "x": 795.9167966240843,
+          "y": 153.25471780224956
+        }
+      ],
+      "label": "Большая Печёрская → Университет им. Добролюбова",
+      "lengthMeters": 323.01977956830575,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2A08",
+      "from": "A08",
+      "to": "A09",
+      "points": [
+        {
+          "x": 795.9167966240843,
+          "y": 153.25471780224956
+        },
+        {
+          "x": 708.4675090837219,
+          "y": 121.27006008150084
+        }
+      ],
+      "label": "Университет им. Добролюбова → Высшая школа экономики",
+      "lengthMeters": 408.3562399531886,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2A09",
+      "from": "A09",
+      "to": "A10",
+      "points": [
+        {
+          "x": 708.4675090837219,
+          "y": 121.27006008150084
+        },
+        {
+          "x": 590.7132182450906,
+          "y": 83.13851202378072
+        }
+      ],
+      "label": "Высшая школа экономики → Речное училище",
+      "lengthMeters": 566.2587882720304,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2A10",
+      "from": "A10",
+      "to": "A11",
+      "points": [
+        {
+          "x": 590.7132182450906,
+          "y": 83.13851202378072
+        },
+        {
+          "x": 521.6003942634791,
+          "y": 126.34679155889982
+        },
+        {
+          "x": 491.98061255707415,
+          "y": 144.86462564537945
+        }
+      ],
+      "label": "Речное училище → Чёрный Пруд",
+      "lengthMeters": 534.336687088956,
+      "elevationChangeMeters": 14
+    },
+    {
+      "id": "N2A11",
+      "from": "A11",
+      "to": "A12",
+      "points": [
+        {
+          "x": 491.98061255707415,
+          "y": 144.86462564537945
+        },
+        {
+          "x": 395.3036060266819,
+          "y": 211.1182415270192
+        }
+      ],
+      "label": "Чёрный Пруд → Большая Покровская",
+      "lengthMeters": 478.0609484834928,
+      "elevationChangeMeters": 7
+    },
+    {
+      "id": "N2A12",
+      "from": "A12",
+      "to": "A13",
+      "points": [
+        {
+          "x": 395.3036060266819,
+          "y": 211.1182415270192
+        },
+        {
+          "x": 287.928475464623,
+          "y": 138.3401361890535
+        }
+      ],
+      "label": "Большая Покровская → Добролюбова",
+      "lengthMeters": 579.7193886024103,
+      "elevationChangeMeters": 14
+    },
+    {
+      "id": "N2A13",
+      "from": "A13",
+      "to": "A14",
+      "points": [
+        {
+          "x": 287.928475464623,
+          "y": 138.3401361890535
+        },
+        {
+          "x": 243.48546228070873,
+          "y": 222.83545234842737
+        }
+      ],
+      "label": "Добролюбова → Нижегородская",
+      "lengthMeters": 470.37203117807474,
+      "elevationChangeMeters": 19
+    },
+    {
+      "id": "N2A14",
+      "from": "A14",
+      "to": "A15",
+      "points": [
+        {
+          "x": 243.48546228070873,
+          "y": 222.83545234842737
+        },
+        {
+          "x": 210.94004098305066,
+          "y": 324.80681492973065
+        },
+        {
+          "x": 196.99200328405433,
+          "y": 368.5088274645749
+        }
+      ],
+      "label": "Нижегородская → Маслякова",
+      "lengthMeters": 674.1253994560915,
+      "elevationChangeMeters": 10
+    },
+    {
+      "id": "N2A15",
+      "from": "A15",
+      "to": "A16",
+      "points": [
+        {
+          "x": 196.99200328405433,
+          "y": 368.5088274645749
+        },
+        {
+          "x": 177.2508930609765,
+          "y": 436.6679795804668
+        }
+      ],
+      "label": "Маслякова → Максима Горького",
+      "lengthMeters": 310.53734352162394,
+      "elevationChangeMeters": 9
+    },
+    {
+      "id": "N2A16",
+      "from": "A16",
+      "to": "A17",
+      "points": [
+        {
+          "x": 177.2508930609765,
+          "y": 436.6679795804668
+        },
+        {
+          "x": 152.87529472518042,
+          "y": 507.8714546025641
+        },
+        {
+          "x": 142.42860972412495,
+          "y": 538.3872296120344
+        }
+      ],
+      "label": "Максима Горького → Красносельская",
+      "lengthMeters": 524.1873393970718,
+      "elevationChangeMeters": 12
+    },
+    {
+      "id": "N2A17",
+      "from": "A17",
+      "to": "A01",
+      "points": [
+        {
+          "x": 142.42860972412495,
+          "y": 538.3872296120344
+        },
+        {
+          "x": 199.6207134999661,
+          "y": 529.4826345985828
+        },
+        {
+          "x": 237.30056676963704,
+          "y": 523.6160234515659
+        }
+      ],
+      "label": "Красносельская → Рынок Средной",
+      "lengthMeters": 476.634323107125,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B01",
+      "from": "B01",
+      "to": "B17",
+      "points": [
+        {
+          "x": 241.14461400060554,
+          "y": 547.331421874686
+        },
+        {
+          "x": 192.79134055926255,
+          "y": 551.4148171735611
+        },
+        {
+          "x": 119.39866005259934,
+          "y": 557.6127703879656
+        }
+      ],
+      "label": "Рынок Средной → Красносельская",
+      "lengthMeters": 476.634323107125,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B02",
+      "from": "B02",
+      "to": "B01",
+      "points": [
+        {
+          "x": 375.5010196470186,
+          "y": 519.2214193637606
+        },
+        {
+          "x": 241.14461400060554,
+          "y": 547.331421874686
+        }
+      ],
+      "label": "Студёная → Рынок Средной",
+      "lengthMeters": 589.0842463918791,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B03",
+      "from": "B03",
+      "to": "B02",
+      "points": [
+        {
+          "x": 481.40813120463963,
+          "y": 457.1179933815589
+        },
+        {
+          "x": 375.5010196470186,
+          "y": 519.2214193637606
+        }
+      ],
+      "label": "Ашхабадская → Студёная",
+      "lengthMeters": 527.475527672821,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B04",
+      "from": "B04",
+      "to": "B03",
+      "points": [
+        {
+          "x": 635.4014492429088,
+          "y": 361.8332467206461
+        },
+        {
+          "x": 573.1905823696118,
+          "y": 400.3267785510647
+        },
+        {
+          "x": 481.40813120463963,
+          "y": 457.1179933815589
+        }
+      ],
+      "label": "Оперный театр → Ашхабадская",
+      "lengthMeters": 793.4498200393366,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B05",
+      "from": "B05",
+      "to": "B04",
+      "points": [
+        {
+          "x": 734.774187589179,
+          "y": 312.9437732312388
+        },
+        {
+          "x": 635.4014492429088,
+          "y": 361.8332467206461
+        }
+      ],
+      "label": "Полтавская → Оперный театр",
+      "lengthMeters": 486.26604360250735,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B06",
+      "from": "B06",
+      "to": "B05",
+      "points": [
+        {
+          "x": 784.6224290712705,
+          "y": 287.6670586079075
+        },
+        {
+          "x": 734.774187589179,
+          "y": 312.9437732312388
+        }
+      ],
+      "label": "Белинского → Полтавская",
+      "lengthMeters": 233.27047058601326,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B07",
+      "from": "B07",
+      "to": "B06",
+      "points": [
+        {
+          "x": 883.6159887189998,
+          "y": 164.95444745013467
+        },
+        {
+          "x": 784.6224290712705,
+          "y": 287.6670586079075
+        }
+      ],
+      "label": "Большая Печёрская → Белинского",
+      "lengthMeters": 624.845623079072,
+      "elevationChangeMeters": -17
+    },
+    {
+      "id": "N2B08",
+      "from": "B08",
+      "to": "B07",
+      "points": [
+        {
+          "x": 804.3672425773634,
+          "y": 130.79056136138485
+        },
+        {
+          "x": 883.6159887189998,
+          "y": 164.95444745013467
+        }
+      ],
+      "label": "Университет им. Добролюбова → Большая Печёрская",
+      "lengthMeters": 323.01977956830575,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B09",
+      "from": "B09",
+      "to": "B08",
+      "points": [
+        {
+          "x": 716.2890888691953,
+          "y": 98.57589525869088
+        },
+        {
+          "x": 804.3672425773634,
+          "y": 130.79056136138485
+        }
+      ],
+      "label": "Высшая школа экономики → Университет им. Добролюбова",
+      "lengthMeters": 408.3562399531886,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B10",
+      "from": "B10",
+      "to": "B09",
+      "points": [
+        {
+          "x": 587.4705462850224,
+          "y": 56.86148797645211
+        },
+        {
+          "x": 716.2890888691953,
+          "y": 98.57589525869088
+        }
+      ],
+      "label": "Речное училище → Высшая школа экономики",
+      "lengthMeters": 566.2587882720304,
+      "elevationChangeMeters": 0
+    },
+    {
+      "id": "N2B11",
+      "from": "B11",
+      "to": "B10",
+      "points": [
+        {
+          "x": 478.82984629816366,
+          "y": 124.7819904749776
+        },
+        {
+          "x": 511.4220562942213,
+          "y": 104.40583972541995
+        },
+        {
+          "x": 587.4705462850224,
+          "y": 56.86148797645211
+        }
+      ],
+      "label": "Чёрный Пруд → Речное училище",
+      "lengthMeters": 534.336687088956,
+      "elevationChangeMeters": -14
+    },
+    {
+      "id": "N2B12",
+      "from": "B12",
+      "to": "B11",
+      "points": [
+        {
+          "x": 395.0269444448717,
+          "y": 182.21286745821672
+        },
+        {
+          "x": 478.82984629816366,
+          "y": 124.7819904749776
+        }
+      ],
+      "label": "Большая Покровская → Чёрный Пруд",
+      "lengthMeters": 478.0609484834928,
+      "elevationChangeMeters": -7
+    },
+    {
+      "id": "N2B13",
+      "from": "B13",
+      "to": "B12",
+      "points": [
+        {
+          "x": 280.71163706907674,
+          "y": 109.22111760029317
+        },
+        {
+          "x": 395.0269444448717,
+          "y": 182.21286745821672
+        }
+      ],
+      "label": "Добролюбова → Большая Покровская",
+      "lengthMeters": 579.7193886024103,
+      "elevationChangeMeters": -14
+    },
+    {
+      "id": "N2B14",
+      "from": "B14",
+      "to": "B13",
+      "points": [
+        {
+          "x": 221.3329301299328,
+          "y": 213.3098766706274
+        },
+        {
+          "x": 280.71163706907674,
+          "y": 109.22111760029317
+        }
+      ],
+      "label": "Нижегородская → Добролюбова",
+      "lengthMeters": 470.37203117807474,
+      "elevationChangeMeters": -19
+    },
+    {
+      "id": "N2B15",
+      "from": "B15",
+      "to": "B14",
+      "points": [
+        {
+          "x": 174.0296630832511,
+          "y": 361.5205435776953
+        },
+        {
+          "x": 188.2206431972556,
+          "y": 317.0573435055749
+        },
+        {
+          "x": 221.3329301299328,
+          "y": 213.3098766706274
+        }
+      ],
+      "label": "Маслякова → Нижегородская",
+      "lengthMeters": 674.1253994560915,
+      "elevationChangeMeters": -10
+    },
+    {
+      "id": "N2B16",
+      "from": "B16",
+      "to": "B15",
+      "points": [
+        {
+          "x": 154.2410810823349,
+          "y": 429.84359914634825
+        },
+        {
+          "x": 174.0296630832511,
+          "y": 361.5205435776953
+        }
+      ],
+      "label": "Максима Горького → Маслякова",
+      "lengthMeters": 310.53734352162394,
+      "elevationChangeMeters": -9
+    },
+    {
+      "id": "N2B17",
+      "from": "B17",
+      "to": "B16",
+      "points": [
+        {
+          "x": 119.39866005259934,
+          "y": 557.6127703879656
+        },
+        {
+          "x": 129.85138636152,
+          "y": 519.2820190154804
+        },
+        {
+          "x": 154.2410810823349,
+          "y": 429.84359914634825
+        }
+      ],
+      "label": "Красносельская → Максима Горького",
+      "lengthMeters": 524.1873393970718,
+      "elevationChangeMeters": -12
+    },
+    {
+      "id": "N2X-LYD",
+      "from": "SW-LYD",
+      "to": "EXIT-LYD",
+      "points": [
+        {
+          "x": 199.6207134999661,
+          "y": 529.4826345985828
+        },
+        {
+          "x": 192.87950398167595,
+          "y": 619.1507034505485
+        }
+      ],
+      "label": "Пл. Лядова · к просп. Гагарина",
+      "lengthMeters": 188.04145224089996
+    },
+    {
+      "id": "N2X-KRS",
+      "from": "SW-KRS",
+      "to": "EXIT-KRS",
+      "points": [
+        {
+          "x": 152.87529472518042,
+          "y": 507.8714546025641
+        },
+        {
+          "x": 95.63105841982178,
+          "y": 551.2465265869396
+        }
+      ],
+      "label": "Красносельская × Ильинская",
+      "lengthMeters": 152.05317270706504
+    },
+    {
+      "id": "N2X-OSH",
+      "from": "SW-OSH",
+      "to": "EXIT-OSH",
+      "points": [
+        {
+          "x": 561.2499475119857,
+          "y": 379.4923100017373
+        },
+        {
+          "x": 560.2625205483055,
+          "y": 352.6485472121276
+        }
+      ],
+      "label": "Белинского × Ошарская",
+      "lengthMeters": 148.83603092890934
+    },
+    {
+      "id": "N2X-MAS",
+      "from": "SW-MAS",
+      "to": "EXIT-MAS",
+      "points": [
+        {
+          "x": 210.94004098305066,
+          "y": 324.80681492973065
+        },
+        {
+          "x": 215.3907182320254,
+          "y": 382.6842062243959
+        }
+      ],
+      "label": "Маслякова × Ильинская",
+      "lengthMeters": 139.82053167602942
+    },
+    {
+      "id": "N2X-CHP",
+      "from": "SW-CHP",
+      "to": "EXIT-CHP",
+      "points": [
+        {
+          "x": 521.6003942634791,
+          "y": 126.34679155889982
+        },
+        {
+          "x": 494.9799992220942,
+          "y": 164.29694536305033
+        }
+      ],
+      "label": "Чёрный пруд · Пискунова",
+      "lengthMeters": 102.66185655702972
+    }
+  ],
+  "readers": [
+    {
+      "id": "S02A",
+      "segmentId": "N2A01",
+      "at": 0.7033919898045236,
+      "kind": "station",
+      "label": "Студёная",
+      "stationNumber": 2,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S03A",
+      "segmentId": "N2A02",
+      "at": 0.6716683919803693,
+      "kind": "station",
+      "label": "Ашхабадская",
+      "stationNumber": 3,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S04A",
+      "segmentId": "N2A03",
+      "at": 0.7733489365564823,
+      "kind": "station",
+      "label": "Оперный театр",
+      "stationNumber": 4,
+      "showLabel": true,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S05A",
+      "segmentId": "N2A04",
+      "at": 0.6459620132743832,
+      "kind": "station",
+      "label": "Полтавская",
+      "stationNumber": 5,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S06A",
+      "segmentId": "N2A05",
+      "at": 0.2891009249989763,
+      "kind": "station",
+      "label": "Белинского",
+      "stationNumber": 6,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S07A",
+      "segmentId": "N2A06",
+      "at": 0.7189367515906364,
+      "kind": "station",
+      "label": "Большая Печёрская",
+      "stationNumber": 7,
+      "showLabel": true,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S08A",
+      "segmentId": "N2A07",
+      "at": 0.47967429513502463,
+      "kind": "station",
+      "label": "Университет им. Добролюбова",
+      "stationNumber": 8,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S09A",
+      "segmentId": "N2A08",
+      "at": 0.5831852452693231,
+      "kind": "station",
+      "label": "Высшая школа экономики",
+      "stationNumber": 9,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S10A",
+      "segmentId": "N2A09",
+      "at": 0.6924436789082802,
+      "kind": "station",
+      "label": "Речное училище",
+      "stationNumber": 10,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S11A",
+      "segmentId": "N2A10",
+      "at": 0.6755633267075982,
+      "kind": "station",
+      "label": "Чёрный Пруд",
+      "stationNumber": 11,
+      "showLabel": true,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S12A",
+      "segmentId": "N2A11",
+      "at": 0.6403146413494916,
+      "kind": "station",
+      "label": "Большая Покровская",
+      "stationNumber": 12,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S13A",
+      "segmentId": "N2A12",
+      "at": 0.6990044008434346,
+      "kind": "station",
+      "label": "Добролюбова",
+      "stationNumber": 13,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S14A",
+      "segmentId": "N2A13",
+      "at": 0.6348437207261867,
+      "kind": "station",
+      "label": "Нижегородская",
+      "stationNumber": 14,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S15A",
+      "segmentId": "N2A14",
+      "at": 0.7376554345391915,
+      "kind": "station",
+      "label": "Маслякова",
+      "stationNumber": 15,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S16A",
+      "segmentId": "N2A15",
+      "at": 0.45976406030420436,
+      "kind": "station",
+      "label": "Максима Горького",
+      "stationNumber": 16,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S17A",
+      "segmentId": "N2A16",
+      "at": 0.6697656153160159,
+      "kind": "station",
+      "label": "Красносельская",
+      "stationNumber": 17,
+      "showLabel": true,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S01A",
+      "segmentId": "N2A17",
+      "at": 0.6393128867493676,
+      "kind": "station",
+      "label": "Рынок Средной",
+      "stationNumber": 1,
+      "showLabel": true,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S17B",
+      "segmentId": "N2B01",
+      "at": 0.6393128867493676,
+      "kind": "station",
+      "label": "Красносельская",
+      "stationNumber": 17,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S01B",
+      "segmentId": "N2B02",
+      "at": 0.7033919898045236,
+      "kind": "station",
+      "label": "Рынок Средной",
+      "stationNumber": 1,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S02B",
+      "segmentId": "N2B03",
+      "at": 0.6716683919803693,
+      "kind": "station",
+      "label": "Студёная",
+      "stationNumber": 2,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S03B",
+      "segmentId": "N2B04",
+      "at": 0.7733489365564823,
+      "kind": "station",
+      "label": "Ашхабадская",
+      "stationNumber": 3,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S04B",
+      "segmentId": "N2B05",
+      "at": 0.6459620132743832,
+      "kind": "station",
+      "label": "Оперный театр",
+      "stationNumber": 4,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S05B",
+      "segmentId": "N2B06",
+      "at": 0.2891009249989763,
+      "kind": "station",
+      "label": "Полтавская",
+      "stationNumber": 5,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S06B",
+      "segmentId": "N2B07",
+      "at": 0.7189367515906364,
+      "kind": "station",
+      "label": "Белинского",
+      "stationNumber": 6,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S07B",
+      "segmentId": "N2B08",
+      "at": 0.47967429513502463,
+      "kind": "station",
+      "label": "Большая Печёрская",
+      "stationNumber": 7,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S08B",
+      "segmentId": "N2B09",
+      "at": 0.5831852452693231,
+      "kind": "station",
+      "label": "Университет им. Добролюбова",
+      "stationNumber": 8,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S09B",
+      "segmentId": "N2B10",
+      "at": 0.6924436789082802,
+      "kind": "station",
+      "label": "Высшая школа экономики",
+      "stationNumber": 9,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S10B",
+      "segmentId": "N2B11",
+      "at": 0.6755633267075982,
+      "kind": "station",
+      "label": "Речное училище",
+      "stationNumber": 10,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S11B",
+      "segmentId": "N2B12",
+      "at": 0.6403146413494916,
+      "kind": "station",
+      "label": "Чёрный Пруд",
+      "stationNumber": 11,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S12B",
+      "segmentId": "N2B13",
+      "at": 0.6990044008434346,
+      "kind": "station",
+      "label": "Большая Покровская",
+      "stationNumber": 12,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S13B",
+      "segmentId": "N2B14",
+      "at": 0.6348437207261867,
+      "kind": "station",
+      "label": "Добролюбова",
+      "stationNumber": 13,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S14B",
+      "segmentId": "N2B15",
+      "at": 0.7376554345391915,
+      "kind": "station",
+      "label": "Нижегородская",
+      "stationNumber": 14,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S15B",
+      "segmentId": "N2B16",
+      "at": 0.45976406030420436,
+      "kind": "station",
+      "label": "Маслякова",
+      "stationNumber": 15,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "S16B",
+      "segmentId": "N2B17",
+      "at": 0.6697656153160159,
+      "kind": "station",
+      "label": "Максима Горького",
+      "stationNumber": 16,
+      "showLabel": false,
+      "render": false,
+      "displayAt": 0.975
+    },
+    {
+      "id": "DET-LYD-A",
+      "segmentId": "N2A17",
+      "at": 0.015,
+      "kind": "traffic",
+      "label": "Площадь Лядова approach detector",
+      "signalId": "SG-LYD-A",
+      "render": false
+    },
+    {
+      "id": "DET-LYD-B",
+      "segmentId": "N2B01",
+      "at": 0.563258573527954,
+      "kind": "traffic",
+      "label": "Площадь Лядова approach detector",
+      "signalId": "SG-LYD-B",
+      "render": false
+    },
+    {
+      "id": "DET-OSH-A",
+      "segmentId": "N2A03",
+      "at": 0.49927002905069456,
+      "kind": "traffic",
+      "label": "Белинского × Ошарская approach detector",
+      "signalId": "SG-OSH-A",
+      "render": false
+    },
+    {
+      "id": "DET-OSH-B",
+      "segmentId": "N2B04",
+      "at": 0.3072276421133546,
+      "kind": "traffic",
+      "label": "Белинского × Ошарская approach detector",
+      "signalId": "SG-OSH-B",
+      "render": false
+    },
+    {
+      "id": "DET-SEN-A",
+      "segmentId": "N2A06",
+      "at": 0.8199703523081108,
+      "kind": "traffic",
+      "label": "Сенная площадь approach detector",
+      "signalId": "SG-SEN-A",
+      "render": false
+    },
+    {
+      "id": "DET-SEN-B",
+      "segmentId": "N2B07",
+      "at": 0.015,
+      "kind": "traffic",
+      "label": "Сенная площадь approach detector",
+      "signalId": "SG-SEN-B",
+      "render": false
+    },
+    {
+      "id": "DET-BPE-A",
+      "segmentId": "N2A09",
+      "at": 0.8075517244882563,
+      "kind": "traffic",
+      "label": "Большая Печёрская × Пискунова approach detector",
+      "signalId": "SG-BPE-A",
+      "render": false
+    },
+    {
+      "id": "DET-BPE-B",
+      "segmentId": "N2B10",
+      "at": 0.015,
+      "kind": "traffic",
+      "label": "Большая Печёрская × Пискунова approach detector",
+      "signalId": "SG-BPE-B",
+      "render": false
+    },
+    {
+      "id": "DET-MAS-A",
+      "segmentId": "N2A14",
+      "at": 0.8287447349402459,
+      "kind": "traffic",
+      "label": "Маслякова × Ильинская approach detector",
+      "signalId": "SG-MAS-A",
+      "render": false
+    },
+    {
+      "id": "DET-MAS-B",
+      "segmentId": "N2B15",
+      "at": 0.015,
+      "kind": "traffic",
+      "label": "Маслякова × Ильинская approach detector",
+      "signalId": "SG-MAS-B",
+      "render": false
+    }
+  ],
+  "signals": [
+    {
+      "id": "SG-LYD-A",
+      "controllerId": "J-LYD",
+      "segmentId": "N2A17",
+      "at": 0.06458578660531862,
+      "label": "Площадь Лядова",
+      "render": true,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-LYD-B",
+      "controllerId": "J-LYD",
+      "segmentId": "N2B01",
+      "at": 0.720611907864188,
+      "label": "Площадь Лядова",
+      "render": false,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-OSH-A",
+      "controllerId": "J-OSH",
+      "segmentId": "N2A03",
+      "at": 0.5937939650398435,
+      "label": "Белинского × Ошарская",
+      "render": true,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-OSH-B",
+      "controllerId": "J-OSH",
+      "segmentId": "N2B04",
+      "at": 0.40175157810250356,
+      "label": "Белинского × Ошарская",
+      "render": false,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-SEN-A",
+      "controllerId": "J-SEN",
+      "segmentId": "N2A06",
+      "at": 0.94,
+      "label": "Сенная площадь",
+      "render": true,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-SEN-B",
+      "controllerId": "J-SEN",
+      "segmentId": "N2B07",
+      "at": 0.07626006132646276,
+      "label": "Сенная площадь",
+      "render": false,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-BPE-A",
+      "controllerId": "J-BPE",
+      "segmentId": "N2A09",
+      "at": 0.94,
+      "label": "Большая Печёрская × Пискунова",
+      "render": true,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-BPE-B",
+      "controllerId": "J-BPE",
+      "segmentId": "N2B10",
+      "at": 0.06,
+      "label": "Большая Печёрская × Пискунова",
+      "render": false,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-MAS-A",
+      "controllerId": "J-MAS",
+      "segmentId": "N2A14",
+      "at": 0.94,
+      "label": "Маслякова × Ильинская",
+      "render": true,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    },
+    {
+      "id": "SG-MAS-B",
+      "controllerId": "J-MAS",
+      "segmentId": "N2B15",
+      "at": 0.06,
+      "label": "Маслякова × Ильинская",
+      "render": false,
+      "amberSeconds": 3,
+      "tramGreenSeconds": 8,
+      "clearanceSeconds": 2
+    }
+  ],
+  "switches": [
+    {
+      "id": "SW-LYD",
+      "nodeId": "SW-LYD",
+      "mainSegmentId": "N2A17",
+      "branchSegmentId": "N2X-LYD",
+      "label": "Пл. Лядова · к просп. Гагарина",
+      "segmentId": "N2A17",
+      "at": 0.6028346579633101,
+      "alternateApproaches": [
+        {
+          "segmentId": "N2B01",
+          "at": 0.3971653420366899
+        }
+      ]
+    },
+    {
+      "id": "SW-KRS",
+      "nodeId": "SW-KRS",
+      "mainSegmentId": "N2A16",
+      "branchSegmentId": "N2X-KRS",
+      "label": "Красносельская × Ильинская",
+      "segmentId": "N2A16",
+      "at": 0.6999999999999997,
+      "alternateApproaches": [
+        {
+          "segmentId": "N2B17",
+          "at": 0.30000000000000016
+        }
+      ]
+    },
+    {
+      "id": "SW-OSH",
+      "nodeId": "SW-OSH",
+      "mainSegmentId": "N2A03",
+      "branchSegmentId": "N2X-OSH",
+      "label": "Белинского × Ошарская",
+      "segmentId": "N2A03",
+      "at": 0.596015803375073,
+      "alternateApproaches": [
+        {
+          "segmentId": "N2B04",
+          "at": 0.40398419662492707
+        }
+      ]
+    },
+    {
+      "id": "SW-MAS",
+      "nodeId": "SW-MAS",
+      "mainSegmentId": "N2A14",
+      "branchSegmentId": "N2X-MAS",
+      "label": "Маслякова × Ильинская",
+      "segmentId": "N2A14",
+      "at": 0.7000000000000001,
+      "alternateApproaches": [
+        {
+          "segmentId": "N2B15",
+          "at": 0.30000000000000016
+        }
+      ]
+    },
+    {
+      "id": "SW-CHP",
+      "nodeId": "SW-CHP",
+      "mainSegmentId": "N2A10",
+      "branchSegmentId": "N2X-CHP",
+      "label": "Чёрный пруд · Пискунова",
+      "segmentId": "N2A10",
+      "at": 0.7000000000000002,
+      "alternateApproaches": [
+        {
+          "segmentId": "N2B11",
+          "at": 0.30000000000000027
+        }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "id": "2A",
+      "name": "counter-clockwise",
+      "shortName": "2 ↺",
+      "color": "#ffc13b",
+      "segmentIds": [
+        "N2A01",
+        "N2A02",
+        "N2A03",
+        "N2A04",
+        "N2A05",
+        "N2A06",
+        "N2A07",
+        "N2A08",
+        "N2A09",
+        "N2A10",
+        "N2A11",
+        "N2A12",
+        "N2A13",
+        "N2A14",
+        "N2A15",
+        "N2A16",
+        "N2A17"
+      ],
+      "labelSegmentId": "N2A03",
+      "labelAt": 0.56,
+      "labelOffset": -34
+    },
+    {
+      "id": "2B",
+      "name": "clockwise",
+      "shortName": "2 ↻",
+      "color": "#59d8e8",
+      "segmentIds": [
+        "N2B01",
+        "N2B02",
+        "N2B03",
+        "N2B04",
+        "N2B05",
+        "N2B06",
+        "N2B07",
+        "N2B08",
+        "N2B09",
+        "N2B10",
+        "N2B11",
+        "N2B12",
+        "N2B13",
+        "N2B14",
+        "N2B15",
+        "N2B16",
+        "N2B17"
+      ],
+      "labelSegmentId": "N2A12",
+      "labelAt": 0.44,
+      "labelOffset": 36
+    }
+  ],
+  "starts": [
+    {
+      "segmentId": "N2A01",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2B03",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2A04",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2B07",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2A08",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2B10",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2A11",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2B13",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2A15",
+      "progress": 0.08
+    },
+    {
+      "segmentId": "N2B16",
+      "progress": 0.08
+    }
+  ],
+  "defaultObstacles": [],
+  "defaultTramCount": 10,
+  "fleetOptions": [
+    1,
+    2,
+    4,
+    6,
+    10
+  ],
+  "dispatchIntervalSeconds": 180,
+  "predeployedFleet": true,
+  "metersPerReferenceUnit": 4.553687132074459,
+  "mapContext": {
+    "title": "Нижний Новгород · городской центр",
+    "subtitle": "Географическая проекция реального кольца",
+    "sourceLabel": "Stops: public route map · 5 turnout complexes: OSM + 2021 study",
+    "lines": [
+      {
+        "id": "BELINSKOGO",
+        "label": "ул. Белинского",
+        "kind": "primary",
+        "points": [
+          {
+            "x": 239.2225903851213,
+            "y": 535.473722663126
+          },
+          {
+            "x": 371.12329841637984,
+            "y": 507.87750039063394
+          },
+          {
+            "x": 475.21515311033,
+            "y": 446.838532390655
+          },
+          {
+            "x": 629.5820529634366,
+            "y": 351.3226286312565
+          },
+          {
+            "x": 729.4117844259599,
+            "y": 302.2083233296871
+          },
+          {
+            "x": 777.0154988275608,
+            "y": 278.06974856427405
+          },
+          {
+            "x": 869.0863651116379,
+            "y": 168.6813815558562
+          }
+        ],
+        "labelAt": 0.57
+      },
+      {
+        "id": "PECHERSKAYA",
+        "label": "Большая Печёрская / Пискунова",
+        "kind": "primary",
+        "points": [
+          {
+            "x": 869.0863651116379,
+            "y": 168.6813815558562
+          },
+          {
+            "x": 800.1420196007239,
+            "y": 142.0226395818172
+          },
+          {
+            "x": 712.3782989764586,
+            "y": 109.92297767009586
+          },
+          {
+            "x": 589.0918822650565,
+            "y": 70.00000000011642
+          },
+          {
+            "x": 485.4052294276189,
+            "y": 134.82330806017853
+          },
+          {
+            "x": 395.1652752357768,
+            "y": 196.66555449261796
+          }
+        ],
+        "labelAt": 0.48
+      },
+      {
+        "id": "CENTRE",
+        "label": "Ильинская / Маслякова",
+        "kind": "secondary",
+        "points": [
+          {
+            "x": 395.1652752357768,
+            "y": 196.66555449261796
+          },
+          {
+            "x": 284.32005626684986,
+            "y": 123.78062689467333
+          },
+          {
+            "x": 232.40919620532077,
+            "y": 218.07266450952739
+          },
+          {
+            "x": 185.51083318365272,
+            "y": 365.0146855211351
+          },
+          {
+            "x": 165.7459870716557,
+            "y": 433.25578936340753
+          },
+          {
+            "x": 130.91363488836214,
+            "y": 548
+          },
+          {
+            "x": 239.2225903851213,
+            "y": 535.473722663126
+          }
+        ],
+        "labelAt": 0.56
+      }
+    ],
+    "landmarks": [],
+    "scaleBarMeters": 1000
+  },
+  "tractionPowerSystem": {
+    "nominalVoltageV": 600,
+    "label": "Nizhny Novgorod 600 V DC traction sections",
+    "sourceLabel": "Nizhny Novgorod City Duma decision №96 (25 May 2022) · public property addresses",
+    "modelNote": "Substation buildings are verified by address. Exact feeder breakers and section-post boundaries are not public, so boundaries are reconstructed at midpoints between the nearest verified supplies.",
+    "substations": [
+      {
+        "id": "NN-TP-BELINSKOGO",
+        "label": "Тяговая подстанция · Белинского, 105А",
+        "sectionLabel": "Белинского — южная дуга",
+        "point": {
+          "x": 729.4117844259599,
+          "y": 302.2083233296871
+        },
+        "nominalVoltageV": 600,
+        "maxPowerKw": 1800,
+        "confidence": "verified-address",
+        "evidence": "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; marker snapped to nearest Route 2 rail"
+      },
+      {
+        "id": "NN-TP-BPECHERSKAYA",
+        "label": "Тяговая подстанция №30 · Большая Печёрская, 11Б",
+        "sectionLabel": "Сенная — Большая Печёрская",
+        "point": {
+          "x": 800.1420196007239,
+          "y": 142.0226395818172
+        },
+        "nominalVoltageV": 600,
+        "maxPowerKw": 1800,
+        "confidence": "verified-address",
+        "evidence": "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; public map listing identifies TP-30"
+      },
+      {
+        "id": "NN-TP-LUDILNY",
+        "label": "Тяговая подстанция №15 · Лудильный пер., 2З",
+        "sectionLabel": "Чёрный Пруд — Нижегородская",
+        "point": {
+          "x": 395.1652752357768,
+          "y": 196.66555449261796
+        },
+        "nominalVoltageV": 600,
+        "maxPowerKw": 1800,
+        "confidence": "verified-address",
+        "evidence": "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; marker snapped to nearest Route 2 rail"
+      }
+    ],
+    "sections": [
+      {
+        "id": "SECTION-NN-TP-BELINSKOGO",
+        "label": "Белинского — южная дуга",
+        "substationId": "NN-TP-BELINSKOGO",
+        "segmentIds": [
+          "N2A03",
+          "N2A04",
+          "N2A05",
+          "N2B04",
+          "N2B05",
+          "N2B06",
+          "N2X-OSH"
+        ],
+        "color": "#f59e0b",
+        "flywheel": {
+          "model": "VYCON REGEN",
+          "modules": 13,
+          "modulePowerKw": 125,
+          "moduleEnergyKWh": 0.520833,
+          "chargeEfficiency": 0.95,
+          "dischargeEfficiency": 0.95,
+          "initialSoc": 0.35,
+          "converterNote": "Bidirectional 600↔750 V DC converter; 90.25% modeled round-trip efficiency"
+        }
+      },
+      {
+        "id": "SECTION-NN-TP-BPECHERSKAYA",
+        "label": "Сенная — Большая Печёрская",
+        "substationId": "NN-TP-BPECHERSKAYA",
+        "segmentIds": [
+          "N2A06",
+          "N2A07",
+          "N2A08",
+          "N2A09",
+          "N2B07",
+          "N2B08",
+          "N2B09",
+          "N2B10"
+        ],
+        "color": "#22c55e",
+        "flywheel": {
+          "model": "VYCON REGEN",
+          "modules": 13,
+          "modulePowerKw": 125,
+          "moduleEnergyKWh": 0.520833,
+          "chargeEfficiency": 0.95,
+          "dischargeEfficiency": 0.95,
+          "initialSoc": 0.35,
+          "converterNote": "Bidirectional 600↔750 V DC converter; 90.25% modeled round-trip efficiency"
+        }
+      },
+      {
+        "id": "SECTION-NN-TP-LUDILNY",
+        "label": "Чёрный Пруд — Нижегородская",
+        "substationId": "NN-TP-LUDILNY",
+        "segmentIds": [
+          "N2A01",
+          "N2A02",
+          "N2A10",
+          "N2A11",
+          "N2A12",
+          "N2A13",
+          "N2A14",
+          "N2A15",
+          "N2A16",
+          "N2A17",
+          "N2B01",
+          "N2B02",
+          "N2B03",
+          "N2B11",
+          "N2B12",
+          "N2B13",
+          "N2B14",
+          "N2B15",
+          "N2B16",
+          "N2B17",
+          "N2X-LYD",
+          "N2X-KRS",
+          "N2X-MAS",
+          "N2X-CHP"
+        ],
+        "color": "#38bdf8",
+        "flywheel": {
+          "model": "VYCON REGEN",
+          "modules": 12,
+          "modulePowerKw": 125,
+          "moduleEnergyKWh": 0.520833,
+          "chargeEfficiency": 0.95,
+          "dischargeEfficiency": 0.95,
+          "initialSoc": 0.35,
+          "converterNote": "Bidirectional 600↔750 V DC converter; 90.25% modeled round-trip efficiency"
+        }
+      }
+    ]
+  },
+  "studyBaseline": {
+    "label": "2021 analysis baseline",
+    "lengthKm": 8.6,
+    "directionalStops": 36,
+    "mappedStopLocations": 17,
+    "fleet": 10,
+    "headwayMinutes": 3,
+    "serviceHours": 16,
+    "dailyTrips": 320
+  }
+}

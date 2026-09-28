@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this simulator in academic work, please cite the software."
+title: "Autonomous Tram Digital Twin"
+type: software
+authors:
+  - family-names: "Gordeev"
+    given-names: "Aleksandr"
+version: 1.0.0
+date-released: 2026-09-25
+abstract: >-
+  A deterministic C++ and WebAssembly research prototype for multi-tram
+  operations, passenger service, headway control, regenerative braking and
+  wayside flywheel energy storage.
+keywords:
+  - autonomous tram
+  - digital twin
+  - public transport
+  - regenerative braking
+  - flywheel energy storage
+license: proprietary

@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a reproducible simulator, model or interface defect
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Nizhny Routes 2 and 21
+        - İzmir Konak Tram
+        - Vehicle physics
+        - Passengers and dispatch
+        - Energy and flywheel storage
+        - C++ or WebAssembly
+        - Interface or build
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include scenario, tram count, service time and control strategy.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Commit or release

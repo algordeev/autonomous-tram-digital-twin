@@ -1,0 +1,50 @@
+{
+  "name": "autonomous-tram-digital-twin",
+  "version": "1.0.0",
+  "description": "Deterministic autonomous tram operations and traction-energy digital twin",
+  "private": true,
+  "license": "UNLICENSED",
+  "keywords": [
+    "tram",
+    "digital-twin",
+    "webassembly",
+    "transport-simulation",
+    "regenerative-braking",
+    "flywheel-energy-storage"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/generate-service-worker.mjs",
+    "check": "npm run build",
+    "preview": "vite preview",
+    "test": "npm run test:core && npm run test:wasm && npm run test:config && npm run test:ui",
+    "test:core": "node --test tests/vehicle-dynamics.test.mjs tests/passenger-model.test.mjs tests/headless.test.mjs",
+    "test:simulation": "node --test tests/simulation.test.mjs",
+    "test:wasm": "node --test tests/wasm-core.test.mjs",
+    "test:config": "node --test tests/network-config.test.mjs",
+    "test:izmir": "node --test tests/izmir-scenario.test.mjs",
+    "test:ui": "node --test tests/rendered-html.test.mjs",
+    "test:cpp": "make -C cpp-core test",
+    "verify:repo": "node scripts/verify-repository.mjs",
+    "test:all": "npm run verify:repo && npm run check && npm test && npm run test:cpp && npm run test:simulation && npm run test:izmir",
+    "simulate:headless": "node scripts/run-headless.mjs"
+  },
+  "dependencies": {
+    "d3-geo": "^3.1.1",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.0",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "typescript": "5.9.3",
+    "vite": "8.0.13"
+  }
+}

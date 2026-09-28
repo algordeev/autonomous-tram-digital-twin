@@ -1,0 +1,26 @@
+name: Feature or experiment proposal
+description: Propose a feature, model extension or research experiment
+title: "[Proposal] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or research question
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed implementation or experiment
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Data, units and sources
+      description: Distinguish measured, public-source, reconstructed and assumed values.
+  - type: textarea
+    id: validation
+    attributes:
+      label: How should it be validated?

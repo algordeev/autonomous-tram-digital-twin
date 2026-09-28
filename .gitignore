@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.env*
+*.log
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+cpp-core/build/
+cpp-core/build-cmake/
+outputs/
+cmake-build-*/
+*.swp
+*.swo
