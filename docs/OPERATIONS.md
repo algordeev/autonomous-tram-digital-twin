@@ -29,7 +29,7 @@ Headway CV = standard deviation of observed headways / mean headway
 Lower values indicate more regular service. Zero represents perfectly equal
 intervals.
 
-## Nizhny terminal policy
+## Nizhny Novgorod terminal policy
 
 - Park Dubki is the full dispatching terminal for Route 21. It supports planned
   departure holding, interval recovery and longer layover.
@@ -39,7 +39,7 @@ intervals.
 - Route 2 remains a ring and is regulated through its service plan and spacing
   rather than a long terminal layover at Chyorny Prud.
 
-## İzmir terminal policy
+## Izmir terminal policy
 
 Fahrettin Altay and Halkapınar are represented with two terminal berths. The
 first two arrivals may occupy separate platforms. A third arrival receives no
