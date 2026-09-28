@@ -17,7 +17,6 @@ limits of the current research model.
 | [Hardware integration](HARDWARE_INTEGRATION.md) | Arduino and hardware-in-the-loop migration boundary |
 | [Roadmap](ROADMAP.md) | Calibration, MATLAB/Simulink and publication milestones |
 | [Research materials](RESEARCH.md) | Project-status and paper-idea reports |
-| [GitHub publishing](GITHUB_PUBLISHING.md) | First commit, remote, Pages and release checklist |
 
 ## Russian engineering notes
 
