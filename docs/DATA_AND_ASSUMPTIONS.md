@@ -19,9 +19,9 @@ boundaries as an operator's real electrical diagram.
 
 | Scenario | Segments | Routes | Main evidence |
 | --- | ---: | ---: | --- |
-| Nizhny Route 2 | 39 | 2 directions | Route geometry, original 2021 project measurements and mapped infrastructure |
-| Nizhny Routes 2 and 21 | 66 | 2 services | OSM route relations, mapped turnout geometry and operating topology |
-| İzmir Konak Tram | 36 | 1 service, two directions | Public line length/stops, mapped alignment and municipal operating information |
+| N.Novgorod Route 2 | 39 | 2 directions | Route geometry, original 2021 project measurements and mapped infrastructure |
+| N.Novgorod Routes 2 and 21 | 66 | 2 services | OSM route relations, mapped turnout geometry and operating topology |
+| Izmir Konak Tram | 36 | 1 service, two directions | Public line length/stops, mapped alignment and municipal operating information |
 
 The JSON configurations under `src/config/networks/` are generated snapshots
 used by the application. Their TypeScript scenario sources retain richer code
@@ -38,7 +38,7 @@ reconstructed midpoints.
 The Route 2-only scenario aggregates the same storage capacity into three
 electrical banks. The complete Routes 2 and 21 scenario uses five sections.
 
-## İzmir traction supply
+## Izmir traction supply
 
 Public municipal information reports eight transformer buildings for Konak T2:
 six along the route and two in Halkapınar depot. Basmane Meydanı is treated as a
@@ -62,9 +62,9 @@ comparative.
 
 ## Known uncertainty
 
-- Nizhny feeder boundaries are estimates.
-- Five İzmir line-substation positions are estimates.
-- İzmir gradient is currently zero.
+- Nizhny Novgorod feeder boundaries are estimates.
+- Five Izmir line-substation positions are estimates.
+- Izmir gradient is currently zero.
 - Resistance coefficients, auxiliaries, traction power and efficiencies require
   measurement-based identification.
 - Passenger arrivals are synthetic demand, not an operator ridership dataset.
