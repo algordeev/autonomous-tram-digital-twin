@@ -83,11 +83,3 @@ problem.
   intervals.
 - Separate calibration data from validation data.
 
-## Recommended publication experiments
-
-1. Passenger waiting versus energy consumption under alternative headway
-   strategies.
-2. Predictive section coordination of acceleration, regeneration and flywheel
-   SOC.
-3. Hardware-in-the-loop agreement between the C++ controller, Arduino prototype
-   and a MATLAB/Simulink reference model.
