@@ -16,7 +16,6 @@ limits of the current research model.
 | [Experiments](EXPERIMENTS.md) | Reproducible headless runs, metrics and benchmark interpretation |
 | [Hardware integration](HARDWARE_INTEGRATION.md) | Arduino and hardware-in-the-loop migration boundary |
 | [Roadmap](ROADMAP.md) | Calibration, MATLAB/Simulink and publication milestones |
-| [Research materials](RESEARCH.md) | Project-status and paper-idea reports |
 
 ## Russian engineering notes
 
