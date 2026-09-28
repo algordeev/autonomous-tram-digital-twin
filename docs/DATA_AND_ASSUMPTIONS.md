@@ -27,7 +27,7 @@ The JSON configurations under `src/config/networks/` are generated snapshots
 used by the application. Their TypeScript scenario sources retain richer code
 comments about reconstruction choices.
 
-## Nizhny traction supply
+## Nizhny Novgorod traction supply
 
 Five relevant public traction-substation properties are associated with the
 combined model. Their addresses are treated as verified public data. Public
