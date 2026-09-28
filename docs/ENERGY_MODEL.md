@@ -77,7 +77,7 @@ SOC is derived from rotor kinetic energy and therefore rotor speed squared:
 SOC = (rpm² - rpm_min²) / (rpm_max² - rpm_min²)
 ```
 
-Nizhny uses 38 modules across the complete network. Because the simulated
+Nizhny Novgorod map uses 38 modules across the complete network. Because the simulated
 contact network is 600 V and the reference bank is 750 V, charge and discharge
 each include a 95% interface efficiency. İzmir uses 18 modules across six 750 V
 sections. The same 95% interface efficiencies are retained as a transparent
