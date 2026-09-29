@@ -43,6 +43,18 @@ interface MapFocusPreset {
   zoom: number;
 }
 
+interface TimeDistanceSample {
+  timeSeconds: number;
+  clock: string;
+  tramId: string;
+  tramLabel: string;
+  routeId: string;
+  distanceMeters: number;
+  color: string;
+  stopped: boolean;
+  delayed: boolean;
+}
+
 const MAP_FOCUS_PRESETS: Record<string, MapFocusPreset[]> = {
   "nizhny-routes-2-21": [
     { id: "krasnoselskaya", label: "Красносельская · треугольник стрелок", segmentId: "KRS-N-E", at: 0.45, zoom: 15 },
@@ -124,6 +136,51 @@ function segmentLength(segment: TrackSegment) {
     );
   }
   return length;
+}
+
+function segmentLengthMeters(segment: TrackSegment, scenario: ScenarioDefinition) {
+  return segmentLength(segment) * (scenario.metersPerReferenceUnit ?? 1);
+}
+
+function routePositionMeters(
+  scenario: ScenarioDefinition,
+  route: ScenarioDefinition["routes"][number],
+  segmentId: string,
+  progress: number,
+) {
+  let cumulative = 0;
+  for (const routeSegmentId of route.segmentIds) {
+    const segment = scenario.segments.find((item) => item.id === routeSegmentId);
+    if (!segment) continue;
+    const length = segmentLengthMeters(segment, scenario);
+    if (routeSegmentId === segmentId) {
+      return cumulative + length * Math.max(0, Math.min(1, progress));
+    }
+    cumulative += length;
+  }
+  return null;
+}
+
+function routeLengthMeters(
+  scenario: ScenarioDefinition,
+  route: ScenarioDefinition["routes"][number],
+) {
+  return route.segmentIds.reduce((sum, segmentId) => {
+    const segment = scenario.segments.find((item) => item.id === segmentId);
+    return sum + (segment ? segmentLengthMeters(segment, scenario) : 0);
+  }, 0);
+}
+
+function shiftClock(clock: string, deltaSeconds: number) {
+  const [hours = 0, minutes = 0, seconds = 0] = clock.split(":").map(Number);
+  const day = 24 * 60 * 60;
+  const shifted = ((hours * 3600 + minutes * 60 + seconds + deltaSeconds) % day + day) % day;
+  const outputHours = Math.floor(shifted / 3600);
+  const outputMinutes = Math.floor((shifted % 3600) / 60);
+  const outputSeconds = Math.floor(shifted % 60);
+  return [outputHours, outputMinutes, outputSeconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
 }
 
 function roundedRect(
@@ -1558,6 +1615,108 @@ function formatPower(kW: number) {
   return kW >= 1_000 ? `${(kW / 1_000).toFixed(2)} MW` : `${kW.toFixed(0)} kW`;
 }
 
+function TimeDistanceWindow({
+  scenario,
+  snapshot,
+  samples,
+  onClose,
+}: {
+  scenario: ScenarioDefinition;
+  snapshot: SimulationSnapshot;
+  samples: TimeDistanceSample[];
+  onClose: () => void;
+}) {
+  const [selectedRouteId, setSelectedRouteId] = useState(scenario.routes[0]?.id ?? "");
+  const [windowMinutes, setWindowMinutes] = useState(20);
+  const route = scenario.routes.find((item) => item.id === selectedRouteId) ?? scenario.routes[0];
+  const routeLength = route ? Math.max(1, routeLengthMeters(scenario, route)) : 1;
+  const startTime = Math.max(0, snapshot.time - windowMinutes * 60);
+  const visibleSamples = samples.filter(
+    (sample) => sample.routeId === route?.id && sample.timeSeconds >= startTime,
+  );
+  const width = 1040;
+  const height = 620;
+  const margin = { top: 38, right: 34, bottom: 58, left: 148 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const xFor = (time: number) => margin.left + ((time - startTime) / Math.max(1, snapshot.time - startTime)) * plotWidth;
+  const yFor = (distance: number) => margin.top + (Math.max(0, Math.min(routeLength, distance)) / routeLength) * plotHeight;
+
+  const stations = route
+    ? scenario.readers
+        .filter((reader) => reader.kind === "station")
+        .map((reader) => {
+          const result = routePositionMeters(scenario, route, reader.segmentId, reader.at);
+          return result === null ? null : { id: reader.id, label: reader.label, position: result };
+        })
+        .filter((station): station is { id: string; label: string; position: number } => station !== null)
+        .filter((station, index, list) => list.findIndex((candidate) => Math.abs(candidate.position - station.position) < 8) === index)
+        .sort((first, second) => first.position - second.position)
+    : [];
+
+  const paths = useMemo(() => {
+    const byTram = new Map<string, TimeDistanceSample[]>();
+    visibleSamples.forEach((sample) => byTram.set(sample.tramId, [...(byTram.get(sample.tramId) ?? []), sample]));
+    return [...byTram.entries()].flatMap(([tramId, history]) => {
+      history.sort((first, second) => first.timeSeconds - second.timeSeconds);
+      const sections: TimeDistanceSample[][] = [[]];
+      history.forEach((sample) => {
+        const current = sections[sections.length - 1];
+        const previous = current[current.length - 1];
+        if (previous && (Math.abs(sample.distanceMeters - previous.distanceMeters) > routeLength * 0.45 || sample.timeSeconds - previous.timeSeconds > 15)) sections.push([]);
+        sections[sections.length - 1].push(sample);
+      });
+      return sections.filter((section) => section.length > 1).map((section, index) => ({
+        id: `${tramId}-${index}`,
+        color: section[0].color,
+        delayed: section.some((sample) => sample.delayed),
+        points: section.map((sample) => `${xFor(sample.timeSeconds).toFixed(1)},${yFor(sample.distanceMeters).toFixed(1)}`).join(" "),
+        stops: section.filter((sample, sampleIndex) => sample.stopped && !section[sampleIndex - 1]?.stopped),
+      }));
+    });
+  }, [visibleSamples, routeLength, startTime, snapshot.time]);
+
+  const timeTicks = Array.from({ length: 5 }, (_, index) => {
+    const time = startTime + (snapshot.time - startTime) * (index / 4);
+    return { x: xFor(time), label: shiftClock(snapshot.clock, time - snapshot.time) };
+  });
+
+  return (
+    <div className="analysis-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="time-distance-modal" role="dialog" aria-modal="true" aria-labelledby="time-distance-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="analysis-modal-header">
+          <div>
+            <span>OPERATIONS ANALYSIS · LIVE HISTORY</span>
+            <h2 id="time-distance-title">Time–distance diagram · Bildfahrplan</h2>
+            <p>Time runs left to right; route distance runs top to bottom. Flat sections indicate stops.</p>
+          </div>
+          <div className="analysis-modal-actions">
+            <label><span>Route</span><select value={route?.id ?? ""} onChange={(event) => setSelectedRouteId(event.target.value)}>{scenario.routes.map((item) => <option value={item.id} key={item.id}>{item.shortName} · {item.name}</option>)}</select></label>
+            <label><span>Window</span><select value={windowMinutes} onChange={(event) => setWindowMinutes(Number(event.target.value))}><option value={10}>10 min</option><option value={20}>20 min</option><option value={30}>30 min</option><option value={60}>60 min</option></select></label>
+            <button type="button" onClick={onClose} aria-label="Close time-distance diagram">×</button>
+          </div>
+        </header>
+        <div className="time-distance-summary">
+          <span><b>{paths.length}</b> trajectory sections</span><span><b>{visibleSamples.length}</b> recorded points</span><span><b>{(routeLength / 1_000).toFixed(1)} km</b> route cycle</span><span className={snapshot.running ? "live" : "paused"}>{snapshot.running ? "● Recording" : "Ⅱ Paused"}</span>
+        </div>
+        <div className="time-distance-chart-wrap">
+          {visibleSamples.length < 2 ? <div className="time-distance-empty"><strong>Collecting movement history…</strong><span>Run the simulation for a few seconds to draw tram trajectories.</span></div> : (
+            <svg className="time-distance-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Time-distance diagram for ${route?.name ?? "selected route"}`}>
+              <rect x={margin.left} y={margin.top} width={plotWidth} height={plotHeight} className="diagram-plot" />
+              {timeTicks.map((tick) => <g key={tick.label}><line x1={tick.x} x2={tick.x} y1={margin.top} y2={margin.top + plotHeight} className="diagram-grid" /><text x={tick.x} y={height - 28} textAnchor="middle" className="diagram-axis-label">{tick.label}</text></g>)}
+              {stations.map((station, index) => <g key={station.id}><line x1={margin.left} x2={margin.left + plotWidth} y1={yFor(station.position)} y2={yFor(station.position)} className="diagram-station-line" /><text x={margin.left - 10} y={yFor(station.position) + 3} textAnchor="end" className="diagram-station-label">{stations.length > 16 && index % 2 ? "" : station.label}</text></g>)}
+              {paths.map((path) => <g key={path.id}><polyline points={path.points} fill="none" stroke={path.color} strokeWidth={path.delayed ? 3 : 2.1} className={path.delayed ? "tram-path delayed" : "tram-path"} />{path.stops.map((sample) => <circle key={`${sample.timeSeconds}-${sample.distanceMeters}`} cx={xFor(sample.timeSeconds)} cy={yFor(sample.distanceMeters)} r="2.8" fill={path.color} />)}</g>)}
+              <text x={margin.left + plotWidth / 2} y={height - 7} textAnchor="middle" className="diagram-axis-title">simulation clock →</text>
+              <text transform={`translate(18 ${margin.top + plotHeight / 2}) rotate(-90)`} textAnchor="middle" className="diagram-axis-title">route distance →</text>
+            </svg>
+          )}
+        </div>
+        <footer className="time-distance-legend"><span><i className="legend-line" /> Tram trajectory</span><span><i className="legend-stop" /> Stop / dwell</span><span><i className="legend-delay" /> Delayed trajectory</span><small>Line convergence reveals bunching; widening gaps reveal disruption and recovery.</small></footer>
+      </section>
+    </div>
+  );
+}
+
 function EnergyStatisticsWindow({
   snapshot,
   onClose,
@@ -1832,6 +1991,9 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [obstacleMode, setObstacleMode] = useState(false);
   const [energyWindowOpen, setEnergyWindowOpen] = useState(false);
+  const [timeDistanceWindowOpen, setTimeDistanceWindowOpen] = useState(false);
+  const timeDistanceHistoryRef = useRef<TimeDistanceSample[]>([]);
+  const lastTimeDistanceSampleRef = useRef({ scenarioId: "", time: -Infinity });
   const [experimentName, setExperimentName] = useState("Morning peak 2 + 21");
   const [savedExperiments, setSavedExperiments] = useState<ExperimentDefinition[]>(storedExperiments);
   const [selectedExperimentSavedAt, setSelectedExperimentSavedAt] = useState(
@@ -1965,6 +2127,7 @@ export default function Home() {
       if (event.key === "Escape") {
         setObstacleMode(false);
         setEnergyWindowOpen(false);
+        setTimeDistanceWindowOpen(false);
       }
     };
     window.addEventListener("keydown", handleKey);
@@ -2141,6 +2304,40 @@ export default function Home() {
     () => SCENARIOS.find((item) => item.id === snapshot.scenarioId) ?? SCENARIOS[0],
     [snapshot.scenarioId],
   );
+  useEffect(() => {
+    const previous = lastTimeDistanceSampleRef.current;
+    if (previous.scenarioId !== snapshot.scenarioId || snapshot.time < previous.time) {
+      timeDistanceHistoryRef.current = [];
+      lastTimeDistanceSampleRef.current = { scenarioId: snapshot.scenarioId, time: -Infinity };
+    }
+    if (snapshot.time - lastTimeDistanceSampleRef.current.time < 1) return;
+
+    const nextSamples: TimeDistanceSample[] = [];
+    snapshot.trams.forEach((tram) => {
+      if (tram.serviceState !== "in-service") return;
+      const group = activeScenario.fleetGroups?.find((item) => item.id === tram.fleetGroupId);
+      const route = activeScenario.routes.find((item) => item.id === group?.routeId) ??
+        activeScenario.routes[tram.routeIntent === "branch" ? 1 : 0] ?? activeScenario.routes[0];
+      if (!route) return;
+      const routePosition = routePositionMeters(activeScenario, route, tram.segmentId, tram.progress);
+      if (routePosition === null) return;
+      nextSamples.push({
+        timeSeconds: snapshot.time,
+        clock: snapshot.clock,
+        tramId: tram.id,
+        tramLabel: tram.label,
+        routeId: route.id,
+        distanceMeters: routePosition,
+        color: tram.color,
+        stopped: tram.speedKmh < 0.5,
+        delayed: tram.delaySeconds > 30 || tram.statusTone === "warning" || tram.statusTone === "danger",
+      });
+    });
+    timeDistanceHistoryRef.current = [...timeDistanceHistoryRef.current, ...nextSamples]
+      .filter((sample) => sample.timeSeconds >= snapshot.time - 3_600)
+      .slice(-60_000);
+    lastTimeDistanceSampleRef.current = { scenarioId: snapshot.scenarioId, time: snapshot.time };
+  }, [activeScenario, snapshot]);
   const mapFocusPresets = useMemo(
     () => MAP_FOCUS_PRESETS[activeScenario.id] ?? [],
     [activeScenario.id],
@@ -2255,6 +2452,22 @@ export default function Home() {
           <span className="system-clock">◷ {snapshot.clock}</span>
         </div>
         <div className="transport-controls">
+          <button
+            className="control-button analysis-button"
+            type="button"
+            onClick={() => setTimeDistanceWindowOpen(true)}
+            aria-label="Open time-distance diagram"
+          >
+            <span aria-hidden="true">⌁</span> Bildfahrplan
+          </button>
+          <button
+            className="control-button analysis-button energy-analysis-button"
+            type="button"
+            onClick={() => setEnergyWindowOpen(true)}
+            aria-label="Open energy statistics"
+          >
+            <span aria-hidden="true">ϟ</span> Energy
+          </button>
           <button
             className={`control-button run-button ${snapshot.running ? "active" : ""}`}
             type="button"
@@ -3538,12 +3751,7 @@ export default function Home() {
       </section>
 
       <footer className="diagnostic-bar">
-        <button type="button" className="energy-stat-button" onClick={() => setEnergyWindowOpen(true)}>
-          <b>{flywheelModules > 0 ? `Flywheels ${flywheelModules}` : "Energy"}</b>{" "}
-          {flywheelModules > 0 ? `${flywheelSoc.toFixed(0)}% SOC · ` : ""}
-          {snapshot.metrics.energyWh.toFixed(1)} Wh used · {snapshot.metrics.recoveredWh.toFixed(1)} Wh recovered
-          <i>Open statistics</i>
-        </button>
+        <span><b>Energy</b> {snapshot.metrics.energyWh.toFixed(1)} Wh used · {snapshot.metrics.recoveredWh.toFixed(1)} Wh recovered</span>
         <span>
           <b>Timed departures</b>{" "}
           {snapshot.metrics.departureAdherencePercent === null
@@ -3559,6 +3767,14 @@ export default function Home() {
       </footer>
       {energyWindowOpen && (
         <EnergyStatisticsWindow snapshot={snapshot} onClose={() => setEnergyWindowOpen(false)} />
+      )}
+      {timeDistanceWindowOpen && (
+        <TimeDistanceWindow
+          scenario={activeScenario}
+          snapshot={snapshot}
+          samples={timeDistanceHistoryRef.current}
+          onClose={() => setTimeDistanceWindowOpen(false)}
+        />
       )}
     </main>
   );

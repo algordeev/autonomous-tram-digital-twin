@@ -41,6 +41,15 @@ test("the live controls expose the VYCON flywheel bank", async () => {
   assert.equal(network.tractionPowerSystem.sections.reduce((sum, section) => sum + section.flywheel.modules, 0), 38);
 });
 
+test("the top-level analysis controls expose energy and the live Bildfahrplan", async () => {
+  const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.match(source, /Open time-distance diagram/);
+  assert.match(source, /Time–distance diagram · Bildfahrplan/);
+  assert.match(source, /Line convergence reveals bunching/);
+  assert.match(source, /className="control-button analysis-button energy-analysis-button"/);
+  assert.match(source, /timeDistanceHistoryRef/);
+});
+
 test("road vehicles keep their lane offset aligned at every map zoom", async () => {
   const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
   assert.match(source, /const lane = \(vehicle\.direction \* 5\) \/ zoom/);

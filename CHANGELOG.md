@@ -7,6 +7,9 @@ Keep a Changelog; release labels use semantic version numbers.
 
 ### Added
 
+- Live time–distance diagram (Bildfahrplan) for bunching, dwell, delay and
+  service-recovery analysis.
+- Top-level analysis controls for the Bildfahrplan and energy statistics.
 - GitHub-ready documentation and contribution metadata.
 - Reproducible dependency lockfile and complete CI verification path.
 - English documentation for architecture, operations, models, data provenance,
