@@ -144,7 +144,6 @@ docs/                   Architecture, models, assumptions and research documents
 - [Architecture and control boundary](docs/ARCHITECTURE.md)
 - [Implemented feature catalogue](docs/FEATURES.md)
 - [Operations and dispatch](docs/OPERATIONS.md)
-- [Time–distance diagram: controls and interpretation](docs/OPERATIONS.md#timedistance-diagram)
 - [Network configuration format](docs/NETWORK_CONFIGURATION.md)
 - [Vehicle and energy models](docs/ENERGY_MODEL.md)
 - [Data provenance and assumptions](docs/DATA_AND_ASSUMPTIONS.md)
