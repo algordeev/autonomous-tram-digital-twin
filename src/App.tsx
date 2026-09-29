@@ -45,10 +45,10 @@ interface MapFocusPreset {
 
 interface TimeDistanceSample {
   timeSeconds: number;
-  clock: string;
   tramId: string;
   tramLabel: string;
   routeId: string;
+  directionLabel: string;
   distanceMeters: number;
   color: string;
   stopped: boolean;
@@ -1647,12 +1647,32 @@ function TimeDistanceWindow({
         .filter((reader) => reader.kind === "station")
         .map((reader) => {
           const result = routePositionMeters(scenario, route, reader.segmentId, reader.at);
-          return result === null ? null : { id: reader.id, label: reader.label, position: result };
+          return result === null ? null : {
+            id: reader.id,
+            label: reader.label,
+            direction: reader.directionLabel ?? reader.directionShortName ?? "",
+            position: result,
+          };
         })
-        .filter((station): station is { id: string; label: string; position: number } => station !== null)
+        .filter((station): station is { id: string; label: string; direction: string; position: number } => station !== null)
         .filter((station, index, list) => list.findIndex((candidate) => Math.abs(candidate.position - station.position) < 8) === index)
         .sort((first, second) => first.position - second.position)
     : [];
+
+  const directionBands = stations.reduce<Array<{
+    label: string;
+    start: number;
+    end: number;
+  }>>((bands, station) => {
+    const label = station.direction || route?.shortName || "Route";
+    const current = bands[bands.length - 1];
+    if (!current || current.label !== label) {
+      bands.push({ label, start: station.position, end: station.position });
+    } else {
+      current.end = station.position;
+    }
+    return bands;
+  }, []);
 
   const paths = useMemo(() => {
     const byTram = new Map<string, TimeDistanceSample[]>();
@@ -1666,15 +1686,47 @@ function TimeDistanceWindow({
         if (previous && (Math.abs(sample.distanceMeters - previous.distanceMeters) > routeLength * 0.45 || sample.timeSeconds - previous.timeSeconds > 15)) sections.push([]);
         sections[sections.length - 1].push(sample);
       });
-      return sections.filter((section) => section.length > 1).map((section, index) => ({
-        id: `${tramId}-${index}`,
-        color: section[0].color,
-        delayed: section.some((sample) => sample.delayed),
-        points: section.map((sample) => `${xFor(sample.timeSeconds).toFixed(1)},${yFor(sample.distanceMeters).toFixed(1)}`).join(" "),
-        stops: section.filter((sample, sampleIndex) => sample.stopped && !section[sampleIndex - 1]?.stopped),
-      }));
+      const drawableSections = sections.filter((section) => section.length > 1);
+      return drawableSections.map((section, index) => {
+        const delayedRuns: TimeDistanceSample[][] = [];
+        const dwellRuns: TimeDistanceSample[][] = [];
+        section.forEach((sample, sampleIndex) => {
+          const previous = section[sampleIndex - 1];
+          if (previous && (previous.delayed || sample.delayed)) {
+            const current = delayedRuns[delayedRuns.length - 1];
+            if (current?.[current.length - 1] === previous) current.push(sample);
+            else delayedRuns.push([previous, sample]);
+          }
+          if (sample.stopped) {
+            const current = dwellRuns[dwellRuns.length - 1];
+            if (current && sample.timeSeconds - current[current.length - 1].timeSeconds <= 2) current.push(sample);
+            else dwellRuns.push([sample]);
+          }
+        });
+        const endpoint = section[section.length - 1];
+        return {
+          id: `${tramId}-${index}`,
+          tramLabel: section[0].tramLabel,
+          directionLabel: section[0].directionLabel,
+          color: section[0].color,
+          points: section.map((sample) => `${xFor(sample.timeSeconds).toFixed(1)},${yFor(sample.distanceMeters).toFixed(1)}`).join(" "),
+          delayedRuns: delayedRuns.map((run) => run.map((sample) => `${xFor(sample.timeSeconds).toFixed(1)},${yFor(sample.distanceMeters).toFixed(1)}`).join(" ")),
+          dwellRuns: dwellRuns.filter((run) => run.length > 1).map((run) => ({
+            x1: xFor(run[0].timeSeconds),
+            x2: xFor(run[run.length - 1].timeSeconds),
+            y: yFor(run[0].distanceMeters),
+          })),
+          endpoint,
+          showLabel: index === drawableSections.length - 1,
+        };
+      });
     });
   }, [visibleSamples, routeLength, startTime, snapshot.time]);
+
+  const tramCount = new Set(visibleSamples.map((sample) => sample.tramId)).size;
+  const historyMinutes = visibleSamples.length
+    ? (snapshot.time - Math.min(...visibleSamples.map((sample) => sample.timeSeconds))) / 60
+    : 0;
 
   const timeTicks = Array.from({ length: 5 }, (_, index) => {
     const time = startTime + (snapshot.time - startTime) * (index / 4);
@@ -1687,8 +1739,8 @@ function TimeDistanceWindow({
         <header className="analysis-modal-header">
           <div>
             <span>OPERATIONS ANALYSIS · LIVE HISTORY</span>
-            <h2 id="time-distance-title">Time–distance diagram · Bildfahrplan</h2>
-            <p>Time runs left to right; route distance runs top to bottom. Flat sections indicate stops.</p>
+            <h2 id="time-distance-title">Time–distance diagram</h2>
+            <p>Time runs left to right. Horizontal line sections show dwell or other standstill time.</p>
           </div>
           <div className="analysis-modal-actions">
             <label><span>Route</span><select value={route?.id ?? ""} onChange={(event) => setSelectedRouteId(event.target.value)}>{scenario.routes.map((item) => <option value={item.id} key={item.id}>{item.shortName} · {item.name}</option>)}</select></label>
@@ -1697,21 +1749,27 @@ function TimeDistanceWindow({
           </div>
         </header>
         <div className="time-distance-summary">
-          <span><b>{paths.length}</b> trajectory sections</span><span><b>{visibleSamples.length}</b> recorded points</span><span><b>{(routeLength / 1_000).toFixed(1)} km</b> route cycle</span><span className={snapshot.running ? "live" : "paused"}>{snapshot.running ? "● Recording" : "Ⅱ Paused"}</span>
+          <span><b>{tramCount}</b> trams shown</span><span><b>{historyMinutes.toFixed(1)} min</b> available history</span><span><b>{(routeLength / 1_000).toFixed(1)} km</b> diagram length</span><span className={snapshot.running ? "live" : "paused"}>{snapshot.running ? "● Recording" : "Ⅱ Paused"}</span>
         </div>
         <div className="time-distance-chart-wrap">
           {visibleSamples.length < 2 ? <div className="time-distance-empty"><strong>Collecting movement history…</strong><span>Run the simulation for a few seconds to draw tram trajectories.</span></div> : (
             <svg className="time-distance-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Time-distance diagram for ${route?.name ?? "selected route"}`}>
               <rect x={margin.left} y={margin.top} width={plotWidth} height={plotHeight} className="diagram-plot" />
               {timeTicks.map((tick) => <g key={tick.label}><line x1={tick.x} x2={tick.x} y1={margin.top} y2={margin.top + plotHeight} className="diagram-grid" /><text x={tick.x} y={height - 28} textAnchor="middle" className="diagram-axis-label">{tick.label}</text></g>)}
-              {stations.map((station, index) => <g key={station.id}><line x1={margin.left} x2={margin.left + plotWidth} y1={yFor(station.position)} y2={yFor(station.position)} className="diagram-station-line" /><text x={margin.left - 10} y={yFor(station.position) + 3} textAnchor="end" className="diagram-station-label">{stations.length > 16 && index % 2 ? "" : station.label}</text></g>)}
-              {paths.map((path) => <g key={path.id}><polyline points={path.points} fill="none" stroke={path.color} strokeWidth={path.delayed ? 3 : 2.1} className={path.delayed ? "tram-path delayed" : "tram-path"} />{path.stops.map((sample) => <circle key={`${sample.timeSeconds}-${sample.distanceMeters}`} cx={xFor(sample.timeSeconds)} cy={yFor(sample.distanceMeters)} r="2.8" fill={path.color} />)}</g>)}
+              {directionBands.map((band, index) => <g key={`${band.label}-${index}`}><rect x={margin.left} y={yFor(band.start)} width={plotWidth} height={Math.max(1, yFor(band.end) - yFor(band.start))} className={index % 2 ? "diagram-direction-band alternate" : "diagram-direction-band"} /><text x={margin.left + 8} y={Math.min(margin.top + plotHeight - 6, yFor(band.start) + 13)} className="diagram-direction-label">{band.label}</text></g>)}
+              {stations.map((station, index) => <g key={station.id}><line x1={margin.left} x2={margin.left + plotWidth} y1={yFor(station.position)} y2={yFor(station.position)} className="diagram-station-line" /><text x={margin.left - 10} y={yFor(station.position) + 3} textAnchor="end" className="diagram-station-label">{station.label}</text>{index > 0 && station.direction !== stations[index - 1].direction && <line x1={margin.left} x2={margin.left + plotWidth} y1={yFor(station.position) - 7} y2={yFor(station.position) - 7} className="diagram-direction-divider" />}</g>)}
+              {paths.map((path) => {
+                const endpointX = xFor(path.endpoint.timeSeconds);
+                const endpointY = yFor(path.endpoint.distanceMeters);
+                const labelOnLeft = endpointX > margin.left + plotWidth - 105;
+                return <g key={path.id}>{path.delayedRuns.map((points, index) => <polyline key={`${path.id}-delay-${index}`} points={points} fill="none" className="tram-delay-overlay" />)}<polyline points={path.points} fill="none" stroke={path.color} strokeWidth="2.2" className="tram-path" />{path.dwellRuns.map((dwell, index) => <line key={`${path.id}-dwell-${index}`} x1={dwell.x1} x2={Math.max(dwell.x1 + 2, dwell.x2)} y1={dwell.y} y2={dwell.y} stroke={path.color} className="tram-dwell" />)}{path.showLabel && <g className="tram-end-label"><circle cx={endpointX} cy={endpointY} r="3.4" fill={path.color} /><text x={endpointX + (labelOnLeft ? -8 : 8)} y={endpointY - 6} textAnchor={labelOnLeft ? "end" : "start"}>{path.tramLabel}</text><title>{path.tramLabel} · {path.directionLabel}</title></g>}</g>;
+              })}
               <text x={margin.left + plotWidth / 2} y={height - 7} textAnchor="middle" className="diagram-axis-title">simulation clock →</text>
               <text transform={`translate(18 ${margin.top + plotHeight / 2}) rotate(-90)`} textAnchor="middle" className="diagram-axis-title">route distance →</text>
             </svg>
           )}
         </div>
-        <footer className="time-distance-legend"><span><i className="legend-line" /> Tram trajectory</span><span><i className="legend-stop" /> Stop / dwell</span><span><i className="legend-delay" /> Delayed trajectory</span><small>Line convergence reveals bunching; widening gaps reveal disruption and recovery.</small></footer>
+        <footer className="time-distance-legend"><span><i className="legend-line" /> Tram trajectory</span><span><i className="legend-stop" /> Dwell / standstill</span><span><i className="legend-delay" /> Delay over 60 s</span><small>Converging lines reveal bunching; widening gaps reveal disruption and recovery.</small></footer>
       </section>
     </div>
   );
@@ -2323,14 +2381,14 @@ export default function Home() {
       if (routePosition === null) return;
       nextSamples.push({
         timeSeconds: snapshot.time,
-        clock: snapshot.clock,
         tramId: tram.id,
         tramLabel: tram.label,
         routeId: route.id,
+        directionLabel: group?.shortName ?? tram.directionLabel ?? route.shortName,
         distanceMeters: routePosition,
         color: tram.color,
         stopped: tram.speedKmh < 0.5,
-        delayed: tram.delaySeconds > 30 || tram.statusTone === "warning" || tram.statusTone === "danger",
+        delayed: tram.delaySeconds > 60,
       });
     });
     timeDistanceHistoryRef.current = [...timeDistanceHistoryRef.current, ...nextSamples]
@@ -2458,7 +2516,7 @@ export default function Home() {
             onClick={() => setTimeDistanceWindowOpen(true)}
             aria-label="Open time-distance diagram"
           >
-            <span aria-hidden="true">⌁</span> Bildfahrplan
+            <span aria-hidden="true">⌁</span> Time–distance
           </button>
           <button
             className="control-button analysis-button energy-analysis-button"

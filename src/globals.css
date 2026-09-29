@@ -228,6 +228,7 @@ button:disabled {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
 }
 
 .control-button {
@@ -266,12 +267,15 @@ button:disabled {
 }
 
 .analysis-button {
+  min-width: 124px;
   border-color: rgba(37, 212, 232, 0.55);
   background: linear-gradient(180deg, rgba(22, 57, 70, 0.96), rgba(8, 27, 36, 0.98));
   color: #a9edf5;
+  white-space: nowrap;
 }
 
 .energy-analysis-button {
+  min-width: 92px;
   border-color: rgba(244, 166, 42, 0.58);
   background: linear-gradient(180deg, rgba(69, 48, 16, 0.92), rgba(30, 23, 10, 0.98));
   color: #ffd28a;
@@ -2800,14 +2804,36 @@ button:disabled {
 }
 
 .diagram-plot { fill: rgba(8, 22, 31, 0.88); stroke: #2b4b5c; }
+.diagram-direction-band { fill: rgba(37, 212, 232, 0.018); }
+.diagram-direction-band.alternate { fill: rgba(255, 255, 255, 0.018); }
 .diagram-grid { stroke: rgba(84, 119, 137, 0.2); stroke-width: 1; }
 .diagram-station-line { stroke: rgba(131, 161, 174, 0.22); stroke-width: 1; }
+.diagram-direction-divider { stroke: rgba(109, 185, 202, 0.5); stroke-width: 1.5; }
 .diagram-axis-label, .diagram-station-label, .diagram-axis-title { fill: #7893a0; font-family: ui-monospace, SFMono-Regular, monospace; }
 .diagram-axis-label { font-size: 10px; }
-.diagram-station-label { font-size: 9px; }
+.diagram-station-label { fill: #8ba3ae; font-size: 8.2px; }
+.diagram-direction-label {
+  fill: #6f9dab;
+  font: 700 8px ui-monospace, SFMono-Regular, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .diagram-axis-title { fill: #9ab0ba; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .tram-path { opacity: 0.86; filter: drop-shadow(0 0 2px rgba(37, 212, 232, 0.22)); }
-.tram-path.delayed { stroke-dasharray: 7 3; opacity: 1; }
+.tram-delay-overlay {
+  stroke: #ffb13b;
+  stroke-width: 5.5;
+  opacity: 0.38;
+}
+.tram-dwell { stroke-width: 5; stroke-linecap: round; opacity: 1; }
+.tram-end-label text {
+  fill: #e8f4f7;
+  paint-order: stroke;
+  stroke: #08131c;
+  stroke-linejoin: round;
+  stroke-width: 3px;
+  font: 700 8.5px ui-monospace, SFMono-Regular, monospace;
+}
 
 .time-distance-empty {
   display: grid;
@@ -2833,7 +2859,7 @@ button:disabled {
 .time-distance-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .time-distance-legend small { margin-left: auto; color: #647f8c; }
 .legend-line, .legend-delay { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--cyan); }
-.legend-delay { border-top: 3px dashed var(--amber); }
+.legend-delay { border-top: 4px solid rgba(244, 166, 42, 0.62); }
 .legend-stop { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); }
 
 .energy-modal {
@@ -3345,7 +3371,7 @@ button:disabled {
   }
 }
 
-@media (max-width: 1250px) {
+@media (max-width: 1420px) {
   .topbar {
     grid-template-columns: 1fr auto;
   }
@@ -3353,6 +3379,9 @@ button:disabled {
   .health-strip {
     display: none;
   }
+
+  .analysis-button { min-width: 120px; }
+  .energy-analysis-button { min-width: 88px; }
 
   .workspace {
     grid-template-columns: minmax(0, 1fr) 340px;
@@ -3435,6 +3464,16 @@ button:disabled {
   .control-button {
     min-width: 0;
     font-size: 9px;
+  }
+
+  .transport-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .analysis-button,
+  .energy-analysis-button {
+    min-width: 0;
   }
 
   .canvas-wrap canvas {
