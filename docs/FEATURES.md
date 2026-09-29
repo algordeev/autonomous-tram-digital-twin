@@ -59,8 +59,9 @@
 
 ## Energy and analytics
 
-- live route-selectable time–distance diagram (Bildfahrplan) with dwell markers,
-  delayed trajectories and a rolling 10–60 minute history;
+- Live route-selectable [time–distance diagram (Bildfahrplan)](OPERATIONS.md#timedistance-diagram)
+  with dwell markers, departure-lateness overlays and 10/20/30/60 minute windows
+  over rolling browser-session history;
 - Traction, auxiliary and mechanical braking energy;
 - accepted and rejected regeneration;
 - direct tram-to-tram reuse inside a section;
