@@ -1936,3 +1936,47 @@ test("a selected tram can complete a non-passenger depot run and return to servi
   assert.equal(tram.serviceState, "in-service");
   assert.equal(tram.depotId, null);
 });
+
+
+test("diagram timetable lateness excludes planned terminal waits and follows each departure", () => {
+  const engine = new SimulationEngine("izmir-konak");
+  engine.setAutoDispatch(false);
+  engine.setServiceClockMinutes(8 * 60);
+  const tram = engine.trams[0];
+  const snapshotTram = () => engine.getSnapshot().trams.find((item) => item.id === tram.id);
+  tram.delaySeconds = 900; // Existing distance heuristic must not leak into the diagram.
+  assert.equal(snapshotTram().timetableDelaySeconds, null);
+
+  assert.equal(engine.reserveScheduledDeparture(tram, "IZK-RO18", "Fahrettin Altay", "terminal"), true);
+  const slot = tram.scheduledDepartureAt;
+  engine.simulationTime = slot - 120;
+  assert.equal(snapshotTram().timetableDelaySeconds, 0);
+  engine.simulationTime = slot;
+  engine.recordScheduledDeparture(tram);
+  assert.equal(snapshotTram().lastDepartureDeviationSeconds, 0);
+  engine.simulationTime += 300;
+  assert.equal(snapshotTram().timetableDelaySeconds, 0);
+
+  assert.equal(engine.reserveScheduledDeparture(tram, "IZK-RI19", "Halkapinar", "terminal"), true);
+  engine.simulationTime = tram.scheduledDepartureAt + 90;
+  assert.equal(snapshotTram().timetableDelaySeconds, 90);
+  engine.recordScheduledDeparture(tram);
+  engine.simulationTime += 300;
+  assert.equal(snapshotTram().timetableDelaySeconds, 90);
+
+  // Reach the next timetable grid point for a genuinely on-time new trip.
+  const window = engine.activeServiceWindow();
+  const headway = window.routes["izmir-konak"].plannedHeadwayMinutes * 60;
+  const relativeClock = engine.serviceClockOffsetSeconds + engine.simulationTime - window.startMinute * 60;
+  engine.simulationTime += Math.ceil(relativeClock / headway) * headway - relativeClock;
+  assert.equal(engine.reserveScheduledDeparture(tram, "IZK-RO18", "Fahrettin Altay", "terminal"), true);
+  assert.equal(snapshotTram().timetableDelaySeconds, 0);
+  engine.simulationTime = tram.scheduledDepartureAt;
+  engine.recordScheduledDeparture(tram);
+  assert.equal(snapshotTram().timetableDelaySeconds, 0);
+
+  tram.lastDepartureDeviationSeconds = -10;
+  assert.equal(snapshotTram().timetableDelaySeconds, 0);
+  assert.equal(engine.placeInDepot(tram), true);
+  assert.equal(snapshotTram().timetableDelaySeconds, null);
+});

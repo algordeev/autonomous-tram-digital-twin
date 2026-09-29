@@ -364,6 +364,8 @@ export interface TramSnapshot {
   doorsOpen: boolean;
   pwm: number;
   delaySeconds: number;
+  /** Actual departure lateness, or current overdue slot; null without a timetable. */
+  timetableDelaySeconds: number | null;
   scheduledDepartureClock: string | null;
   scheduledDepartureKind: "depot" | "terminal" | null;
   scheduledDeparturePointLabel: string | null;
@@ -2762,6 +2764,7 @@ export class SimulationEngine {
     tram.scheduledDepartureClockSeconds = null;
     tram.scheduledDepartureKind = null;
     tram.scheduledDeparturePointLabel = null;
+    tram.lastDepartureDeviationSeconds = null;
     invalidateCppDepotState(this.trams.findIndex((item) => item.id === tram.id));
     this.initializeHeadwayTargets();
     return true;
@@ -6364,6 +6367,15 @@ export class SimulationEngine {
           tram.speedMps < 0.15,
         pwm: tram.pwm,
         delaySeconds: tram.delaySeconds,
+        // A reserved slot belongs to the next trip: planned terminal waiting
+        // is on time until that slot expires. Once departed, retain the actual
+        // deviation until the next terminal assigns a new slot. The distance
+        // heuristic in delaySeconds is not timetable adherence.
+        timetableDelaySeconds: tram.scheduledDepartureAt !== null
+          ? Math.max(0, this.simulationTime - tram.scheduledDepartureAt)
+          : tram.lastDepartureDeviationSeconds === null
+            ? null
+            : Math.max(0, tram.lastDepartureDeviationSeconds),
         scheduledDepartureClock:
           tram.scheduledDepartureClockSeconds === null
             ? null

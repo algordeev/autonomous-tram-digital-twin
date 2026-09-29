@@ -1740,7 +1740,7 @@ function TimeDistanceWindow({
           <div>
             <span>OPERATIONS ANALYSIS · LIVE HISTORY</span>
             <h2 id="time-distance-title">Time–distance diagram</h2>
-            <p>Time runs left to right. Horizontal line sections show dwell or other standstill time.</p>
+            <p>Time runs left to right. Horizontal line sections show dwell or other standstill time. Amber marks departure lateness, not delay at intermediate stops.</p>
           </div>
           <div className="analysis-modal-actions">
             <label><span>Route</span><select value={route?.id ?? ""} onChange={(event) => setSelectedRouteId(event.target.value)}>{scenario.routes.map((item) => <option value={item.id} key={item.id}>{item.shortName} · {item.name}</option>)}</select></label>
@@ -1769,7 +1769,7 @@ function TimeDistanceWindow({
             </svg>
           )}
         </div>
-        <footer className="time-distance-legend"><span><i className="legend-line" /> Tram trajectory</span><span><i className="legend-stop" /> Dwell / standstill</span><span><i className="legend-delay" /> Delay over 60 s</span><small>Converging lines reveal bunching; widening gaps reveal disruption and recovery.</small></footer>
+        <footer className="time-distance-legend"><span><i className="legend-line" /> Tram trajectory</span><span><i className="legend-stop" /> Dwell / standstill</span><span><i className="legend-delay" /> Departure delay over 60 s</span><small>Converging lines reveal bunching; widening gaps reveal disruption and recovery.</small></footer>
       </section>
     </div>
   );
@@ -2388,7 +2388,7 @@ export default function Home() {
         distanceMeters: routePosition,
         color: tram.color,
         stopped: tram.speedKmh < 0.5,
-        delayed: tram.delaySeconds > 60,
+        delayed: (tram.timetableDelaySeconds ?? 0) > 60,
       });
     });
     timeDistanceHistoryRef.current = [...timeDistanceHistoryRef.current, ...nextSamples]

@@ -46,7 +46,7 @@ test("the top-level analysis controls expose energy and the live time-distance d
   assert.match(source, /Open time-distance diagram/);
   assert.match(source, /Time–distance diagram/);
   assert.match(source, /Converging lines reveal bunching/);
-  assert.match(source, /Delay over 60 s/);
+  assert.match(source, /Departure delay over 60 s/);
   assert.match(source, /Time–distance/);
   assert.match(source, /className="control-button analysis-button energy-analysis-button"/);
   assert.match(source, /timeDistanceHistoryRef/);

@@ -85,9 +85,9 @@ button:disabled {
 .topbar {
   min-height: 62px;
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) auto minmax(330px, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 24px;
+  gap: 10px 24px;
   padding: 8px 16px;
   border-radius: 9px;
 }
@@ -221,11 +221,14 @@ button:disabled {
 }
 
 .system-clock {
+  flex-shrink: 0;
   color: #95a9b7;
 }
 
 .transport-controls {
+  grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
@@ -3377,7 +3380,10 @@ button:disabled {
   }
 
   .health-strip {
-    display: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px 16px;
+    white-space: normal;
   }
 
   .analysis-button { min-width: 120px; }
@@ -3400,6 +3406,10 @@ button:disabled {
   .topbar {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .health-strip {
+    justify-content: flex-start;
   }
 
   .transport-controls {
