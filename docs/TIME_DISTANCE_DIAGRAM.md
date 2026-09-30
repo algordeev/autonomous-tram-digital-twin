@@ -1,7 +1,7 @@
 # Time–distance Diagram
 
 
-![Time–distance diagram for Route 21](assets/time-distance-diagram.jpg)
+![Time–distance diagram for Izmir Konak Tram](assets/time-distance-diagram.jpg)
 
 *Izmir Konak route after a startup run. Values and vehicle positions are examples,
 not a service-performance benchmark.*
