@@ -74,6 +74,16 @@ The stop controller opens doors only when the vehicle is in passenger service,
 is within a valid stop dwell and is effectively stationary. Departure remains
 blocked until dwell completion.
 
+## Analysis screens
+
+The [time–distance diagram](TIME_DISTANCE_DIAGRAM.md) shows recent vehicle
+trajectories, standstill periods and departure lateness. Its separate guide
+includes a screenshot, axis and legend definitions, and history limitations.
+
+The [energy statistics screen](ENERGY_SCREEN.md) presents electrical demand,
+regeneration, section power and flywheel state, with a separate controlled
+strategy comparison.
+
 ## ETA boards
 
 ![ETA board](assets/stop-screen.jpg)
