@@ -86,6 +86,8 @@ see [Data and assumptions](DATA_AND_ASSUMPTIONS.md).
 
 ## Elevation reference and interpretation limits
 
+![Elevation reference](assets/elevation-data-screen.jpg)
+
 The lower part of the window reproduces the Route 2 elevation study and its
 2021 reference potential. The reference's 7.84 kWh is theoretical gravitational
 potential, not guaranteed recovered electrical energy; the current model's
