@@ -8,7 +8,7 @@ route totals, substations, flywheel banks and the Route 2 elevation reference.
 
 ![Energy summary and route balances](assets/energy-screen-overview.jpg)
 
-*Example from a short Nizhny Routes 2 + 21 run, paused for inspection. The
+*Example from a short Nizhny Novgorod Routes 2 + 21 run, paused for inspection. The
 summary and route cards belong to that live run.*
 
 ## Live summary
