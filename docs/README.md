@@ -9,7 +9,9 @@ limits of the current research model.
 | --- | --- |
 | [Architecture](ARCHITECTURE.md) | Component boundaries, runtime flow and C++/TypeScript ownership |
 | [Feature catalogue](FEATURES.md) | What is implemented and where it is tested |
-| [Operations](OPERATIONS.md) | Headways, terminals, passenger service, depots, disruptions and the time–distance diagram |
+| [Operations](OPERATIONS.md) | Headways, terminals, passenger service, depots, disruptions |
+| [Time–distance diagram](TIME_DISTANCE_DIAGRAM.md) | Screenshot guide to trajectories, dwell, headways and departure lateness |
+| [Energy statistics screen](ENERGY_SCREEN.md) | Screenshot guide to live totals, route balances, flywheel indicators and A/B/C comparison |
 | [Network configuration](NETWORK_CONFIGURATION.md) | Portable JSON structure and validation rules |
 | [Energy model](ENERGY_MODEL.md) | Vehicle dynamics, regeneration, traction sections and flywheels |
 | [Data and assumptions](DATA_AND_ASSUMPTIONS.md) | Provenance classes, scenario inventory and known uncertainty |
