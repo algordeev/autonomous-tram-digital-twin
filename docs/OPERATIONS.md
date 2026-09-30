@@ -76,6 +76,10 @@ blocked until dwell completion.
 
 ## ETA boards
 
+![ETA board](assets/stop-screen.jpg)
+
+*Example stop board for Karantina stop in Izmir*
+
 ETA uses directed route distance, rolling service speed and current operational
 state. Signals, regulation, obstacles and terminal turns influence the result.
 Each board separates the two travel directions; paired platforms may share one
