@@ -1,6 +1,5 @@
 # Time–distance Diagram
 
-[Documentation index](README.md) · [Energy statistics screen](ENERGY_SCREEN.md)
 
 ![Time–distance diagram for Route 21](assets/time-distance-diagram.jpg)
 
