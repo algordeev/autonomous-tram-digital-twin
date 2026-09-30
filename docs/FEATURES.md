@@ -59,17 +59,11 @@
 
 ## Energy and analytics
 
-- Live route-selectable [time–distance diagram (Bildfahrplan)](OPERATIONS.md#timedistance-diagram)
+- Live route-selectable [time–distance diagram (Bildfahrplan)](TIME_DISTANCE_DIAGRAM.md)
   with dwell markers, departure-lateness overlays and 10/20/30/60 minute windows
   over rolling browser-session history;
-- Traction, auxiliary and mechanical braking energy;
-- accepted and rejected regeneration;
-- direct tram-to-tram reuse inside a section;
-- substation/grid supply and peak power;
-- flywheel charging, discharge, losses, SOC and rotor speed;
-- reactive and predictive storage strategies;
-- route-level and network-level energy totals;
-- deterministic comparison mode and JSON reports.
+- [Energy statistics screen](ENERGY_SCREEN.md) with live demand, route balances,
+  section power and flywheel-state indicators;
 
 ## Verification map
 
