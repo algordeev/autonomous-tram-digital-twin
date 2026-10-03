@@ -46,14 +46,15 @@ The current browser contract is C ABI version 11. The adapter is implemented in
 
 ### `cpp-core`
 
-- `vehicle_dynamics`: force, power, jerk and braking authority;
-- `service_controller`: timetable/headway service regulation;
-- `stop_controller`: approach, dwell and door state;
-- `priority_controller`: signal priority;
-- `depot_controller`: entry, storage, release and passenger-service state;
-- `track_graph`: directed tracks and turnout selection;
-- `core_c_api`: stable C boundary for browser or hardware adapters;
-- `wasm_live_core`: freestanding browser runtime.
+- `src/operational_core.cpp`: shared native and WASM operational authority;
+- `include/tram/core_c_api.h`: complete ABI 11 declarations and export manifest;
+- `include/tram/control_parameters.hpp`: named physical and approach settings;
+- `scripts/compile-portable-wasm.mjs`: pinned portable Clang/LLD build;
+- `scripts/generate-native-bridge.mjs`: generated test transport, without control logic;
+- `tests/operational_core_test.cpp`: native checks of the production source.
+
+The former ABI 1 modular prototype and its native replay demo were retired.
+There is no second C++ implementation selected only by tests.
 
 ## Determinism
 
@@ -64,10 +65,17 @@ introduced in future work.
 
 ## Build artifacts
 
-`public/wasm/tram-core.wasm` is committed so a checkout can build the web app
-without requiring Emscripten. Native source and tests remain the authoritative
-implementation. The browser module can be rebuilt with the scripts in
-`cpp-core/scripts/`.
+`public/wasm/tram-core.wasm` is committed so ordinary web builds need no system
+C++ or Emscripten installation. `npm run build:wasm` rebuilds it with the exact
+`browsercc` compiler and sysroot version locked in npm and generates the adapter
+ABI constant from the C header. `npm run verify:wasm` performs a fresh build and
+requires byte-for-byte equality with the committed binary and ABI constant.
+Both CI and Pages run this check before building the web application.
+
+Make and CMake compile the same `operational_core.cpp` as a native library.
+The native test bridge replays the WASM regression scenarios and compares every
+call result. This validates the production source across both targets; the
+separate TypeScript reference/fallback remains explicitly labelled as such.
 
 ## Safety boundary
 

@@ -76,4 +76,4 @@
 | `simulation.test.mjs` | Full Nizhny operations and regressions |
 | `izmir-scenario.test.mjs` | İzmir route, terminals, signals and obstacles |
 | `rendered-html.test.mjs` | Standalone production output |
-| `cpp-core/tests` | Native controllers and graph behaviour |
+| `cpp-core/tests` and native bridge | Production C++ checks and native/WASM scenario parity |

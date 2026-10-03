@@ -1,3 +1,4 @@
+import { TRAM_CORE_ABI_VERSION } from "./cpp-abi.ts";
 import {
   integrateVehicleDynamics,
   REFERENCE_TRAM_PARAMETERS,
@@ -240,7 +241,7 @@ const DYNAMICS_MODES: DynamicsMode[] = [
 function acceptCppRuntime(instance: WebAssembly.Instance) {
   const candidate = instance.exports as unknown as CppHeadwayExports;
   if (
-    candidate.tram_core_abi_version() !== 11 ||
+    candidate.tram_core_abi_version() !== TRAM_CORE_ABI_VERSION ||
     typeof candidate.tram_core_authority_step !== "function" ||
     typeof candidate.tram_core_power_step !== "function"
   ) throw new Error("Unsupported C++ core ABI");

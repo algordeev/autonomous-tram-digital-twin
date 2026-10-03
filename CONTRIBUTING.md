@@ -40,3 +40,7 @@ sides of the boundary.
 
 Use the supplied issue templates for defects and proposals. Security reports
 should follow [SECURITY.md](SECURITY.md).
+
+C++ changes must also pass `npm run verify:wasm`. Run `npm run build:wasm`
+and commit the regenerated WASM and TypeScript ABI constant before submitting.
+Native tests compile the same source as the browser and replay the WASM scenarios.

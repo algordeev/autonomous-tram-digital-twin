@@ -30,8 +30,10 @@
     "test:ui": "node --test tests/rendered-html.test.mjs",
     "test:cpp": "make -C cpp-core test",
     "verify:repo": "node scripts/verify-repository.mjs",
-    "test:all": "npm run verify:repo && npm run check && npm test && npm run test:cpp && npm run test:simulation && npm run test:izmir",
-    "simulate:headless": "node scripts/run-headless.mjs"
+    "test:all": "npm run verify:wasm && npm run verify:repo && npm run check && npm test && npm run test:cpp && npm run test:simulation && npm run test:izmir",
+    "simulate:headless": "node scripts/run-headless.mjs",
+    "build:wasm": "node cpp-core/scripts/compile-portable-wasm.mjs",
+    "verify:wasm": "node cpp-core/scripts/compile-portable-wasm.mjs --check"
   },
   "dependencies": {
     "d3-geo": "^3.1.1",
@@ -44,6 +46,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
+    "browsercc": "0.1.1",
     "typescript": "5.9.3",
     "vite": "8.0.13"
   }
