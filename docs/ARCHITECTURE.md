@@ -16,9 +16,15 @@ headless experiments and future physical telemetry.
 | Control authority | C++17 compiled to WebAssembly | Motion authority, braking, energy, signals, stops, doors, turnouts, headway constraints and depot state |
 | Portable data | Versioned JSON | Tracks, routes, stops, readers, signals, depots and traction sections |
 
-The current browser contract is C ABI version 11. The adapter is implemented in
+The current browser contract is C ABI version 12. The adapter is implemented in
 `src/simulation-core/cpp-runtime.ts`; the exported interface is declared in
 `cpp-core/include/tram/core_c_api.h`.
+
+Live motion, signal and turnout sync is initialization-only in ABI 12. Manual
+requests and detector observations cannot replace an existing reservation.
+TypeScript still owns network positions, passenger/service orchestration and
+the explicit fallback; see [Safety invariants](SAFETY_INVARIANTS.md) for the exact
+contract, fault policy and verification limits.
 
 ## Simulation flow
 
@@ -47,7 +53,7 @@ The current browser contract is C ABI version 11. The adapter is implemented in
 ### `cpp-core`
 
 - `src/operational_core.cpp`: shared native and WASM operational authority;
-- `include/tram/core_c_api.h`: complete ABI 11 declarations and export manifest;
+- `include/tram/core_c_api.h`: complete ABI 12 declarations and export manifest;
 - `include/tram/control_parameters.hpp`: named physical and approach settings;
 - `scripts/compile-portable-wasm.mjs`: pinned portable Clang/LLD build;
 - `scripts/generate-native-bridge.mjs`: generated test transport, without control logic;

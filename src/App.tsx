@@ -1335,7 +1335,7 @@ function drawRoadCrossings(
         const roadLamp =
           controllerPhase === "road-green"
             ? 2
-            : controllerPhase === "tram-green"
+            : (controllerPhase === "tram-green" || controllerPhase === "fault")
               ? 0
               : 1;
         ["#ff5c66", "#f4a62a", "#42d392"].forEach((color, index) => {
@@ -2469,7 +2469,9 @@ export default function Home() {
         ? `${snapshot.activeTrafficSignal ?? "Tram"} green`
         : snapshot.trafficPhase === "road-green"
           ? "All tram signals red"
-          : `${snapshot.activeTrafficSignal ?? "Signal"} amber`;
+          : snapshot.trafficPhase === "fault"
+            ? "Detector fault · ALL RED"
+            : `${snapshot.activeTrafficSignal ?? "Signal"} amber`;
   const showNizhnyInfrastructure = snapshot.scenarioId !== "prototype-loop";
   const tramsOnRoute = snapshot.routeOperations.reduce(
     (sum, route) => sum + route.onRoute,
@@ -3082,7 +3084,9 @@ export default function Home() {
                       (controller?.phase === "amber-to-tram" ||
                         controller?.phase === "amber-to-road") &&
                       controller.activeSignalId === signal.id;
-                    const phaseLabel = hasGreen
+                    const phaseLabel = controller?.phase === "fault"
+                      ? "FAULT · ALL RED"
+                      : hasGreen
                       ? "TRAM GO"
                       : isClearing
                         ? "CLEARANCE"

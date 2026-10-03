@@ -8,6 +8,7 @@ limits of the current research model.
 | Document | Purpose |
 | --- | --- |
 | [Architecture](ARCHITECTURE.md) | Component boundaries, runtime flow and C++/TypeScript ownership |
+| [Safety invariants](SAFETY_INVARIANTS.md) | State ownership, interlocks, fault policy and randomized/native/WASM checks |
 | [Feature catalogue](FEATURES.md) | What is implemented and where it is tested |
 | [Operations](OPERATIONS.md) | Headways, terminals, passenger service, depots, disruptions |
 | [Time–distance diagram](TIME_DISTANCE_DIAGRAM.md) | Screenshot guide to trajectories, dwell, headways and departure lateness |

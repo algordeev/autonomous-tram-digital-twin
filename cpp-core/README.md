@@ -39,7 +39,7 @@ ctest --test-dir cpp-core/build-cmake --output-on-failure
 
 ## Contract and coverage
 
-`include/tram/core_c_api.h` declares the complete ABI 11. The WASM export list,
+`include/tram/core_c_api.h` declares the complete ABI 12. The WASM export list,
 native test transport and generated TypeScript ABI version derive from it.
 The core owns motion, braking, energy, station phases, signals, switch locks,
 headway constraints, depot transitions and power-section balancing.
@@ -51,7 +51,7 @@ and replays it in a fresh native process, comparing every result with a relative
 and absolute tolerance of 1e-9. This checks cross-target agreement as well as the
 scenario assertions; it does not claim exhaustive coverage of all inputs.
 
-ABI 11 uses singleton state per native process or WebAssembly instance. Handles
+ABI 12 uses singleton state per native process or WebAssembly instance. Handles
 are tokens, not independent allocations. Each authority subsystem resets with
 its `*_begin` function. This change preserves those semantics.
 
@@ -64,3 +64,10 @@ an iteration-limited approximation.
 
 See [Architecture](../docs/ARCHITECTURE.md) and
 [Russian core guide](../docs/ru/cpp-core.md).
+
+## Interlocks and faults
+
+ABI 12 makes motion/signal/turnout sync initialization-only and adds explicit
+signal manual-command and detector-observation functions. Locked turnouts
+ignore control-mode bypasses. Missing clearance latches all-red without
+releasing the owner. See [Safety invariants](../docs/SAFETY_INVARIANTS.md).

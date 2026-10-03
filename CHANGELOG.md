@@ -5,7 +5,17 @@ Keep a Changelog; release labels use semantic version numbers.
 
 ## Unreleased
 
+### Changed
+
+- C ABI 12: initialization-only motion/signal/turnout sync, explicit signal
+  commands and observations, locked-point interlocks and latched all-red faults.
+- Turnout release and inline reset wait for rear clearance; rejected C++ queue
+  requests cannot change the TypeScript mirror.
+
 ### Added
+
+- Safety invariants documentation, randomized tests, detector-fault injection
+  and browser integration checks with native/WASM parity.
 
 - Live time–distance diagram (Bildfahrplan) for bunching, dwell, delay and
   service-recovery analysis.

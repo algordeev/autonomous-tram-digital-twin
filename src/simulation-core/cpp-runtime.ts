@@ -143,6 +143,9 @@ type CppHeadwayExports = {
     stillWaiting: number, activeInvalid: number, amber: number, green: number,
     clearance: number, timeout: number,
   ) => number;
+  tram_core_signal_manual: (index: number, mode: number, signal: number) => number;
+  tram_core_signal_observe: (index: number, tram: number, signal: number, cleared: number, now: number) => number;
+  tram_core_signal_fault: (index: number) => number;
   tram_core_signal_phase: (index: number) => number;
   tram_core_signal_until: (index: number) => number;
   tram_core_signal_active_tram: (index: number) => number;
@@ -378,7 +381,7 @@ export function cppToggleSwitchAuthority(
   cooperative: boolean,
 ) {
   if (!ensureCppSwitch(index, state, lockedByIndex)) {
-    if (cooperative && lockedByIndex >= 0) return null;
+    if (lockedByIndex >= 0) return null;
     return { state: state === "main" ? "branch" as const : "main" as const, lockedByIndex };
   }
   if (!cppExports!.tram_core_switch_toggle(index, cooperative ? 1 : 0)) return null;
@@ -394,8 +397,8 @@ export function cppRequestSwitchAuthority(
   cooperative: boolean,
 ) {
   if (!ensureCppSwitch(index, state, lockedByIndex)) {
-    if (cooperative && lockedByIndex >= 0 && lockedByIndex !== tramIndex) return null;
-    return { state: desired, lockedByIndex: cooperative ? tramIndex : -1 };
+    if (lockedByIndex >= 0 && (lockedByIndex !== tramIndex || state !== desired)) return null;
+    return { state: desired, lockedByIndex: tramIndex };
   }
   if (!cppExports!.tram_core_switch_request(index, desired === "branch" ? 1 : 0, tramIndex, cooperative ? 1 : 0)) return null;
   return cppSwitchSnapshot(index);
@@ -414,8 +417,10 @@ export function cppReleaseSwitchAuthority(
   return cppSwitchSnapshot(index);
 }
 
-export function invalidateCppTrafficController(index: number) {
-  initializedTrafficControllers.delete(index);
+export function cppObserveTrafficAuthority(index: number, tram: number, signal: number, cleared: boolean, now: number) {
+  if (!cppExports || !initializedTrafficControllers.has(index)) return;
+  cppExports.tram_core_signal_observe(index, tram, signal, cleared ? 1 : 0, now);
+  return cppExports.tram_core_signal_fault(index);
 }
 
 export interface CppTrafficAuthorityState {
@@ -462,12 +467,13 @@ export function cppStepTrafficAuthority(
       state.activeTramEntered ? 1 : 0,
       state.activeTramCleared ? 1 : 0,
       state.activeGrantedAt,
-      state.manualMode,
-      state.manualSignalIndex,
-      state.manualReleasePending ? 1 : 0,
+      0,
+      -1,
+      0,
     );
     initializedTrafficControllers.add(index);
   }
+  cppExports.tram_core_signal_manual(index, state.manualMode, state.manualSignalIndex);
   cppExports.tram_core_signal_step(
     index,
     input.now,

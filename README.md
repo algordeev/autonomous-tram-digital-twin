@@ -115,7 +115,7 @@ counts and periodic samples. Programmatic experiments can use
 React + Canvas interface
         ↕ immutable render snapshots and operator commands
 TypeScript scenario, passengers, ETA and experiment orchestration
-        ↕ C ABI 11
+        ↕ C ABI 12
 C++ / WebAssembly authority
 motion · braking · energy · signals · stops · doors · turnouts · depot
 ```

@@ -47,7 +47,7 @@ ctest --test-dir cpp-core/build-cmake --output-on-failure
 
 ## ABI и параметры
 
-Полный ABI 11 объявлен в `cpp-core/include/tram/core_c_api.h`. Из него получаются
+Полный ABI 12 объявлен в `cpp-core/include/tram/core_c_api.h`. Из него получаются
 экспорты WASM, нативный transport и версия ABI для TypeScript. Состояние остаётся
 единственным на процесс / экземпляр WASM; handle — токен, а не отдельная
 симуляция. Подсистемы сбрасываются через свои функции `*_begin`.

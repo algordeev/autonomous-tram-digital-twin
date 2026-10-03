@@ -30,7 +30,7 @@ import {
   cppExtendStationDwell,
   cppEnergyOptimizedTarget,
   cppSettleTractionPower,
-  invalidateCppTrafficController,
+  cppObserveTrafficAuthority,
   invalidateCppStation,
   invalidateCppDepotState,
   type CppVehicleAuthorityResult,
@@ -49,7 +49,8 @@ export type TrafficPhase =
   | "road-green"
   | "amber-to-tram"
   | "tram-green"
-  | "amber-to-road";
+  | "amber-to-road"
+  | "fault";
 export type TrafficManualMode = "auto" | "tram-green" | "road-green";
 export type PriorityPolicy = "fifo" | "schedule" | "fleet";
 export type ControlMode = "firmware" | "cooperative";
@@ -825,6 +826,8 @@ interface SwitchRuntime {
   id: string;
   state: SwitchPosition;
   lockedBy: string | null;
+  releaseAtDistance?: number;
+  resetAfterRelease?: boolean;
   queue: Array<{ tramId: string; desired: SwitchPosition; requestedAt: number }>;
 }
 
@@ -835,6 +838,8 @@ interface TrafficRequest {
 }
 
 interface TrafficRuntime {
+  rearClearDistance?: number;
+  activeEnteredAt?: number;
   id: string;
   label: string;
   phase: TrafficPhase;
@@ -3214,6 +3219,7 @@ export class SimulationEngine {
       this.updateTram(tram, delta, tramIndex);
       this.updateEtaAverageSpeed(tram, delta);
     }
+    this.releaseClearedSwitches();
     this.settleTractionPower(delta);
   }
 
@@ -3368,7 +3374,18 @@ export class SimulationEngine {
     if (!controller) return false;
     controller.manualMode = mode;
     controller.manualSignalId = mode === "tram-green" ? signalId : null;
-    invalidateCppTrafficController(this.trafficControllerIndex(controller));
+    if (this.updateTrafficWithCpp(controller)) {
+      this.addEvent("warning", `${controller.label}: ${mode.toUpperCase()} requested · ${controller.phase}${controller.manualReleasePending ? " · waiting for rear clearance" : ""}`);
+      return true;
+    }
+    if (controller.phase === "fault") return true;
+    if (controller.activeTramEntered && !controller.activeTramCleared &&
+        mode === "tram-green" && controller.activeSignalId === signalId) return true;
+    if (controller.activeTramEntered && !controller.activeTramCleared &&
+        (mode !== "tram-green" || controller.activeSignalId !== signalId)) {
+      controller.manualReleasePending = true;
+      return true;
+    }
 
     if (mode === "tram-green") {
       controller.manualReleasePending = false;
@@ -3898,7 +3915,8 @@ export class SimulationEngine {
       const controller = this.trafficForSignal(signal.id);
       const permitted =
         controller?.phase === "tram-green" &&
-        controller.activeSignalId === signal.id;
+        controller.activeSignalId === signal.id &&
+        (!controller.activeTramId || controller.activeTramId === tram.id);
       if (!permitted) knownWaitSeconds += 4;
     }
 
@@ -4797,7 +4815,6 @@ export class SimulationEngine {
 
     if (moveMeters > 0) {
       this.advanceTram(tram, moveMeters, tramIndex);
-      tram.distanceMeters += moveMeters;
     }
 
     this.updateTramTelemetry(tram, delta, speedLimitMps);
@@ -5199,7 +5216,8 @@ export class SimulationEngine {
         const controller = this.trafficForSignal(signal.id);
         const permitted =
           controller?.phase === "tram-green" &&
-          controller.activeSignalId === signal.id;
+          controller.activeSignalId === signal.id &&
+          (!controller.activeTramId || controller.activeTramId === tram.id);
         if (!permitted) {
           // A tram may be spawned, restored from an experiment, or emerge from
           // a terminal immediately after the configured detector. Never leave
@@ -5231,6 +5249,20 @@ export class SimulationEngine {
           });
         }
       }
+    }
+
+    for (const definition of this.scenarioDefinition.switches) {
+      const runtime = this.switchStates.get(definition.id);
+      if (!runtime?.lockedBy || runtime.lockedBy === tram.id) continue;
+      const approach = [{ segmentId: definition.segmentId, at: definition.at }, ...(definition.alternateApproaches ?? [])]
+        .find((item) => item.segmentId === tram.segmentId && item.at !== undefined && item.at >= tram.progress);
+      const at = approach?.at ?? (currentSegment.to === definition.nodeId ? 1 : null);
+      if (at === null) continue;
+      const distance = (at - tram.progress) * currentSegment.lengthMeters;
+      if (distance > Math.max(32, this.options.sensorRangeMeters)) continue;
+      candidates.push({ key: `switch:${definition.id}`, kind: "junction", distanceMeters: distance,
+        status: `${definition.id} · route-locked by ${runtime.lockedBy}`, tone: "warning",
+        event: `waiting for rear clearance at ${definition.id}` });
     }
 
     for (const zone of this.scenarioDefinition.junctionConflictZones ?? []) {
@@ -5421,6 +5453,7 @@ export class SimulationEngine {
       );
       const previousProgress = tram.progress;
       tram.progress = clamp(tram.progress + step / current.lengthMeters, 0, 1);
+      tram.distanceMeters += step;
       this.triggerReaders(tram, previousProgress, tram.progress);
       this.markSignalPassage(tram, previousProgress, tram.progress);
       remaining -= step;
@@ -5459,6 +5492,14 @@ export class SimulationEngine {
         const branch = this.segments.get(inlineSwitch.definition.branchSegmentId);
         const runtime = this.switchStates.get(inlineSwitch.definition.id);
         if (!branch || !runtime) return;
+        const reservation = cppRequestSwitchAuthority(
+          this.scenarioDefinition.switches.indexOf(inlineSwitch.definition), runtime.state,
+          runtime.lockedBy ? this.trams.findIndex((item) => item.id === runtime.lockedBy) : -1,
+          runtime.state, tramIndex, true);
+        if (!reservation) { tram.speedMps = 0; return; }
+        runtime.state = reservation.state;
+        runtime.lockedBy = this.trams[reservation.lockedByIndex]?.id ?? null;
+        runtime.resetAfterRelease = true;
         tram.branchOrigin = {
           switchId: inlineSwitch.definition.id,
           routeSegmentId: current.id,
@@ -5467,9 +5508,7 @@ export class SimulationEngine {
         tram.segmentId = branch.id;
         tram.progress = 0;
         tram.triggeredOnSegment.clear();
-        runtime.state = "main";
-        runtime.lockedBy = null;
-        runtime.queue = [];
+        runtime.releaseAtDistance = tram.distanceMeters + TRAM_LENGTH_METERS;
         this.addEvent(
           "warning",
           `${tram.label} diverted at ${inlineSwitch.definition.id} → ${inlineSwitch.definition.label}`,
@@ -5565,12 +5604,24 @@ export class SimulationEngine {
       return this.nextRouteSegment(tram, previous, outgoing) ?? outgoing[0];
     }
     if (switchDefinition.returnSegmentIds?.includes(previous.id)) {
+      const runtime = this.switchStates.get(switchDefinition.id);
+      if (runtime?.lockedBy === tram.id) runtime.releaseAtDistance = tram.distanceMeters + TRAM_LENGTH_METERS;
       return (
         outgoing.find((item) => item.id === switchDefinition.mainSegmentId) ?? outgoing[0]
       );
     }
 
     const runtime = this.switchStates.get(switchDefinition.id);
+    if (runtime) {
+      const tramIndex = this.trams.findIndex((item) => item.id === tram.id);
+      const reservation = cppRequestSwitchAuthority(
+        this.scenarioDefinition.switches.indexOf(switchDefinition), runtime.state,
+        runtime.lockedBy ? this.trams.findIndex((item) => item.id === runtime.lockedBy) : -1,
+        runtime.state, tramIndex, true);
+      if (!reservation) return null;
+      runtime.state = reservation.state;
+      runtime.lockedBy = this.trams[reservation.lockedByIndex]?.id ?? null;
+    }
     const selectedId =
       runtime?.state === "branch"
         ? switchDefinition.branchSegmentId
@@ -5580,24 +5631,8 @@ export class SimulationEngine {
       "info",
       `${tram.label} passed ${switchDefinition.id} → ${runtime?.state.toUpperCase() ?? "MAIN"}`,
     );
-    if (runtime?.lockedBy === tram.id) {
-      const switchIndex = this.scenarioDefinition.switches.findIndex(
-        (item) => item.id === switchDefinition.id,
-      );
-      const tramIndex = this.trams.findIndex((item) => item.id === tram.id);
-      const released = cppReleaseSwitchAuthority(
-        switchIndex,
-        runtime.state,
-        tramIndex,
-        tramIndex,
-      );
-      runtime.state = released.state;
-      runtime.lockedBy =
-        released.lockedByIndex >= 0
-          ? this.trams[released.lockedByIndex]?.id ?? null
-          : null;
-      this.applyNextSwitchRequest(runtime, switchDefinition);
-    }
+    if (runtime?.lockedBy === tram.id)
+      runtime.releaseAtDistance = tram.distanceMeters + TRAM_LENGTH_METERS;
     return selected;
   }
 
@@ -5645,16 +5680,19 @@ export class SimulationEngine {
       }
       const controller = this.trafficForSignal(signal.id);
       if (
-        controller?.manualMode === "tram-green" &&
+        controller?.phase === "tram-green" &&
+        controller.manualMode === "tram-green" &&
         controller.manualSignalId === signal.id &&
         entered &&
         !controller.activeTramId
       ) {
         controller.activeTramId = tram.id;
       }
+      if (controller && entered && controller.activeTramId !== tram.id)
+        this.observeTraffic(controller, tram, signal.id, false);
       if (
         !controller ||
-        controller.phase !== "tram-green" ||
+        (controller.phase !== "tram-green" && controller.phase !== "fault") ||
         controller.activeTramId !== tram.id ||
         controller.activeSignalId !== signal.id
       ) {
@@ -5662,7 +5700,7 @@ export class SimulationEngine {
       }
       if (entered && !controller.activeTramEntered) {
         controller.activeTramEntered = true;
-        invalidateCppTrafficController(this.trafficControllerIndex(controller));
+        this.observeTraffic(controller, tram, signal.id, false, to);
         this.addEvent(
           "ok",
           `${tram.label} entered ${controller.label} on ${signal.id} · tram green held`,
@@ -5674,7 +5712,7 @@ export class SimulationEngine {
         !controller.activeTramCleared
       ) {
         controller.activeTramCleared = true;
-        invalidateCppTrafficController(this.trafficControllerIndex(controller));
+        this.observeTraffic(controller, tram, signal.id, true);
         this.addEvent(
           "ok",
           `${tram.label} cleared ${signal.id} · ${controller.label} road release permitted`,
@@ -5832,10 +5870,48 @@ export class SimulationEngine {
 
   private updateTraffic() {
     for (const controller of this.trafficControllers.values()) {
-      if (controller.phase === "tram-green") {
+      if (controller.phase === "tram-green" || controller.phase === "fault") {
         this.reconcileActiveTrafficOccupancy(controller);
       }
       if (this.updateTrafficWithCpp(controller)) continue;
+      const occupied = controller.activeTramEntered && !controller.activeTramCleared;
+      if (occupied && this.simulationTime - (controller.activeEnteredAt ?? controller.activeGrantedAt) >= TRAFFIC_GRANT_TIMEOUT_SECONDS) {
+        if (controller.phase !== "fault") this.addEvent("warning", `${controller.label}: clearance detector timeout · ALL RED`);
+        controller.phase = "fault";
+        controller.phaseUntil = 0;
+      }
+      if (controller.phase === "fault") {
+        if (controller.activeTramCleared) {
+          controller.phase = "amber-to-road";
+          controller.phaseUntil = this.simulationTime + controller.clearanceSeconds;
+        }
+        continue;
+      }
+      if (controller.manualReleasePending && occupied) continue;
+      if (controller.phase === "amber-to-road") {
+        if (this.simulationTime < controller.phaseUntil) continue;
+        const previousSignal = controller.activeSignalId;
+        controller.phase = "road-green";
+        controller.phaseUntil = 0;
+        controller.activeTramId = controller.activeSignalId = null;
+        controller.activeTramEntered = controller.activeTramCleared = false;
+        controller.activeGrantedAt = 0;
+        controller.manualReleasePending = false;
+        delete controller.activeEnteredAt;
+        delete controller.rearClearDistance;
+        this.addEvent("info", `${previousSignal} released · tram signal RED`);
+        continue;
+      }
+      if (controller.manualReleasePending && controller.activeTramCleared) {
+        controller.phase = "amber-to-road";
+        controller.phaseUntil = this.simulationTime + controller.clearanceSeconds;
+        continue;
+      }
+      if (controller.manualMode === "tram-green" && controller.activeTramId && controller.activeTramCleared) {
+        controller.phase = "amber-to-road";
+        controller.phaseUntil = this.simulationTime + controller.clearanceSeconds;
+        continue;
+      }
       if (controller.manualMode === "tram-green") {
         controller.phase = "tram-green";
         controller.phaseUntil = 0;
@@ -5967,16 +6043,6 @@ export class SimulationEngine {
           "warning",
           `${controller.label}: ${controller.clearanceSeconds}s junction clearance`,
         );
-      } else if (controller.phase === "amber-to-road") {
-        const releasedSignal = controller.activeSignalId;
-        controller.phase = "road-green";
-        controller.phaseUntil = 0;
-        controller.activeTramId = null;
-        controller.activeSignalId = null;
-        controller.activeTramCleared = false;
-        controller.activeTramEntered = false;
-        controller.activeGrantedAt = 0;
-        this.addEvent("info", `${releasedSignal} released · tram signal RED`);
       }
     }
   }
@@ -6018,6 +6084,7 @@ export class SimulationEngine {
       "amber-to-tram",
       "tram-green",
       "amber-to-road",
+      "fault",
     ];
     const tramIndex = (tramId: string | null | undefined) =>
       tramId ? this.trams.findIndex((tram) => tram.id === tramId) : -1;
@@ -6073,6 +6140,10 @@ export class SimulationEngine {
       result.activeSignalIndex >= 0
         ? this.scenarioDefinition.signals[result.activeSignalIndex]?.id ?? null
         : null;
+    if (controller.activeTramId !== previousActiveTramId || !result.activeTramEntered) {
+      delete controller.rearClearDistance;
+      delete controller.activeEnteredAt;
+    }
     controller.activeTramEntered = result.activeTramEntered;
     controller.activeTramCleared = result.activeTramCleared;
     controller.activeGrantedAt = result.activeGrantedAt;
@@ -6114,8 +6185,52 @@ export class SimulationEngine {
       this.addEvent("info", `${previousActiveSignalId} released · tram signal RED`);
     } else if (result.event === 6) {
       this.addEvent("ok", `${controller.label}: crossing clear · AUTO restored`);
+    } else if (result.event === 7) {
+      this.addEvent("warning", `${controller.label}: clearance detector timeout · ALL RED · owner retained until confirmed clear`);
     }
     return true;
+  }
+
+  private observeTraffic(controller: TrafficRuntime, tram: TramState, signalId: string, cleared: boolean, detectedAt = tram.progress) {
+    const signal = this.scenarioDefinition.signals.find((item) => item.id === signalId);
+    const segment = signal ? this.segments.get(signal.segmentId) : null;
+    if (!cleared && signal && segment && controller.activeTramId === tram.id && controller.activeSignalId === signalId) {
+      controller.activeEnteredAt ??= this.simulationTime;
+      const frontClearAt = Math.max(signal.at, signal.clearAt ?? Math.min(.98, signal.at + .18));
+      controller.rearClearDistance = tram.distanceMeters + (frontClearAt - detectedAt) * segment.lengthMeters + TRAM_LENGTH_METERS;
+    }
+    const fault = cppObserveTrafficAuthority(
+      this.trafficControllerIndex(controller),
+      this.trams.findIndex((item) => item.id === tram.id),
+      this.scenarioDefinition.signals.findIndex((item) => item.id === signalId),
+      cleared,
+      this.simulationTime,
+    );
+    if (fault && controller.phase !== "fault") {
+      controller.phase = "fault";
+      this.addEvent("warning", `${controller.label}: unexpected entry · ALL RED · reset required after inspection`);
+    }
+  }
+
+  private releaseClearedSwitches() {
+    for (const [index, definition] of this.scenarioDefinition.switches.entries()) {
+      const runtime = this.switchStates.get(definition.id);
+      if (!runtime || runtime.releaseAtDistance === undefined || !runtime.lockedBy) continue;
+      const tramIndex = this.trams.findIndex((tram) => tram.id === runtime.lockedBy);
+      const tram = this.trams[tramIndex];
+      if (!tram || tram.distanceMeters < runtime.releaseAtDistance) continue;
+      const released = cppReleaseSwitchAuthority(index, runtime.state, tramIndex, tramIndex);
+      runtime.state = released.state;
+      runtime.lockedBy = released.lockedByIndex < 0 ? null : this.trams[released.lockedByIndex]?.id ?? null;
+      if (runtime.lockedBy) continue;
+      delete runtime.releaseAtDistance;
+      if (runtime.resetAfterRelease && runtime.state === "branch" && runtime.queue.length === 0) {
+        const reset = cppToggleSwitchAuthority(index, runtime.state, -1, true);
+        if (reset) runtime.state = reset.state;
+      }
+      delete runtime.resetAfterRelease;
+      this.applyNextSwitchRequest(runtime, definition);
+    }
   }
 
   private reconcileActiveTrafficOccupancy(controller: TrafficRuntime) {
@@ -6132,7 +6247,7 @@ export class SimulationEngine {
       tram.progress >= signal.at
     ) {
       controller.activeTramEntered = true;
-      invalidateCppTrafficController(this.trafficControllerIndex(controller));
+      this.observeTraffic(controller, tram, signal.id, false);
       this.addEvent(
         "ok",
         `${tram.label} entered ${controller.label} on ${signal.id} · tram green held`,
@@ -6148,13 +6263,13 @@ export class SimulationEngine {
     const rearClearAt = segment
       ? frontClearAt + TRAM_LENGTH_METERS / segment.lengthMeters
       : frontClearAt;
-    const fullyClear =
-      tram.segmentId !== signal.segmentId ||
-      (rearClearAt <= 1 && tram.progress >= rearClearAt);
+    const fullyClear = tram.segmentId !== signal.segmentId
+      ? controller.rearClearDistance !== undefined && tram.distanceMeters >= controller.rearClearDistance
+      : rearClearAt <= 1 && tram.progress >= rearClearAt;
     if (!fullyClear) return;
 
     controller.activeTramCleared = true;
-    invalidateCppTrafficController(this.trafficControllerIndex(controller));
+    this.observeTraffic(controller, tram, signal.id, true);
     this.addEvent(
       "ok",
       `${tram.label} fully cleared ${signal.id} · rear of tram outside ${controller.label}`,
@@ -6239,7 +6354,11 @@ export class SimulationEngine {
       tramIndex,
       true,
     );
-    runtime.state = result?.state ?? next.desired;
+    if (!result) {
+      runtime.queue.unshift(next);
+      return;
+    }
+    runtime.state = result.state;
     runtime.lockedBy =
       result && result.lockedByIndex >= 0
         ? this.trams[result.lockedByIndex]?.id ?? next.tramId

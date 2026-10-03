@@ -1,12 +1,12 @@
 #pragma once
 
 // Canonical ABI shared by the native core, WASM build and test bridge.
-#define TRAM_CORE_ABI_VERSION 11
+#define TRAM_CORE_ABI_VERSION 12
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// ABI 11 is a singleton per process / WebAssembly instance. Handles are tokens,
+// ABI 12 is a singleton per process / WebAssembly instance. Handles are tokens,
 // not separately allocated simulations. Authority subsystems reset via *_begin.
 typedef void *tram_core_handle;
 int tram_core_abi_version(void);
@@ -43,6 +43,11 @@ int tram_core_switch_state(int);
 int tram_core_switch_locked_by(int);
 int tram_core_signal_sync(int, int, double, int, int, int, int, double, int,
                           int, int);
+// Sync is initialization only. Commands and detector observations cannot import
+// a replacement grant or erase occupancy. Phase 4 is a latched all-red fault.
+int tram_core_signal_manual(int, int, int);
+int tram_core_signal_observe(int, int, int, int, double);
+int tram_core_signal_fault(int);
 int tram_core_signal_step(int, double, int, int, int, int, double, double,
                           double, double);
 int tram_core_signal_phase(int);
@@ -96,11 +101,15 @@ double tram_core_vehicle_x_at(void *, int);
 double tram_core_vehicle_y_at(void *, int);
 double tram_core_vehicle_speed_at(void *, int);
 double tram_core_vehicle_acceleration_at(void *, int);
+double tram_core_vehicle_distance_at(void *, int);
 double tram_core_consumed_wh_at(void *, int);
 double tram_core_regenerated_wh_at(void *, int);
 int tram_core_vehicle_route_at(void *, int);
 int tram_core_vehicle_service_at(void *, int);
 int tram_core_zone_owner(void *, int);
+// Bit 1: multiple trams in a geometric conflict zone. Bit 2: entered
+// reservation exposed to a conflicting phase. Zero means both checks pass.
+int tram_core_safety_invariants(void);
 double tram_core_vehicle_x(void *);
 double tram_core_vehicle_y(void *);
 double tram_core_vehicle_speed(void *);

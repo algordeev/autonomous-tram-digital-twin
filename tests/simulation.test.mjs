@@ -650,7 +650,13 @@ test("a real Route 2 turnout can divert a tram onto its mapped branch", () => {
       diverted = true;
       assert.ok(snapshot.trams[0].segmentId.startsWith("N2X-"));
       const turnout = snapshot.switches.find((item) => item.id === "SW-OSH");
-      assert.equal(turnout?.state, "main");
+      assert.equal(turnout?.state, "branch", "points must stay fixed while the rear is over the turnout");
+      assert.equal(turnout?.lockedBy, snapshot.trams[0].id);
+      assert.equal(engine.toggleSwitch("SW-OSH"), false);
+      advance(engine, 30);
+      const cleared = engine.getSnapshot().switches.find((item) => item.id === "SW-OSH");
+      assert.equal(cleared?.lockedBy, null);
+      assert.equal(cleared?.state, "main", "automatic reset is allowed after rear clearance");
       break;
     }
   }
@@ -1629,6 +1635,9 @@ test("every road crossing is signal-controlled in both car directions", () => {
           (item) => item.id !== approach.segmentId,
         ).id;
         engine.updateTraffic();
+        assert.equal(controller.activeTramCleared, false, "the front leaving a segment does not clear its rear");
+        engine.trams[0].distanceMeters = controller.rearClearDistance + .01;
+        engine.updateTraffic();
       }
       assert.equal(controller.activeTramCleared, true);
       controller.phaseUntil = engine.simulationTime - 1;
@@ -1756,6 +1765,9 @@ test("manual signal control exposes tram, road and safe automatic modes", () => 
 
   runtime.activeTramCleared = true;
   engine.updateTraffic();
+  assert.equal(runtime.phase, "amber-to-road");
+  engine.simulationTime += runtime.clearanceSeconds;
+  engine.updateTraffic();
   assert.equal(runtime.phase, "road-green");
   assert.equal(runtime.manualMode, "road-green");
   assert.equal(engine.setTrafficSignalMode("SG-OSH-A", "auto"), true);
@@ -1814,6 +1826,7 @@ test("tram green remains held until the rear of a slowed tram clears the crossin
   controller.activeTramEntered = true;
   controller.activeTramCleared = false;
   controller.activeGrantedAt = 0;
+  controller.activeEnteredAt = 55;
   engine.simulationTime = 60;
 
   engine.updateTraffic();

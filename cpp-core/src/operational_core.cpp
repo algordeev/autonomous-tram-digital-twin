@@ -1,8 +1,9 @@
 // Shared freestanding operational core for native and browser execution.
 #include "tram/control_parameters.hpp"
 #include "tram/core_c_api.h"
-// Geometry is immutable input; all state changes and safety decisions live
-// here.
+// TypeScript supplies geometry, requests and detector observations. Authority
+// state below persists here; sync functions for motion/signals/switches seed it
+// once after begin and cannot replace live state.
 extern "C" {
 constexpr int MAX_ROUTES = 4, MAX_POINTS = 384, MAX_TRAMS = 20, MAX_ZONES = 8,
               MAX_POWER_SECTIONS = 16;
@@ -45,7 +46,8 @@ static int authority_count = 0;
 struct AuthoritySignal {
   int initialized, phase, active_tram, active_signal, entered, cleared,
       manual_mode, manual_signal, pending, event;
-  double until, granted_at;
+  double until, granted_at, entered_at;
+  int fault;
 };
 static AuthoritySignal authority_signals[MAX_SIGNALS]{};
 static int authority_signal_count = 0;
@@ -442,7 +444,7 @@ int tram_core_switch_begin(int count) {
   return 1;
 }
 int tram_core_switch_sync(int i, int state_value, int locked_by) {
-  if (i < 0 || i >= authority_switch_count)
+  if (i < 0 || i >= authority_switch_count || authority_switches[i].initialized)
     return 0;
   authority_switches[i] = {1, state_value ? 1 : 0, locked_by};
   return 1;
@@ -451,7 +453,8 @@ int tram_core_switch_toggle(int i, int cooperative) {
   if (i < 0 || i >= authority_switch_count)
     return 0;
   AuthoritySwitch &s = authority_switches[i];
-  if (cooperative && s.locked_by >= 0)
+  (void)cooperative; // A control mode never overrides a physical interlock.
+  if (!s.initialized || s.locked_by >= 0)
     return 0;
   s.state = s.state ? 0 : 1;
   return 1;
@@ -460,12 +463,12 @@ int tram_core_switch_request(int i, int desired, int tram, int cooperative) {
   if (i < 0 || i >= authority_switch_count)
     return 0;
   AuthoritySwitch &s = authority_switches[i];
-  if (!cooperative) {
-    s.state = desired ? 1 : 0;
-    s.locked_by = -1;
-    return 1;
-  }
-  if (s.locked_by < 0 || s.locked_by == tram) {
+  (void)cooperative;
+  if (!s.initialized || tram < 0)
+    return 0;
+  if (s.locked_by >= 0)
+    return s.locked_by == tram && s.state == (desired ? 1 : 0);
+  if (s.locked_by < 0) {
     s.state = desired ? 1 : 0;
     s.locked_by = tram;
     return 1;
@@ -494,20 +497,139 @@ int tram_core_signal_sync(int i, int phase, double until, int active_tram,
   if (i < 0 || i >= authority_signal_count)
     return 0;
   AuthoritySignal &s = authority_signals[i];
+  if (s.initialized)
+    return 0;
   s = {1,       phase,   active_tram, active_signal,
        entered, cleared, manual_mode, manual_signal,
-       pending, 0,       until,       granted_at};
+       pending, 0,       until,       granted_at, granted_at, 0};
   return 1;
+}
+int tram_core_signal_manual(int i, int mode, int signal) {
+  if (i < 0 || i >= authority_signal_count || mode < 0 || mode > 2 ||
+      !authority_signals[i].initialized || (mode == 1 && signal < 0))
+    return 0;
+  AuthoritySignal &s = authority_signals[i];
+  if (s.manual_mode != mode || s.manual_signal != signal) {
+    // Changing a request cannot erase a reservation, including an approach
+    // tram that has not yet reached the entry detector.
+    s.pending = (s.active_tram >= 0 && !s.cleared) ||
+                (s.phase == 2 && s.active_tram < 0);
+    s.manual_mode = mode;
+    s.manual_signal = signal;
+  }
+  return 1;
+}
+int tram_core_signal_observe(int i, int tram, int signal, int cleared, double now) {
+  if (i < 0 || i >= authority_signal_count || !authority_signals[i].initialized ||
+      tram < 0 || signal < 0 || !__builtin_isfinite(now))
+    return 0;
+  AuthoritySignal &s = authority_signals[i];
+  // A manual green starts with no tram; its first matching entry binds it.
+  if (!cleared && s.active_tram < 0 && s.phase == 2 && !s.fault &&
+      s.active_signal == signal) {
+    s.active_tram = tram;
+    s.granted_at = now;
+  }
+  if (s.active_tram != tram || s.active_signal != signal) {
+    if (!cleared) {
+      s.fault = 2; // Unexpected entry: stop every conflicting movement.
+      s.phase = 4;
+      s.until = 0;
+    }
+    return 0;
+  }
+  if (!cleared && !s.entered && s.phase != 2 && s.phase != 4) {
+    // Even the reserved tram must not enter during road clearance/amber.
+    s.entered = 1;
+    s.entered_at = now;
+    s.fault = 2;
+    s.phase = 4;
+    s.until = 0;
+    return 0;
+  }
+  if (cleared) {
+    if (!s.entered) return 0; // A stale clear cannot release a new grant.
+    s.cleared = 1;
+  } else if (!s.entered) {
+    s.entered = 1;
+    s.entered_at = now;
+  }
+  return 1;
+}
+int tram_core_signal_fault(int i) {
+  return i >= 0 && i < authority_signal_count ? authority_signals[i].fault : 0;
 }
 int tram_core_signal_step(int i, double now, int candidate_tram,
                           int candidate_signal, int still_waiting,
                           int active_invalid, double amber, double green,
                           double clearance, double timeout) {
-  if (i < 0 || i >= authority_signal_count || !authority_signals[i].initialized)
+  if (i < 0 || i >= authority_signal_count || !authority_signals[i].initialized ||
+      !__builtin_isfinite(now) || amber <= 0 || green <= 0 ||
+      clearance <= 0 || timeout <= 0)
     return 0;
   AuthoritySignal &s = authority_signals[i];
   s.event = 0;
+  // Time alone never proves clearance. On detector loss we latch all-red and
+  // preserve the owner; only its matching clear can recover timeout fault 1.
+  if (s.entered && !s.cleared && now - s.entered_at >= timeout && !s.fault) {
+    s.fault = 1;
+    s.phase = 4;
+    s.until = 0;
+    s.event = 7;
+  }
+  if (s.fault) {
+    if (s.fault == 1 && s.cleared) {
+      s.fault = 0;
+      s.pending = 0;
+      s.phase = 3;
+      s.until = now + clearance;
+      s.event = 4;
+    }
+    return 1;
+  }
+  // Drain an existing grant before applying a conflicting manual request.
+  if (s.pending && s.active_tram >= 0 && !s.cleared) {
+    if (!s.entered && now - s.granted_at >= timeout && active_invalid && !still_waiting) {
+      s.cleared = 1; // Withdrawn approach reservation; no entry was observed.
+    } else {
+    if (s.phase == 1 && now >= s.until) {
+      s.phase = 2;
+      s.until = now + green;
+    }
+    return 1;
+    }
+  }
+  if (s.pending) {
+    s.pending = 0;
+    s.phase = 3;
+    s.until = now + clearance;
+    s.event = 4;
+    return 1;
+  }
+  // Clearance applies to manual requests too.
+  if (s.phase == 3) {
+    if (now < s.until) return 1;
+    s.phase = 0;
+    s.until = 0;
+    s.active_tram = s.active_signal = -1;
+    s.entered = s.cleared = 0;
+    s.granted_at = 0;
+    s.event = 5;
+    return 1;
+  }
   if (s.manual_mode == 1) {
+    // Entry may arrive after the operator command in the same tick. Recheck
+    // occupancy here instead of trusting the command-time pending flag.
+    if (s.entered && !s.cleared) {
+      s.pending = s.active_signal != s.manual_signal;
+      return 1;
+    }
+    if (s.active_tram >= 0 && s.entered && s.cleared) {
+      s.phase = 3;
+      s.until = now + clearance;
+      s.event = 4;
+      return 1;
+    }
     s.phase = 2;
     s.until = 0;
     s.active_signal = s.manual_signal;
@@ -525,18 +647,6 @@ int tram_core_signal_step(int i, double now, int candidate_tram,
     s.until = 0;
     s.active_tram = s.active_signal = -1;
     s.entered = s.cleared = 0;
-    return 1;
-  }
-  if (s.pending) {
-    if (!s.entered || s.cleared) {
-      s.pending = 0;
-      s.phase = 0;
-      s.until = 0;
-      s.active_tram = s.active_signal = -1;
-      s.entered = s.cleared = 0;
-      s.granted_at = 0;
-      s.event = 6;
-    }
     return 1;
   }
   if (s.phase == 0 && candidate_tram >= 0) {
@@ -627,6 +737,8 @@ int tram_core_authority_sync(int i, double speed, double acceleration,
   if (i < 0 || i >= authority_count)
     return 0;
   AuthorityVehicle &v = authority[i];
+  if (v.initialized)
+    return 0;
   int station_phase = v.station_phase, service_state = v.service_state;
   double station_until = v.station_until;
   v = {};
@@ -650,6 +762,11 @@ int tram_core_authority_sync(int i, double speed, double acceleration,
 int tram_core_authority_override_motion(int i, double speed,
                                         double acceleration) {
   if (i < 0 || i >= authority_count || !authority[i].initialized)
+    return 0;
+  // Collision/alignment correction may reduce motion, never inject acceleration
+  // or increase speed. Normal acceleration is owned by authority_step.
+  if (!__builtin_isfinite(speed) || !__builtin_isfinite(acceleration) ||
+      speed < 0 || speed > authority[i].speed || acceleration > 0)
     return 0;
   authority[i].speed = speed;
   authority[i].acceleration = acceleration;
@@ -1040,22 +1157,59 @@ int tram_core_add_route_point(void *, int route, double x, double y) {
   r.length = r.cumulative[i];
   return 1;
 }
+static int zone_occupants(int z) {
+  int count = 0;
+  for (int i = 0; i < state.tram_count; i++) {
+    const Tram &t = state.trams[i];
+    const Zone &zone = state.zones[z];
+    if (t.active && zone.at[t.route] >= 0 &&
+        cyclic(t.distance, zone.at[t.route], state.routes[t.route].length) <= zone.half_width + 15)
+      count++;
+  }
+  return count;
+}
+int tram_core_safety_invariants(void) {
+  int violations = 0;
+  for (int z = 0; z < state.zone_count; z++)
+    if (zone_occupants(z) > 1) violations |= 1;
+  for (int i = 0; i < authority_signal_count; i++) {
+    const AuthoritySignal &s = authority_signals[i];
+    if (s.initialized && s.entered && !s.cleared &&
+        (s.active_tram < 0 || s.active_signal < 0 || (s.phase != 2 && s.phase != 4)))
+      violations |= 2;
+  }
+  return violations;
+}
 int tram_core_configure_zone(void *, int z, double half) {
-  if (z < 0 || z >= state.zone_count)
+  if (z < 0 || z >= state.zone_count || state.time > 0 ||
+      !__builtin_isfinite(half) || half <= 0)
     return 0;
+  double previous = state.zones[z].half_width;
   state.zones[z].half_width = half;
+  if (zone_occupants(z) > 1) {
+    state.zones[z].half_width = previous;
+    return 0;
+  }
   return 1;
 }
 int tram_core_set_zone_route(void *, int z, int r, double at) {
-  if (z < 0 || z >= state.zone_count || r < 0 || r >= state.route_count)
+  if (z < 0 || z >= state.zone_count || r < 0 || r >= state.route_count ||
+      state.time > 0 || !__builtin_isfinite(at) || at < 0 || at >= state.routes[r].length)
     return 0;
+  double previous = state.zones[z].at[r];
   state.zones[z].at[r] = at;
+  if (zone_occupants(z) > 1) {
+    state.zones[z].at[r] = previous;
+    return 0;
+  }
   return 1;
 }
 int tram_core_configure_tram(void *, int i, int route, double fraction) {
   if (i < 0 || i >= state.tram_count || route < 0 ||
-      route >= state.route_count || state.routes[route].length <= 0)
+      route >= state.route_count || state.routes[route].length <= 0 ||
+      state.time > 0 || !__builtin_isfinite(fraction))
     return 0;
+  Tram previous = state.trams[i];
   state.trams[i] = {1,
                     route,
                     0,
@@ -1068,6 +1222,10 @@ int tram_core_configure_tram(void *, int i, int route, double fraction) {
                     11.1,
                     0,
                     0};
+  if (tram_core_safety_invariants() & 1) {
+    state.trams[i] = previous;
+    return 0;
+  }
   return 1;
 }
 int tram_core_set_target_speed(void *, double speed) {
@@ -1140,10 +1298,10 @@ int tram_core_step(void *, double dt) {
       if (at < 0)
         continue;
       double ahead = wrap(at - t.distance, r.length);
-      bool inside = cyclic(t.distance, at, r.length) <= zone.half_width + 8;
+      bool inside = cyclic(t.distance, at, r.length) <= zone.half_width + 15;
       if (inside && (zone.owner < 0 || zone.owner == i))
         zone.owner = i;
-      if (ahead < 65 && !inside) {
+      if (ahead < 65 + zone.half_width + 15 && !inside) {
         if (zone.owner < 0)
           zone.owner = i;
         if (zone.owner != i)
@@ -1183,7 +1341,22 @@ int tram_core_step(void *, double dt) {
         t.regenerated_wh += brake * av * dt / 3600 * .86 * .82;
       t.consumed_wh += 4500 * dt / 3600;
     }
-    t.distance = wrap(t.distance + av * dt, r.length);
+    double movement = av * dt;
+    // Braking prediction is advisory; this swept-distance interlock prevents
+    // a long step/high speed from crossing another tram's reserved boundary.
+    for (int z = 0; z < state.zone_count; z++) {
+      const Zone &zone = state.zones[z];
+      double at = zone.at[t.route];
+      if (at < 0 || zone.owner < 0 || zone.owner == i) continue;
+      double boundary = wrap(at - zone.half_width - 15, r.length);
+      double remaining = wrap(boundary - t.distance, r.length);
+      if (movement >= remaining) {
+        movement = remaining > .01 ? remaining - .01 : 0;
+        t.speed = 0;
+        t.acceleration = -old / dt;
+      }
+    }
+    t.distance = wrap(t.distance + movement, r.length);
   }
   state.time += dt;
   return 1;
@@ -1215,6 +1388,9 @@ double tram_core_vehicle_speed_at(void *, int i) {
 }
 double tram_core_vehicle_acceleration_at(void *, int i) {
   return i >= 0 && i < state.tram_count ? state.trams[i].acceleration : 0;
+}
+double tram_core_vehicle_distance_at(void *, int i) {
+  return i >= 0 && i < state.tram_count ? state.trams[i].distance : 0;
 }
 double tram_core_consumed_wh_at(void *, int i) {
   return i >= 0 && i < state.tram_count ? state.trams[i].consumed_wh : 0;
