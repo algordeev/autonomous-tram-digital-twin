@@ -38,13 +38,13 @@
   "dependencies": {
     "d3-geo": "^3.1.1",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@types/d3-geo": "^3.1.0",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
+    "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.0.2",
     "browsercc": "0.1.1",
     "typescript": "5.9.3",
