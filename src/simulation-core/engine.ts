@@ -31,6 +31,7 @@ import {
   cppEnergyOptimizedTarget,
   cppSettleTractionPower,
   cppObserveTrafficAuthority,
+  setCppPowerStrategy,
   invalidateCppStation,
   invalidateCppDepotState,
   type CppVehicleAuthorityResult,
@@ -370,7 +371,7 @@ export interface TramSnapshot {
   scheduledDepartureClock: string | null;
   scheduledDepartureKind: "depot" | "terminal" | null;
   scheduledDeparturePointLabel: string | null;
-  /** Assigned parallel platform at a dual-track Izmir terminus. */
+  /** Parallel platform at a dual-track Izmir terminus, assigned or still being vacated. */
   terminalBerth: 0 | 1 | 2;
   lastDepartureDeviationSeconds: number | null;
   distanceMeters: number;
@@ -762,6 +763,8 @@ interface TramState {
   terminalIntervalHold: boolean;
   /** 1/2 at the two Izmir terminal platforms, otherwise 0. */
   terminalBerth: 0 | 1 | 2;
+  /** Platform being vacated; it stays reserved until the rear has left it. */
+  terminalDeparture: { readerId: string; berth: 1 | 2; clearAtMeters: number } | null;
   /** Terminal reader where this tram waits while both Izmir berths are occupied. */
   terminalEntryQueueReaderId: string | null;
   lastBlockKey: string | null;
@@ -1861,7 +1864,9 @@ export class SimulationEngine {
 
   setEnergyStrategy(strategy: EnergyStrategy) {
     this.options.energyStrategy = strategy;
-    this.configureTractionPowerAuthority();
+    // Change the strategy in place: restarting the power subsystem would reset
+    // its energy baselines and report each tram's lifetime energy as one step.
+    setCppPowerStrategy(strategy);
     this.trams.forEach((tram) => {
       tram.energyGuidanceActive = false;
     });
@@ -1908,7 +1913,7 @@ export class SimulationEngine {
 
     tram.manualMode = enabled;
     tram.manualCommand = enabled ? "stop" : "forward";
-    tram.speedMps = 0;
+    // A hold is a braking command; the motion authority brings the tram to rest.
     tram.targetSpeedMps = 0;
     tram.pwm = 0;
     tram.releaseTime = 0;
@@ -1956,7 +1961,7 @@ export class SimulationEngine {
     this.invalidateStopBoards();
 
     if (command === "stop") {
-      tram.speedMps = 0;
+      // Service-brake to rest; the speed is owned by the motion authority.
       tram.targetSpeedMps = 0;
       tram.pwm = 0;
       tram.status = "Manual hold";
@@ -2165,6 +2170,7 @@ export class SimulationEngine {
         stationUntil: 0,
         terminalIntervalHold: false,
         terminalBerth: 0,
+        terminalDeparture: null,
         terminalEntryQueueReaderId: null,
         lastBlockKey: null,
         emergencyStops: 0,
@@ -2394,8 +2400,12 @@ export class SimulationEngine {
 
   private terminalBerthMask(readerId: string, excludeTramId?: string) {
     return this.trams.reduce((mask, other) => {
+      if (other.id === excludeTramId) return mask;
+      const departure = this.activeTerminalDeparture(other);
+      if (departure?.readerId === readerId) {
+        mask |= departure.berth === 1 ? 1 : 2;
+      }
       if (
-        other.id === excludeTramId ||
         other.pendingStationReaderId !== readerId ||
         other.stationPhase === "none" ||
         other.terminalBerth === 0
@@ -2404,6 +2414,41 @@ export class SimulationEngine {
       }
       return mask | (other.terminalBerth === 1 ? 1 : 2);
     }, 0);
+  }
+
+  private activeTerminalDeparture(tram: TramState) {
+    const departure = tram.terminalDeparture;
+    if (
+      departure &&
+      (tram.distanceMeters >= departure.clearAtMeters || tram.serviceState === "in-depot")
+    ) {
+      tram.terminalDeparture = null;
+    }
+    return tram.terminalDeparture;
+  }
+
+  /**
+   * Both Izmir platforms share one position on the schematic track, but they
+   * are parallel rails: a tram standing at the other platform is not ahead of
+   * one arriving at, or leaving, its own platform, and a tram leaving the
+   * other platform is not ahead of one still standing at its own.
+   */
+  private standsAtParallelIzmirBerth(tram: TramState, other: TramState) {
+    if (this.canUseParallelIzmirTerminalBerth(tram, other)) return true;
+    const berthedAtOtherPlatform = (
+      standing: TramState,
+      departure: TramState["terminalDeparture"],
+    ) => Boolean(
+      departure &&
+      standing.pendingStationReaderId === departure.readerId &&
+      standing.stationPhase !== "none" &&
+      standing.terminalBerth !== 0 &&
+      standing.terminalBerth !== departure.berth,
+    );
+    return (
+      berthedAtOtherPlatform(other, this.activeTerminalDeparture(tram)) ||
+      berthedAtOtherPlatform(tram, this.activeTerminalDeparture(other))
+    );
   }
 
   private assignIzmirTerminalBerth(tram: TramState, reader: RFIDReader) {
@@ -2765,7 +2810,8 @@ export class SimulationEngine {
     tram.depotProgress = 1;
     tram.depotEnteredAt = this.simulationTime;
     tram.lastPassengerStop = null;
-    tram.speedMps = 0;
+    const tramIndex = this.trams.findIndex((item) => item.id === tram.id);
+    this.haltVehicle(tram, tramIndex);
     tram.targetSpeedMps = 0;
     tram.pwm = 0;
     tram.stationPhase = "none";
@@ -2781,7 +2827,7 @@ export class SimulationEngine {
     tram.scheduledDepartureKind = null;
     tram.scheduledDeparturePointLabel = null;
     tram.lastDepartureDeviationSeconds = null;
-    invalidateCppDepotState(this.trams.findIndex((item) => item.id === tram.id));
+    invalidateCppDepotState(tramIndex);
     this.initializeHeadwayTargets();
     return true;
   }
@@ -3123,19 +3169,48 @@ export class SimulationEngine {
     if (tram.serviceState === "depot-egress" && tram.scheduledDepartureAt !== null) {
       this.recordScheduledDeparture(tram);
     }
+    const depotTrackLengthMeters = DEPOT_TRACK_SPEED_MPS * DEPOT_TRANSFER_SECONDS;
+    const exitRuntime = this.segments.get(assignment.portal.exitSegmentId);
+    const exitBlocked =
+      tram.serviceState === "depot-egress" &&
+      (!exitRuntime ||
+        this.trams.some(
+          (other) =>
+            other.id !== tram.id &&
+            other.serviceState !== "in-depot" &&
+            other.segmentId === assignment.portal.exitSegmentId &&
+            Math.abs(other.progress - assignment.portal.exitProgress) < 0.08,
+        ));
+    if (exitBlocked && tram.depotProgress >= 0.999) {
+      // Standing at the exit: hold without stepping the motion authority.
+      this.haltVehicle(tram, tramIndex);
+      tram.targetSpeedMps = 0;
+      tram.tractionForceN = 0;
+      tram.brakeForceN = 0;
+      tram.dynamicsMode = "coast";
+      tram.pwm = 0;
+      tram.status = "Depot exit held · rail occupied";
+      return;
+    }
+    // With the line occupied, brake to rest at the end of the depot track.
+    const targetSpeedMps = exitBlocked
+      ? this.stopEnvelopeMps(
+          (1 - tram.depotProgress) * depotTrackLengthMeters + STOP_POINT_MARGIN_METERS,
+          DEPOT_TRACK_SPEED_MPS,
+        )
+      : DEPOT_TRACK_SPEED_MPS;
     const dynamics = cppStepVehicleAuthority(
       tramIndex,
       this.vehicleAuthorityState(tram),
       {
-        targetSpeedMps: DEPOT_TRACK_SPEED_MPS,
+        targetSpeedMps,
         grade: 0,
         passengerCount: tram.onboardPassengers,
       },
       delta,
     );
-    tram.targetSpeedMps = DEPOT_TRACK_SPEED_MPS;
+    tram.targetSpeedMps = targetSpeedMps;
     this.applyVehicleAuthorityResult(tram, dynamics);
-    const depotTrackLengthMeters = DEPOT_TRACK_SPEED_MPS * DEPOT_TRANSFER_SECONDS;
     const progressStep = dynamics.distanceMeters / depotTrackLengthMeters;
     tram.depotProgress = clamp(tram.depotProgress + progressStep, 0, 1);
     tram.pwm = 24;
@@ -3156,25 +3231,14 @@ export class SimulationEngine {
       return;
     }
 
-    tram.status = `Leaving ${assignment.depot.shortName} · not in service`;
+    tram.status = exitBlocked
+      ? "Depot exit held · rail occupied"
+      : `Leaving ${assignment.depot.shortName} · not in service`;
     if (tram.depotProgress < 0.999999) return;
-    const exitRuntime = this.segments.get(assignment.portal.exitSegmentId);
-    const exitBlocked = this.trams.some(
-      (other) =>
-        other.id !== tram.id &&
-        other.serviceState !== "in-depot" &&
-        other.segmentId === assignment.portal.exitSegmentId &&
-        Math.abs(other.progress - assignment.portal.exitProgress) < 0.08,
-    );
     if (!exitRuntime || exitBlocked) {
+      // The rail became occupied too late to brake on the envelope.
       tram.depotProgress = 0.999;
-      tram.speedMps = 0;
-      tram.targetSpeedMps = 0;
-      tram.lastAcceleration = 0;
-      tram.tractionForceN = 0;
-      tram.brakeForceN = 0;
-      tram.dynamicsMode = "coast";
-      tram.status = "Depot exit held · rail occupied";
+      this.haltVehicle(tram, tramIndex, delta);
       return;
     }
     const nextState = cppDepotObserveAuthority(
@@ -3193,7 +3257,6 @@ export class SimulationEngine {
     tram.triggeredOnSegment.clear();
     tram.status = "Entered passenger service";
     tram.statusTone = "normal";
-    tram.speedMps = 0;
     // Reset the schedule-adherence baseline: without this, delaySeconds is
     // computed against how long ago the tram *first* ever entered service,
     // ignoring however long it just sat in the depot. That made every
@@ -4618,6 +4681,16 @@ export class SimulationEngine {
         this.recordScheduledDeparture(tram);
       }
       this.recordTerminalDeparture(tram);
+      tram.terminalDeparture =
+        tram.terminalBerth !== 0 && tram.pendingStationReaderId
+          ? {
+              readerId: tram.pendingStationReaderId,
+              berth: tram.terminalBerth,
+              // Released once a tram standing at the other platform has the
+              // full physical spacing behind this tram's rear.
+              clearAtMeters: tram.distanceMeters + MIN_FRONT_SEPARATION_METERS,
+            }
+          : null;
       tram.terminalIntervalHold = false;
       tram.terminalBerth = 0;
       tram.terminalEntryQueueReaderId = null;
@@ -4641,23 +4714,35 @@ export class SimulationEngine {
       return;
     }
 
-    const physicalLeaderAhead = this.nearestTramAhead(tram);
-    const routeLeaderAhead = this.nearestTramAhead(tram, true);
-    const parallelPhysicalBypass = this.canUseParallelIzmirTerminalBerth(
-      tram,
-      physicalLeaderAhead?.tram ?? null,
-    );
+    let physicalLeaderAhead = this.nearestTramAhead(tram);
+    if (
+      physicalLeaderAhead &&
+      this.standsAtParallelIzmirBerth(tram, physicalLeaderAhead.tram)
+    ) {
+      // Skip only the tram on the other platform; anything beyond it on the
+      // shared track (such as a tram still leaving) remains a physical leader.
+      physicalLeaderAhead = this.nearestTramAhead(tram, false, physicalLeaderAhead.tram.id);
+    }
+    let routeLeaderAhead = this.nearestTramAhead(tram, true);
+    if (
+      routeLeaderAhead &&
+      this.activeTerminalDeparture(tram) &&
+      this.standsAtParallelIzmirBerth(tram, routeLeaderAhead.tram)
+    ) {
+      // Leaving its platform, a tram is not regulated behind the tram still
+      // standing at the other one: at the shared platform point that reads as
+      // a 0 m interval and would hold it until the other tram departs.
+      // (Arrivals already skip interval regulation behind a terminal leader.)
+      routeLeaderAhead = this.nearestTramAhead(tram, true, routeLeaderAhead.tram.id);
+    }
     const terminalLeaderAtApproach = this.leaderOccupiesApproachingIzmirTerminal(
       tram,
       routeLeaderAhead?.tram ?? null,
     );
-    const block =
-      tram.manualMode && tram.manualCommand === "stop"
-        ? null
-        : this.findBlockingCondition(
-            tram,
-            parallelPhysicalBypass ? null : physicalLeaderAhead,
-          );
+    // A manually held tram still brakes to rest, so it must keep respecting
+    // stop points ahead; it just does not request signal priority while held.
+    const manualHold = tram.manualMode && tram.manualCommand === "stop";
+    const block = this.findBlockingCondition(tram, physicalLeaderAhead, !manualHold);
     const intervalGuidance = this.intervalGuidance(
       tram,
       speedLimitMps,
@@ -4865,12 +4950,11 @@ export class SimulationEngine {
     const branch = this.segments.get(tram.segmentId);
     if (!origin || !branch || !branch.id.startsWith("N2X-")) {
       tram.manualCommand = "stop";
-      tram.speedMps = 0;
+      this.haltVehicle(tram, tramIndex, delta);
       tram.targetSpeedMps = 0;
       tram.pwm = 0;
       tram.status = "Reverse unavailable · manual hold";
       tram.statusTone = "warning";
-      tram.lastAcceleration = delta > 0 ? -previousSpeed / delta : 0;
       return;
     }
 
@@ -5212,6 +5296,7 @@ export class SimulationEngine {
   private findBlockingCondition(
     tram: TramState,
     leaderAhead: { tram: TramState; distanceMeters: number } | null,
+    requestPriority = true,
   ) {
     const candidates: Array<{
       key: string;
@@ -5280,6 +5365,7 @@ export class SimulationEngine {
           // stop-line range so a tram dwelling upstream cannot hold a green.
           if (
             controller &&
+            requestPriority &&
             signalDistance <= nearRangeMeters &&
             controller.activeTramId !== tram.id &&
             !controller.queue.some((request) => request.tramId === tram.id)
@@ -5420,6 +5506,16 @@ export class SimulationEngine {
     );
   }
 
+  /**
+   * Stop at an interlock in the motion authority too. Writing only the
+   * mirrored speed would let the authority continue from its own state.
+   */
+  private haltVehicle(tram: TramState, tramIndex: number, deltaSeconds?: number) {
+    tram.lastAcceleration = deltaSeconds ? -tram.speedMps / deltaSeconds : 0;
+    tram.speedMps = 0;
+    cppOverrideVehicleMotion(tramIndex, 0, tram.lastAcceleration);
+  }
+
   private resetSegmentTrail(tram: TramState) {
     tram.segmentTrail = [{ segmentId: tram.segmentId, enteredAtMeters: tram.distanceMeters }];
   }
@@ -5442,10 +5538,14 @@ export class SimulationEngine {
     return ids;
   }
 
-  private nearestTramAhead(tram: TramState, sameRouteOnly = false) {
+  private nearestTramAhead(
+    tram: TramState,
+    sameRouteOnly = false,
+    excludeTramId?: string,
+  ) {
     let nearest: { tram: TramState; distanceMeters: number } | null = null;
     for (const other of this.trams) {
-      if (other.id === tram.id) continue;
+      if (other.id === tram.id || other.id === excludeTramId) continue;
       if (
         other.serviceState === "in-depot" ||
         other.serviceState === "depot-ingress" ||
@@ -5602,7 +5702,7 @@ export class SimulationEngine {
         tram.terminalIntervalHold = false;
         tram.terminalBerth = 0;
         tram.terminalEntryQueueReaderId = null;
-        tram.speedMps = 0;
+        // The tram rolls on into the depot lead at its current speed.
         tram.status = `Entering ${depotPortal.depot.shortName} · not in service`;
         tram.statusTone = "warning";
         this.invalidateStopBoards();
@@ -5623,7 +5723,7 @@ export class SimulationEngine {
           this.scenarioDefinition.switches.indexOf(inlineSwitch.definition), runtime.state,
           runtime.lockedBy ? this.trams.findIndex((item) => item.id === runtime.lockedBy) : -1,
           runtime.state, tramIndex, true);
-        if (!reservation) { tram.speedMps = 0; return; }
+        if (!reservation) { this.haltVehicle(tram, tramIndex); return; }
         runtime.state = reservation.state;
         runtime.lockedBy = this.trams[reservation.lockedByIndex]?.id ?? null;
         runtime.resetAfterRelease = true;
@@ -5646,7 +5746,7 @@ export class SimulationEngine {
       if (tram.progress >= 0.999999) {
         const next = this.chooseNextSegment(tram, current);
         if (!next) {
-          tram.speedMps = 0;
+          this.haltVehicle(tram, tramIndex);
           tram.targetSpeedMps = 0;
           tram.pwm = 0;
           if (current.id.startsWith("N2X-") && tram.manualMode) {
@@ -6582,10 +6682,15 @@ export class SimulationEngine {
           location = { ...location, angle: location.angle + Math.PI };
         }
       }
-      const leader =
+      let leader =
         tram.serviceState === "in-service"
           ? this.nearestTramAhead(tram, true)
           : null;
+      if (leader && this.standsAtParallelIzmirBerth(tram, leader.tram)) {
+        // The tram at the other platform shares the platform point but not the
+        // rail; reporting it as a 0 m headway would be misleading.
+        leader = this.nearestTramAhead(tram, true, leader.tram.id);
+      }
       const group = this.scenarioDefinition.fleetGroups?.find(
         (item) => item.id === tram.fleetGroupId,
       );
@@ -6638,7 +6743,7 @@ export class SimulationEngine {
             : formatClock(tram.scheduledDepartureClockSeconds),
         scheduledDepartureKind: tram.scheduledDepartureKind,
         scheduledDeparturePointLabel: tram.scheduledDeparturePointLabel,
-        terminalBerth: tram.terminalBerth,
+        terminalBerth: tram.terminalBerth || this.activeTerminalDeparture(tram)?.berth || 0,
         lastDepartureDeviationSeconds: tram.lastDepartureDeviationSeconds,
         distanceMeters: tram.distanceMeters,
         energyWh: tram.energyWh,

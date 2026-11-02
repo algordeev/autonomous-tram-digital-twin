@@ -253,6 +253,72 @@ test("energy-optimal dispatch reduces the measured network peak", async () => {
   resetCppRuntimeForTests();
 });
 
+test("manual STOP service-brakes the motion authority instead of zeroing its mirror", async () => {
+  await initializeCppRuntimeFromBytes(wasmBytes);
+  try {
+    const engine = new SimulationEngine("nizhny-route-2");
+    engine.setRunning(true);
+    let tram;
+    for (let tick = 0; tick < 4000 && !tram; tick += 1) {
+      engine.stepFixed(0.05);
+      tram = engine.trams.find((item) => item.speedMps > 8);
+    }
+    assert.ok(tram, "a tram must reach line speed");
+    engine.selectTram(tram.id);
+    const speedBefore = tram.speedMps;
+    assert.equal(engine.setSelectedTramCommand("stop"), true);
+    assert.equal(tram.speedMps, speedBefore, "the mirror keeps the authority speed");
+
+    let previous = tram.speedMps;
+    let seconds = 0;
+    while (tram.speedMps > 0.01 && seconds < 30) {
+      engine.stepFixed(0.05);
+      seconds += 0.05;
+      assert.ok(tram.speedMps <= previous + 0.1, `speed jumped from ${previous} to ${tram.speedMps}`);
+      assert.ok(tram.lastAcceleration >= -1.3, `braked at ${tram.lastAcceleration} m/s²`);
+      previous = tram.speedMps;
+    }
+    assert.ok(tram.speedMps <= 0.01, "the tram must come to rest");
+    assert.equal(tram.status, "Manual hold");
+  } finally {
+    resetCppRuntimeForTests();
+  }
+});
+
+test("switching energy strategy mid-run keeps the power baselines and flywheel energy", async () => {
+  await initializeCppRuntimeFromBytes(wasmBytes);
+  try {
+    const engine = new SimulationEngine("nizhny-routes-2-21", 10);
+    engine.setAutoDispatch(false);
+    advance(engine, 120);
+    const power = () => engine.getSnapshot().energyStatistics.powerSystem;
+    const before = power();
+    assert.ok(before.gridSupplyKWh > 0);
+
+    engine.setEnergyStrategy("baseline");
+    advance(engine, 1);
+    const after = power();
+    // A restart counted every tram's lifetime energy as one 50 ms pulse (GW peaks).
+    assert.ok(after.peakGridPowerKw < before.peakGridPowerKw * 1.5 + 500,
+      `peak jumped from ${before.peakGridPowerKw} to ${after.peakGridPowerKw} kW`);
+    assert.ok(after.gridSupplyKWh >= before.gridSupplyKWh, "energy totals must not restart");
+    assert.ok(after.gridSupplyKWh - before.gridSupplyKWh < 5);
+
+    // Isolating the flywheels and reconnecting them resumes from the same charge.
+    const stored = after.flywheelStoredKWh;
+    engine.setEnergyStrategy("no-storage");
+    assert.equal(power().flywheelStoredKWh, stored, "the snapshot keeps the last settled value");
+    advance(engine, 1);
+    assert.equal(power().flywheelStoredKWh, 0);
+    engine.setEnergyStrategy("network-optimal");
+    advance(engine, 0.05);
+    assert.ok(Math.abs(power().flywheelStoredKWh - stored) < 0.5,
+      `reconnected bank holds ${power().flywheelStoredKWh} kWh instead of ~${stored}`);
+  } finally {
+    resetCppRuntimeForTests();
+  }
+});
+
 test("Route 2 direction labels match the geographic travel direction", () => {
   const scenario = SCENARIOS.find((item) => item.id === "nizhny-route-2");
   assert.ok(scenario);

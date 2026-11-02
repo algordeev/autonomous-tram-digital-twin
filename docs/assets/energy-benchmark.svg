@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 460" width="1000" height="460" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="title">Energy and peak-power benchmark</title>
+<desc id="desc">İzmir reactive: grid-energy saving 9.9%, peak-power reduction 0.7%; İzmir predictive: grid-energy saving 9.9%, peak-power reduction 0.7%; Nizhny 2+21 reactive: grid-energy saving 12.6%, peak-power reduction 6.5%; Nizhny 2+21 predictive: grid-energy saving 12.1%, peak-power reduction 23.5%; Nizhny Route 2 reactive: grid-energy saving 10.7%, peak-power reduction 40.7%; Nizhny Route 2 predictive: grid-energy saving 9.7%, peak-power reduction 47.5%</desc>
+<rect width="1000" height="460" fill="#fcfcfb"/>
+<line x1="64" x2="976" y1="384.0" y2="384.0" stroke="#9a998f" stroke-width="1"/>
+<text x="54" y="384.0" dy="0.32em" text-anchor="end" font-size="12" fill="#5f5e58">0%</text>
+<line x1="64" x2="976" y1="320.0" y2="320.0" stroke="#e4e3dd" stroke-width="1"/>
+<text x="54" y="320.0" dy="0.32em" text-anchor="end" font-size="12" fill="#5f5e58">10%</text>
+<line x1="64" x2="976" y1="256.0" y2="256.0" stroke="#e4e3dd" stroke-width="1"/>
+<text x="54" y="256.0" dy="0.32em" text-anchor="end" font-size="12" fill="#5f5e58">20%</text>
+<line x1="64" x2="976" y1="192.0" y2="192.0" stroke="#e4e3dd" stroke-width="1"/>
+<text x="54" y="192.0" dy="0.32em" text-anchor="end" font-size="12" fill="#5f5e58">30%</text>
+<line x1="64" x2="976" y1="128.0" y2="128.0" stroke="#e4e3dd" stroke-width="1"/>
+<text x="54" y="128.0" dy="0.32em" text-anchor="end" font-size="12" fill="#5f5e58">40%</text>
+<line x1="64" x2="976" y1="64.0" y2="64.0" stroke="#e4e3dd" stroke-width="1"/>
+<text x="54" y="64.0" dy="0.32em" text-anchor="end" font-size="12" fill="#5f5e58">50%</text>
+<text transform="translate(18 224.0) rotate(-90)" text-anchor="middle" font-size="12" fill="#5f5e58">Change relative to no storage</text>
+<rect x="64" y="22" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="82" y="28" dy="0.32em" font-size="13" fill="#1f1e1c">Grid-energy saving</text>
+<rect x="274" y="22" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="292" y="28" dy="0.32em" font-size="13" fill="#1f1e1c">Peak-power reduction</text>
+<path d="M95.0 384.0V324.6Q95.0 320.6 99.0 320.6H135.0Q139.0 320.6 139.0 324.6V384.0Z" fill="#2a78d6"/>
+<text x="117.0" y="314.6" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">9.9%</text>
+<path d="M141.0 384.0V383.4Q141.0 379.4 145.0 379.4H181.0Q185.0 379.4 185.0 383.4V384.0Z" fill="#eb6834"/>
+<text x="163.0" y="373.4" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">0.7%</text>
+<text x="140.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">İzmir</text>
+<text x="140.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">reactive</text>
+<path d="M247.0 384.0V324.7Q247.0 320.7 251.0 320.7H287.0Q291.0 320.7 291.0 324.7V384.0Z" fill="#2a78d6"/>
+<text x="269.0" y="314.7" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">9.9%</text>
+<path d="M293.0 384.0V383.4Q293.0 379.4 297.0 379.4H333.0Q337.0 379.4 337.0 383.4V384.0Z" fill="#eb6834"/>
+<text x="315.0" y="373.4" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">0.7%</text>
+<text x="292.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">İzmir</text>
+<text x="292.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">predictive</text>
+<path d="M399.0 384.0V307.2Q399.0 303.2 403.0 303.2H439.0Q443.0 303.2 443.0 307.2V384.0Z" fill="#2a78d6"/>
+<text x="421.0" y="297.2" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">12.6%</text>
+<path d="M445.0 384.0V346.5Q445.0 342.5 449.0 342.5H485.0Q489.0 342.5 489.0 346.5V384.0Z" fill="#eb6834"/>
+<text x="467.0" y="336.5" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">6.5%</text>
+<text x="444.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">Nizhny 2+21</text>
+<text x="444.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">reactive</text>
+<path d="M551.0 384.0V310.6Q551.0 306.6 555.0 306.6H591.0Q595.0 306.6 595.0 310.6V384.0Z" fill="#2a78d6"/>
+<text x="573.0" y="300.6" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">12.1%</text>
+<path d="M597.0 384.0V237.6Q597.0 233.6 601.0 233.6H637.0Q641.0 233.6 641.0 237.6V384.0Z" fill="#eb6834"/>
+<text x="619.0" y="227.6" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">23.5%</text>
+<text x="596.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">Nizhny 2+21</text>
+<text x="596.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">predictive</text>
+<path d="M703.0 384.0V319.8Q703.0 315.8 707.0 315.8H743.0Q747.0 315.8 747.0 319.8V384.0Z" fill="#2a78d6"/>
+<text x="725.0" y="309.8" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">10.7%</text>
+<path d="M749.0 384.0V127.7Q749.0 123.7 753.0 123.7H789.0Q793.0 123.7 793.0 127.7V384.0Z" fill="#eb6834"/>
+<text x="771.0" y="117.7" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">40.7%</text>
+<text x="748.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">Nizhny Route 2</text>
+<text x="748.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">reactive</text>
+<path d="M855.0 384.0V325.9Q855.0 321.9 859.0 321.9H895.0Q899.0 321.9 899.0 325.9V384.0Z" fill="#2a78d6"/>
+<text x="877.0" y="315.9" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">9.7%</text>
+<path d="M901.0 384.0V84.1Q901.0 80.1 905.0 80.1H941.0Q945.0 80.1 945.0 84.1V384.0Z" fill="#eb6834"/>
+<text x="923.0" y="74.1" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">47.5%</text>
+<text x="900.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">Nizhny Route 2</text>
+<text x="900.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">predictive</text>
+<text x="64" y="448" font-size="11" fill="#5f5e58">10 simulated minutes from 08:00 · npm run benchmark:energy</text>
+</svg>

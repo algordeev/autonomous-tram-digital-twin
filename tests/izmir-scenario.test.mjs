@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { SimulationEngine } from "../src/simulation-core/engine.ts";
+import {
+  initializeCppRuntimeFromBytes,
+  resetCppRuntimeForTests,
+} from "../src/simulation-core/cpp-runtime.ts";
 import { clampMapPan } from "../src/map-viewport.ts";
 
 const loadNetwork = async () =>
@@ -135,6 +139,81 @@ test("smooth braking stops an Izmir tram at the platform marker", async () => {
     Math.abs(tram.progress - (reader.displayAt ?? reader.at)) * segment.lengthMeters;
   assert.ok(alignmentErrorMeters <= 0.45, `platform error was ${alignmentErrorMeters} m`);
   assert.equal(tram.speedKmh, 0);
+});
+
+// Both orders matter: at the shared platform point the tie-break reports the
+// standing tram as 0 m ahead only when it has the lower fleet rank.
+for (const firstArrival of ["lower fleet rank", "higher fleet rank"]) test(`two trams use both Izmir terminal platforms side by side and leave independently (${firstArrival} arrives first)`, async () => {
+  resetCppRuntimeForTests();
+  await initializeCppRuntimeFromBytes(
+    await readFile(new URL("../public/wasm/tram-core.wasm", import.meta.url)),
+  );
+  try {
+    const engine = new SimulationEngine("izmir-konak");
+    engine.setAutoDispatch(false);
+    const terminal = engine.scenario.readers.find((reader) => reader.id === "IZK-RO18");
+    const segment = engine.segments.get(terminal.segmentId);
+    const [lowerRank, higherRank] = engine.trams;
+    const [first, second] = firstArrival === "lower fleet rank"
+      ? [lowerRank, higherRank]
+      : [higherRank, lowerRank];
+    engine.trams = [lowerRank, higherRank];
+    for (const [tram, metersBeforeTrigger] of [[first, 40], [second, 140]]) {
+      tram.serviceState = "in-service";
+      tram.segmentId = segment.id;
+      tram.progress = terminal.at - metersBeforeTrigger / segment.lengthMeters;
+      tram.releaseTime = 0;
+    }
+    // A departure has just left this terminal, so the first arrival is held
+    // for the planned interval as it would be in peak service.
+    const window = engine.activeServiceWindow();
+    engine.lastTerminalDepartureAtByPoint.set(
+      `${window.id}:${engine.routeIdForTram(first)}:terminal:${terminal.id}`,
+      0,
+    );
+
+    const dwelling = (tram) =>
+      tram.pendingStationReaderId === terminal.id && tram.stationPhase === "dwell";
+    let sideBySide = false;
+    let departedAlongside = false;
+    let secondStuckSteps = 0;
+    let closestUnpairedMeters = Infinity;
+    engine.setRunning(true);
+    for (let tick = 0; tick < 20 * 60 / 0.05 && !departedAlongside; tick += 1) {
+      engine.stepFixed(0.05);
+      const snapshots = engine.getSnapshot().trams;
+      for (const item of snapshots) {
+        assert.ok(item.headwayAheadMeters === null || item.headwayAheadMeters >= 21.99,
+          `${item.id} reports a ${item.headwayAheadMeters} m headway`);
+      }
+      if (dwelling(first) && dwelling(second)) {
+        sideBySide = true;
+        assert.notEqual(first.terminalBerth, second.terminalBerth);
+      }
+      // One tram clears the platform area while the other is still standing.
+      const platformMeters = (terminal.displayAt ?? terminal.at) * segment.lengthMeters;
+      if (sideBySide && [first, second].some(dwelling) && [first, second].some((tram) =>
+        !dwelling(tram) &&
+        (tram.segmentId !== segment.id || tram.progress * segment.lengthMeters > platformMeters + 22))) {
+        departedAlongside = true;
+      }
+      if (second.stationPhase === "crawl" && second.speedMps < 0.01 && dwelling(first)) {
+        secondStuckSteps += 1;
+      }
+      for (const [tram, other] of [[first, second], [second, first]]) {
+        const parallel = snapshots.find((item) => item.id === tram.id).terminalBerth *
+          snapshots.find((item) => item.id === other.id).terminalBerth === 2;
+        const gap = engine.forwardDistanceToTram(tram, other);
+        if (!parallel && gap !== null) closestUnpairedMeters = Math.min(closestUnpairedMeters, gap);
+      }
+    }
+    assert.ok(sideBySide, "both platforms must be occupied at the same time");
+    assert.ok(departedAlongside, "a tram must be able to leave while the other platform is occupied");
+    assert.ok(secondStuckSteps < 20, `second tram waited behind the first for ${secondStuckSteps} steps`);
+    assert.ok(closestUnpairedMeters >= 21.99, `trams came within ${closestUnpairedMeters} m outside the platforms`);
+  } finally {
+    resetCppRuntimeForTests();
+  }
 });
 
 test("Izmir detects an obstacle before entering its next track segment", () => {
