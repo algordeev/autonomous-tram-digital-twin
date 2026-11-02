@@ -64,6 +64,29 @@ average passenger waiting exceeds 10 minutes continuously for 5 minutes. The
 authorization lasts 20 minutes. A 15-minute cooldown prevents repeated release
 and withdrawal around the threshold.
 
+## Lateness and short turns
+
+Two measures describe a tram that is behind, each for a different decision:
+
+- **Interval delay** is how much later than planned a tram left its last stop,
+  measured from the previous departure of its route at that stop. The planned
+  interval is the timetable headway where the service window defines one, and
+  otherwise the even spacing of the route's current fleet at its measured
+  average speed. Planned dwells and terminal holds are part of both departures,
+  so normal running does not accumulate delay. A tram is late beyond the ±60 s
+  tolerance used for timed departures. The "most delayed tram" junction policy
+  serves the tram with the largest interval delay first, and a late tram is
+  exempt from energy peak smoothing.
+- **Held time** is how long a tram has stood continuously at an unplanned stop:
+  an obstacle, red signal, turnout lock, occupied conflict zone or headway hold,
+  including queueing behind a stuck tram. Stop dwells, terminal holds and manual
+  holds do not count. In normal running it stays under a minute.
+
+A tram is short-turned when its held time reaches 10 minutes or 2.5 planned
+headways, whichever is longer. It is withdrawn to the nearest reachable portal,
+a turnback siding where one is free, and finishes its passenger service at the
+portal's last stop.
+
 ## Passenger and dwell model
 
 Passenger arrivals depend on service time and stop weight. The queue is not

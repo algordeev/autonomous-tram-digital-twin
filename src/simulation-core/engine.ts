@@ -365,6 +365,7 @@ export interface TramSnapshot {
   statusTone: "normal" | "warning" | "danger" | "idle";
   doorsOpen: boolean;
   pwm: number;
+  /** Interval delay at the last stop departure, relative to the previous tram of the route. */
   delaySeconds: number;
   /** Actual departure lateness, or current overdue slot; null without a timetable. */
   timetableDelaySeconds: number | null;
@@ -550,6 +551,7 @@ export interface SimulationMetrics {
   averageSpeedKmh: number;
   headwayMeters: number;
   targetHeadwayMeters: number;
+  /** Share of in-service trams whose interval delay is within the on-time tolerance. */
   onTimePercent: number;
   scheduledDepartures: number;
   departureAdherencePercent: number | null;
@@ -731,15 +733,20 @@ interface TramState {
   statusTone: TramSnapshot["statusTone"];
   pwm: number;
   releaseTime: number;
+  /**
+   * Interval delay: how much later than planned this tram left its last stop,
+   * measured from the previous departure of its route there. Planned dwells
+   * and terminal holds are not delay, and it does not accumulate.
+   */
   delaySeconds: number;
+  /** Continuous time held by an unplanned stop (obstacle, signal, interlock, headway). */
+  heldSeconds: number;
   scheduledDepartureAt: number | null;
   scheduledDepartureClockSeconds: number | null;
   scheduledDepartureKind: "depot" | "terminal" | null;
   scheduledDeparturePointLabel: string | null;
   lastDepartureDeviationSeconds: number | null;
   distanceMeters: number;
-  /** distanceMeters snapshot taken when this service period began — see updateTramTelemetry. */
-  serviceStartDistanceMeters: number;
   energyWh: number;
   recoveredWh: number;
   tractionEnergyWh: number;
@@ -973,17 +980,19 @@ const TURNBACK_MAX_DWELL_SECONDS = 600;
 /** Minimum time between emergency extra-tram dispatches on the same route. */
 const DEMAND_ADJUST_COOLDOWN_SECONDS = 900;
 /**
- * A tram running later than (its route's planned headway × this factor) is
- * considered short-turn material — scales with the route's own schedule
- * rather than a flat number, since a 20-minute headway route running 7
- * minutes late is unremarkable, while the same 7 minutes would be a crisis
- * on a 5-minute headway route.
+ * A tram held continuously by an unplanned stop for longer than (its route's
+ * planned headway × this factor) is short-turn material. The threshold scales
+ * with the route's own schedule: being stuck for 7 minutes is unremarkable on
+ * a 20-minute headway route, but a crisis on a 5-minute one.
  */
 const SHORT_TURN_HEADWAY_MULTIPLIER = 2.5;
 /** Floor so a route with no configured headway still gets a sane threshold. */
-const SHORT_TURN_MIN_DELAY_SECONDS = 600;
-/** How long the delay must persist, continuously, before withdrawing the tram. */
-const SHORT_TURN_SUSTAINED_SECONDS = 180;
+const SHORT_TURN_MIN_HOLD_SECONDS = 600;
+/**
+ * A tram counts as late once its interval delay exceeds this; the same
+ * tolerance as timed departures, so "late" means one thing everywhere.
+ */
+const LATE_TOLERANCE_SECONDS = 60;
 /**
  * How often every stop's demand tracker gets a lazy catch-up regardless of
  * tram visits or dispatcher activity. Bounds the "stale point-in-time rate"
@@ -1482,8 +1491,8 @@ export class SimulationEngine {
   private demandSustainedSinceAt = new Map<string, number>();
   /** routeId -> simulationTime until which an emergency extra-tram boost is authorized. */
   private emergencyBoostUntil = new Map<string, number>();
-  /** tramId -> simulationTime when this tram first crossed its short-turn delay threshold. */
-  private delaySustainedSinceAt = new Map<string, number>();
+  /** "routeId:readerId" -> simulationTime of the last passenger departure from that stop. */
+  private lastStopDepartureAt = new Map<string, number>();
   /** Next unassigned absolute service-clock slot for each terminal/depot gate. */
   private nextDepartureSlotByPoint = new Map<string, number>();
   /** Last actual simulation-time departure for each route and terminal direction. */
@@ -1758,9 +1767,11 @@ export class SimulationEngine {
     this.nextServicePlanCheckAt = this.simulationTime;
     this.nextDepartureSlotByPoint.clear();
     this.lastTerminalDepartureAtByPoint.clear();
+    this.lastStopDepartureAt.clear();
     this.terminalHeadwayStatsByRouteWindow.clear();
     this.departureStatsByRoute.clear();
     for (const tram of this.trams) {
+      tram.delaySeconds = 0;
       tram.scheduledDepartureAt = null;
       tram.scheduledDepartureClockSeconds = null;
       tram.scheduledDepartureKind = null;
@@ -2035,6 +2046,7 @@ export class SimulationEngine {
     this.lastDemandAdjustAt = new Map();
     this.nextDepartureSlotByPoint = new Map();
     this.lastTerminalDepartureAtByPoint = new Map();
+    this.lastStopDepartureAt = new Map();
     this.terminalHeadwayStatsByRouteWindow = new Map();
     this.departureStatsByRoute = new Map();
     for (const reader of this.scenarioDefinition.readers) {
@@ -2142,13 +2154,13 @@ export class SimulationEngine {
             ? index * (this.scenarioDefinition.dispatchIntervalSeconds ?? 12)
             : 0,
         delaySeconds: 0,
+        heldSeconds: 0,
         scheduledDepartureAt: null,
         scheduledDepartureClockSeconds: null,
         scheduledDepartureKind: null,
         scheduledDeparturePointLabel: null,
         lastDepartureDeviationSeconds: null,
         distanceMeters: 0,
-        serviceStartDistanceMeters: 0,
         energyWh: 0,
         recoveredWh: 0,
         tractionEnergyWh: 0,
@@ -2946,7 +2958,6 @@ export class SimulationEngine {
       // before it was disabled cause an instant trigger the moment it's
       // switched back on.
       this.demandSustainedSinceAt.clear();
-      this.delaySustainedSinceAt.clear();
       this.emergencyBoostUntil.clear();
       return;
     }
@@ -3057,47 +3068,33 @@ export class SimulationEngine {
       this.dispatchFromDepot(tram, announce);
     }
 
-    // 3. Short turn: also a last resort, for a single tram catastrophically
-    // behind schedule (e.g. stuck a long time behind an obstacle) — not a
-    // routine spacing tool. The threshold scales with the route's own
-    // planned headway (a route running trams every 20 minutes tolerates a
-    // much bigger absolute delay than one running every 5), and the delay
-    // must stay above that threshold continuously for a while before
-    // anything happens, so a single slow dwell doesn't trigger it.
-    // depotPortalForTram always resolves to the nearest reachable portal — a
-    // mid-route turnback siding if the network defines one nearby, otherwise
-    // the terminal depot.
+    // 3. Short turn: also a last resort, for a tram stuck a long time by an
+    // unplanned stop (an obstacle, or queued behind one) — not a routine
+    // spacing tool. It uses the continuous hold, which planned dwells and
+    // terminal holds never add to: in normal running holds stay well under a
+    // minute. The threshold scales with the route's own planned headway (a
+    // route running trams every 20 minutes tolerates a much longer hold than
+    // one running every 5). depotPortalForTram resolves to the nearest
+    // reachable portal — a mid-route turnback siding if the network defines
+    // one nearby, otherwise the terminal depot.
     for (const tram of this.trams) {
-      if (tram.serviceState !== "in-service") {
-        this.delaySustainedSinceAt.delete(tram.id);
-        continue;
-      }
+      if (tram.serviceState !== "in-service") continue;
       const plannedHeadwayMinutes =
-        window?.routes[this.routeIdForTram(tram) ?? ""]?.plannedHeadwayMinutes ?? null;
+        window?.routes[this.routeIdForTram(tram)]?.plannedHeadwayMinutes ?? null;
       const thresholdSeconds = Math.max(
-        SHORT_TURN_MIN_DELAY_SECONDS,
+        SHORT_TURN_MIN_HOLD_SECONDS,
         (plannedHeadwayMinutes ?? 0) * 60 * SHORT_TURN_HEADWAY_MULTIPLIER,
       );
-      if (tram.delaySeconds <= thresholdSeconds) {
-        this.delaySustainedSinceAt.delete(tram.id);
-        continue;
-      }
-      if (!this.delaySustainedSinceAt.has(tram.id)) {
-        this.delaySustainedSinceAt.set(tram.id, this.simulationTime);
-      }
-      const sustainedSeconds =
-        this.simulationTime - this.delaySustainedSinceAt.get(tram.id)!;
-      if (sustainedSeconds < SHORT_TURN_SUSTAINED_SECONDS) continue;
+      if (tram.heldSeconds < thresholdSeconds) continue;
 
+      const heldMinutes = Math.round(tram.heldSeconds / 60);
       const withdrawn = this.markForDepot(tram, false, false, true);
-      this.delaySustainedSinceAt.delete(tram.id);
       if (withdrawn && announce) {
-        const isTurnback = tram.depotId?.startsWith("TURNBACK") ?? false;
         this.addEvent(
           "warning",
-          isTurnback
-            ? `${tram.label}: short turn at ${tram.lastPassengerStop} — pulled into the turnback siding, ${tram.delaySeconds.toFixed(0)}s behind schedule for over ${Math.round(sustainedSeconds / 60)} min`
-            : `${tram.label}: short turn — withdrawn to depot, ${tram.delaySeconds.toFixed(0)}s behind schedule for over ${Math.round(sustainedSeconds / 60)} min`,
+          this.depotKind(tram.depotId) === "turnback"
+            ? `${tram.label}: short turn at ${tram.lastPassengerStop} — pulled into the turnback siding after a ${heldMinutes} min hold`
+            : `${tram.label}: short turn — withdrawn to depot after a ${heldMinutes} min hold`,
         );
       }
     }
@@ -3257,14 +3254,9 @@ export class SimulationEngine {
     tram.triggeredOnSegment.clear();
     tram.status = "Entered passenger service";
     tram.statusTone = "normal";
-    // Reset the schedule-adherence baseline: without this, delaySeconds is
-    // computed against how long ago the tram *first* ever entered service,
-    // ignoring however long it just sat in the depot. That made every
-    // freshly redispatched tram look enormously "late" the instant it left
-    // the depot, which the demand dispatcher's short-turn logic would
-    // immediately act on — withdrawing it again right away, over and over.
-    tram.releaseTime = this.simulationTime;
-    tram.serviceStartDistanceMeters = tram.distanceMeters;
+    // A new service period starts on time; the first stop departure measures it.
+    tram.delaySeconds = 0;
+    tram.heldSeconds = 0;
     this.initializeHeadwayTargets();
     this.invalidateStopBoards();
     this.addEvent("ok", `${tram.label} entered route ${this.routeIdForTram(tram)} service`);
@@ -3364,9 +3356,9 @@ export class SimulationEngine {
     const result = cppEnergyOptimizedTarget({
       index: tramIndex,
       sectionIndex: section ? sections.indexOf(section) : -1,
-      // Do not sacrifice service indefinitely for peak shaving: once a tram is
-      // seriously late, schedule recovery outranks the energy controller.
-      manual: tram.manualMode || tram.delaySeconds > 45,
+      // Do not sacrifice service for peak shaving: once a tram is late,
+      // interval recovery outranks the energy controller.
+      manual: tram.manualMode || tram.delaySeconds > LATE_TOLERANCE_SECONDS,
       inService: tram.serviceState === "in-service",
       now: this.simulationTime,
       speedMps: tram.speedMps,
@@ -3586,7 +3578,7 @@ export class SimulationEngine {
     const primaryTraffic = this.getPrimaryTrafficController();
     const serviceWindow = this.activeServiceWindow();
     const speeds = trams.filter((tram) => tram.status !== "Scheduled").map((tram) => tram.speedKmh);
-    const totalDelay = trams.reduce((sum, tram) => sum + tram.delaySeconds, 0);
+    const passengerTrams = trams.filter((tram) => tram.serviceState === "in-service");
     const departureTotals = [...this.departureStatsByRoute.values()].reduce(
       (total, item) => ({
         total: total.total + item.total,
@@ -3681,7 +3673,10 @@ export class SimulationEngine {
             ? plannedHeadways.reduce((sum, value) => sum + value, 0) /
               plannedHeadways.length
             : FALLBACK_HEADWAY_METERS,
-        onTimePercent: clamp(100 - (totalDelay / Math.max(1, trams.length)) * 1.4, 0, 100),
+        onTimePercent: passengerTrams.length > 0
+          ? (passengerTrams.filter((tram) => tram.delaySeconds <= LATE_TOLERANCE_SECONDS).length /
+              passengerTrams.length) * 100
+          : 100,
         scheduledDepartures: departureTotals.total,
         departureAdherencePercent: departureTotals.total
           ? (departureTotals.onTime / departureTotals.total) * 100
@@ -4677,6 +4672,9 @@ export class SimulationEngine {
         `${tram.label} aligned at stop · doors open · ${boarding.boarding} on / ${boarding.alighting} off · dwell ${boarding.dwellSeconds.toFixed(0)}s`,
       );
     } else if (stationState.event === 2) {
+      if (tram.pendingStationReaderId) {
+        this.recordStopDeparture(tram, tram.pendingStationReaderId);
+      }
       if (tram.scheduledDepartureKind === "terminal") {
         this.recordScheduledDeparture(tram);
       }
@@ -4710,7 +4708,7 @@ export class SimulationEngine {
       : 0;
     if (tram.manualMode && tram.manualCommand === "reverse") {
       this.updateManualReverse(tram, delta, previousSpeed, speedLimitMps, tramIndex);
-      this.updateTramTelemetry(tram, delta, speedLimitMps);
+      this.updateHeldTime(tram, delta, false);
       return;
     }
 
@@ -4936,7 +4934,7 @@ export class SimulationEngine {
       this.advanceTram(tram, moveMeters, tramIndex);
     }
 
-    this.updateTramTelemetry(tram, delta, speedLimitMps);
+    this.updateHeldTime(tram, delta, Boolean(block));
   }
 
   private updateManualReverse(
@@ -5076,25 +5074,59 @@ export class SimulationEngine {
     });
   }
 
-  private updateTramTelemetry(
-    tram: TramState,
-    delta: number,
-    speedLimitMps: number,
-  ) {
-    const expectedDistance = Math.max(0, this.simulationTime - tram.releaseTime) * speedLimitMps * 0.62;
-    // distanceMeters is a lifetime odometer (used for fleet stats), so delay
-    // is measured against distance covered *since this service period began*
-    // (serviceStartDistanceMeters), not the whole-lifetime total — otherwise
-    // a tram redispatched from depot would look permanently on-time (or a
-    // long-serving tram permanently "delayed") regardless of how its current
-    // trip is actually going.
-    const distanceThisService = Math.max(
-      0,
-      tram.distanceMeters - tram.serviceStartDistanceMeters,
-    );
+  /**
+   * Continuous time standing at an unplanned stop: an obstacle, red signal,
+   * turnout lock, occupied conflict zone or a headway hold, including queueing
+   * behind a stuck tram. Any movement, stop dwell or terminal hold ends it.
+   */
+  private updateHeldTime(tram: TramState, delta: number, unplannedStop: boolean) {
+    tram.heldSeconds =
+      unplannedStop &&
+      tram.serviceState === "in-service" &&
+      !tram.manualMode &&
+      tram.stationPhase === "none" &&
+      tram.speedMps < 0.1
+        ? tram.heldSeconds + delta
+        : 0;
+  }
+
+  /**
+   * Interval delay at a stop departure: how much later than planned this
+   * tram left, measured from the previous departure of its route at the same
+   * stop. Unlike distance-based lateness it cannot accumulate: it reflects the
+   * most recent interval only, and planned dwells and terminal holds are part
+   * of both departures.
+   */
+  private recordStopDeparture(tram: TramState, readerId: string) {
+    if (tram.serviceState !== "in-service" && tram.serviceState !== "to-depot") return;
+    const key = `${this.routeIdForTram(tram)}:${readerId}`;
+    const previousDepartureAt = this.lastStopDepartureAt.get(key);
+    this.lastStopDepartureAt.set(key, this.simulationTime);
+    if (previousDepartureAt === undefined) return;
     tram.delaySeconds = Math.max(
       0,
-      (expectedDistance - distanceThisService) / Math.max(1, speedLimitMps),
+      this.simulationTime - previousDepartureAt - this.plannedIntervalSeconds(tram),
+    );
+  }
+
+  /**
+   * The timetable headway where the service window has one; otherwise the
+   * even spacing of the route's current fleet at its measured average speed.
+   */
+  private plannedIntervalSeconds(tram: TramState) {
+    const routeId = this.routeIdForTram(tram);
+    const headwayMinutes =
+      this.activeServiceWindow()?.routes[routeId]?.plannedHeadwayMinutes ?? null;
+    if (headwayMinutes && headwayMinutes > 0) return headwayMinutes * 60;
+    const routeTrams = this.trams.filter(
+      (other) => other.serviceState === "in-service" && this.routeIdForTram(other) === routeId,
+    );
+    const averageSpeedMps =
+      routeTrams.reduce((sum, other) => sum + other.etaAverageSpeedMps, 0) /
+      Math.max(1, routeTrams.length);
+    return (
+      Math.max(FALLBACK_HEADWAY_METERS, tram.desiredHeadwayMeters) /
+      Math.max(2.5, averageSpeedMps)
     );
   }
 
