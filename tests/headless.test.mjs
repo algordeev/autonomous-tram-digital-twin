@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   initializeCppRuntimeFromBytes,
   runEnergyComparison,
@@ -51,10 +53,31 @@ test("headless runner returns serializable operational and energy statistics", (
   });
 
   assert.equal(report.schemaVersion, 1);
+  assert.ok(["cpp-wasm", "typescript-fallback"].includes(report.coreRuntime));
   assert.equal(report.scenarioId, "nizhny-routes-2-21");
   assert.ok(report.simulatedDurationSeconds >= 119.9);
   assert.equal(report.samples.length, 4);
   assert.ok(report.routeOperations.length >= 2);
   assert.ok(report.energyStatistics.routes.length >= 2);
   assert.doesNotThrow(() => JSON.stringify(report));
+});
+
+test("the headless CLI runs on the C++ core and simulates the traction-power network", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../scripts/run-headless.mjs", import.meta.url)),
+      "--scenario", "nizhny-routes-2-21",
+      "--duration-hours", "0.03",
+      "--start-minute", "480",
+    ],
+    { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.coreRuntime, "cpp-wasm");
+  const power = report.energyStatistics.powerSystem;
+  assert.ok(report.energyStatistics.total.gridDrawKWh > 0);
+  assert.ok(power.gridSupplyKWh > 0, "substations must supply the trams' demand");
+  assert.ok(power.peakGridPowerKw > 0);
 });
