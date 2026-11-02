@@ -165,6 +165,10 @@ test("manual grants drain the old approach and occupied route before clearance",
   signalStep(ex, 4); assert.equal(ex.tram_core_signal_phase(0), 3);
   signalStep(ex, 4.5); assert.equal(ex.tram_core_signal_phase(0), 3);
   signalStep(ex, 5); signalStep(ex, 5.1);
+  assert.equal(ex.tram_core_signal_phase(0), 1, "the manual green first clears the road through amber");
+  assert.equal(ex.tram_core_signal_active_signal(0), 1);
+  signalStep(ex, 6); assert.equal(ex.tram_core_signal_phase(0), 1);
+  signalStep(ex, 6.1);
   assert.equal(ex.tram_core_signal_phase(0), 2);
   assert.equal(ex.tram_core_signal_active_signal(0), 1);
 });
@@ -289,13 +293,25 @@ test("randomized fleet keeps one tram per geometric conflict zone on every step"
 test("an empty manual green returns to auto through clearance instead of staying green forever", async () => {
   const ex = await loadCore(); initializeSignal(ex);
   ex.tram_core_signal_manual(0, 1, 0); signalStep(ex, 0);
+  assert.equal(ex.tram_core_signal_phase(0), 1, "road amber precedes a manual tram green");
+  signalStep(ex, 1);
   assert.equal(ex.tram_core_signal_phase(0), 2);
-  ex.tram_core_signal_manual(0, 0, -1); signalStep(ex, 1);
+  ex.tram_core_signal_manual(0, 0, -1); signalStep(ex, 2);
   assert.equal(ex.tram_core_signal_phase(0), 3);
-  signalStep(ex, 2);
+  signalStep(ex, 3);
   assert.equal(ex.tram_core_signal_phase(0), 0);
-  signalStep(ex, 3, 1, 1);
+  signalStep(ex, 4, 1, 1);
   assert.equal(ex.tram_core_signal_active_tram(0), 1);
+});
+
+test("a manual green cancelled during its road amber still drains through clearance", async () => {
+  const ex = await loadCore(); initializeSignal(ex);
+  ex.tram_core_signal_manual(0, 1, 0); signalStep(ex, 0);
+  assert.equal(ex.tram_core_signal_phase(0), 1);
+  ex.tram_core_signal_manual(0, 0, -1); signalStep(ex, 0.5);
+  assert.equal(ex.tram_core_signal_phase(0), 3, "no phantom green after the cancelled amber");
+  signalStep(ex, 1.5);
+  assert.equal(ex.tram_core_signal_phase(0), 0);
 });
 
 test("configuration rejects initially overlapping conflict-zone trams without mutating state", async () => {

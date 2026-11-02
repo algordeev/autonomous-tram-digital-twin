@@ -722,6 +722,8 @@ interface TramState {
   linePriority: number;
   segmentId: string;
   progress: number;
+  /** Recent segment entries by odometer, used to locate the rear of the body. */
+  segmentTrail: Array<{ segmentId: string; enteredAtMeters: number }>;
   speedMps: number;
   targetSpeedMps: number;
   status: string;
@@ -877,9 +879,17 @@ const TRAM_COLORS = [
 ];
 const REFERENCE_TO_METERS = 0.55;
 const MAX_TRAMS = 20;
+/** Clear gap between the rear of a leader and the front of its follower. */
 const PHYSICAL_TRAM_GAP_METERS = 7;
 const TRAM_LENGTH_METERS = 15;
+/** Positions are vehicle fronts, so the body length is part of the minimum spacing. */
+const MIN_FRONT_SEPARATION_METERS = TRAM_LENGTH_METERS + PHYSICAL_TRAM_GAP_METERS;
 const SAFETY_HEADWAY_METERS = 30;
+/** Range of the original stop-line detectors; still used for fail-safe signal requests. */
+const NEAR_BLOCK_RANGE_METERS = 32;
+/** A braking target stops this far before a stop point, inside the 1.6 m move interlock. */
+const STOP_POINT_MARGIN_METERS = 2.5;
+const STOP_REACTION_SECONDS = 1.5;
 const FALLBACK_HEADWAY_METERS = 45;
 const HEADWAY_RESTORE_THRESHOLD = 0.92;
 const STOP_BOARD_REFRESH_SECONDS = 5;
@@ -2113,6 +2123,7 @@ export class SimulationEngine {
         linePriority: index + 1,
         segmentId: start.segmentId,
         progress: start.progress,
+        segmentTrail: [{ segmentId: start.segmentId, enteredAtMeters: 0 }],
         speedMps: 0,
         targetSpeedMps: 0,
         status:
@@ -3174,6 +3185,7 @@ export class SimulationEngine {
     if (nextState !== "in-service") return;
     tram.segmentId = exitRuntime.id;
     tram.progress = assignment.portal.exitProgress;
+    this.resetSegmentTrail(tram);
     tram.serviceState = nextState;
     tram.depotId = null;
     tram.depotPortalId = null;
@@ -3389,14 +3401,16 @@ export class SimulationEngine {
 
     if (mode === "tram-green") {
       controller.manualReleasePending = false;
-      controller.phase = "tram-green";
-      controller.phaseUntil = 0;
+      // Clear the road through amber first, exactly like an automatic grant.
+      controller.phase = controller.phase === "tram-green" ? "tram-green" : "amber-to-tram";
+      controller.phaseUntil =
+        controller.phase === "amber-to-tram" ? this.simulationTime + controller.amberSeconds : 0;
       controller.activeSignalId = signalId;
       controller.activeTramId = null;
       controller.activeTramEntered = false;
       controller.activeTramCleared = false;
       controller.activeGrantedAt = this.simulationTime;
-      this.addEvent("warning", `${controller.label}: manual TRAM GO on ${signalId} · road traffic stopped`);
+      this.addEvent("warning", `${controller.label}: manual TRAM GO on ${signalId} · road amber before tram green`);
       return true;
     }
 
@@ -4742,7 +4756,10 @@ export class SimulationEngine {
       manualMode: tram.manualMode,
       manualCommand: tram.manualCommand,
       stationPhase: tram.stationPhase,
-      blocked: Boolean(block),
+      // Only a sensor-detected obstacle demands an immediate stop. Signals,
+      // turnout locks, conflict zones and headway holds are known stop points
+      // and are approached on the braking envelope below.
+      blocked: block?.kind === "obstacle",
       intervalFactor: intervalGuidance?.speedFactor ?? null,
       dispatchHold: terminalEntryHold,
     });
@@ -4756,6 +4773,23 @@ export class SimulationEngine {
       tram.targetSpeedMps,
       speedProfile.targetSpeedMps,
     );
+    if (block && block.kind !== "obstacle") {
+      tram.targetSpeedMps = Math.min(
+        tram.targetSpeedMps,
+        this.stopEnvelopeMps(block.distanceMeters, speedLimitMps),
+      );
+    }
+    if (physicalLeaderAhead) {
+      // Brick-wall braking: the leader may stop at any moment, so the follower
+      // keeps enough distance to stop behind its rear.
+      tram.targetSpeedMps = Math.min(
+        tram.targetSpeedMps,
+        this.stopEnvelopeMps(
+          physicalLeaderAhead.distanceMeters - MIN_FRONT_SEPARATION_METERS,
+          speedLimitMps,
+        ),
+      );
+    }
     if (
       !tram.manualMode &&
       tram.stationPhase === "none" &&
@@ -4795,7 +4829,7 @@ export class SimulationEngine {
       dynamics.distanceMeters,
       block?.distanceMeters ?? null,
       physicalLeaderAhead?.distanceMeters ?? null,
-      PHYSICAL_TRAM_GAP_METERS,
+      MIN_FRONT_SEPARATION_METERS,
     );
     if (
       tram.stationPhase === "crawl" &&
@@ -4862,7 +4896,7 @@ export class SimulationEngine {
     const mergeClear = this.isBranchMergeClear(tram);
     const mergeGap = this.options.collisionAvoidance
       ? SAFETY_HEADWAY_METERS
-      : PHYSICAL_TRAM_GAP_METERS;
+      : MIN_FRONT_SEPARATION_METERS;
 
     if (!mergeClear && distanceToRoute <= moveMeters + mergeGap) {
       moveMeters = Math.max(0, distanceToRoute - mergeGap);
@@ -4897,6 +4931,9 @@ export class SimulationEngine {
         1,
       );
       tram.distanceMeters += moveMeters;
+      // The odometer still increases while reversing, so the forward trail no
+      // longer describes the body; keep only the branch being occupied.
+      this.resetSegmentTrail(tram);
     }
 
     if (tram.progress > 0.000001) {
@@ -4906,6 +4943,7 @@ export class SimulationEngine {
 
     tram.segmentId = origin.routeSegmentId;
     tram.progress = clamp(origin.routeProgress + 0.00001, 0, 0.999999);
+    this.resetSegmentTrail(tram);
     tram.branchOrigin = null;
     tram.manualCommand = "stop";
     tram.speedMps = 0;
@@ -4939,7 +4977,7 @@ export class SimulationEngine {
       this.scenarioDefinition.metersPerReferenceUnit ?? REFERENCE_TO_METERS;
     const clearanceMeters = this.options.collisionAvoidance
       ? SAFETY_HEADWAY_METERS
-      : PHYSICAL_TRAM_GAP_METERS;
+      : MIN_FRONT_SEPARATION_METERS;
 
     return this.trams.every((other) => {
       if (other.id === tram.id || other.segmentId.startsWith("N2X-")) {
@@ -5209,10 +5247,25 @@ export class SimulationEngine {
       }
     }
 
+    // Stop requirements are searched along the path for at least the braking
+    // distance, so the tram can brake on the approach envelope rather than
+    // discovering a red signal or locked turnout too late to stop.
+    const lookaheadMeters = this.stopLookaheadMeters(tram);
+    const nearRangeMeters = Math.max(NEAR_BLOCK_RANGE_METERS, this.options.sensorRangeMeters);
+    const path = this.pathAhead(tram, lookaheadMeters);
+    const distanceAhead = (segmentId: string, at: number, inclusive = false) => {
+      for (const { segment, startMeters } of path) {
+        if (segment.id !== segmentId) continue;
+        const distanceMeters = startMeters + at * segment.lengthMeters;
+        const ahead = inclusive ? distanceMeters >= 0 : distanceMeters > 0.000001;
+        if (ahead && distanceMeters <= lookaheadMeters) return distanceMeters;
+      }
+      return null;
+    };
+
     for (const signal of this.scenarioDefinition.signals) {
-      if (signal.segmentId !== tram.segmentId || signal.at <= tram.progress) continue;
-      const signalDistance = (signal.at - tram.progress) * currentSegment.lengthMeters;
-      if (signalDistance <= Math.max(32, this.options.sensorRangeMeters)) {
+      const signalDistance = distanceAhead(signal.segmentId, signal.at);
+      if (signalDistance !== null) {
         const controller = this.trafficForSignal(signal.id);
         const permitted =
           controller?.phase === "tram-green" &&
@@ -5223,9 +5276,11 @@ export class SimulationEngine {
           // a terminal immediately after the configured detector. Never leave
           // it permanently at red merely because it did not cross the RFID
           // reader during this process lifetime: the stop-line approach acts
-          // as a fail-safe secondary request detector.
+          // as a fail-safe secondary request detector. It stays limited to the
+          // stop-line range so a tram dwelling upstream cannot hold a green.
           if (
             controller &&
+            signalDistance <= nearRangeMeters &&
             controller.activeTramId !== tram.id &&
             !controller.queue.some((request) => request.tramId === tram.id)
           ) {
@@ -5254,54 +5309,68 @@ export class SimulationEngine {
     for (const definition of this.scenarioDefinition.switches) {
       const runtime = this.switchStates.get(definition.id);
       if (!runtime?.lockedBy || runtime.lockedBy === tram.id) continue;
-      const approach = [{ segmentId: definition.segmentId, at: definition.at }, ...(definition.alternateApproaches ?? [])]
-        .find((item) => item.segmentId === tram.segmentId && item.at !== undefined && item.at >= tram.progress);
-      const at = approach?.at ?? (currentSegment.to === definition.nodeId ? 1 : null);
-      if (at === null) continue;
-      const distance = (at - tram.progress) * currentSegment.lengthMeters;
-      if (distance > Math.max(32, this.options.sensorRangeMeters)) continue;
+      const approachDistances = [
+        { segmentId: definition.segmentId, at: definition.at },
+        ...(definition.alternateApproaches ?? []),
+      ]
+        .map((item) =>
+          item.segmentId && item.at !== undefined
+            ? distanceAhead(item.segmentId, item.at, true)
+            : null,
+        )
+        .filter((value): value is number => value !== null);
+      const node = path.find(({ segment }) => segment.to === definition.nodeId);
+      const nodeDistance = node ? node.startMeters + node.segment.lengthMeters : null;
+      const distance = approachDistances.length > 0
+        ? Math.min(...approachDistances)
+        : nodeDistance !== null && nodeDistance >= 0 && nodeDistance <= lookaheadMeters
+          ? nodeDistance
+          : null;
+      if (distance === null) continue;
       candidates.push({ key: `switch:${definition.id}`, kind: "junction", distanceMeters: distance,
         status: `${definition.id} · route-locked by ${runtime.lockedBy}`, tone: "warning",
         event: `waiting for rear clearance at ${definition.id}` });
     }
 
+    const ownBody = this.bodySegmentIds(tram);
     for (const zone of this.scenarioDefinition.junctionConflictZones ?? []) {
-      if (zone.segmentIds.includes(tram.segmentId)) continue;
-      const next = this.peekNextSegment(tram, currentSegment);
-      if (!next || !zone.segmentIds.includes(next.id)) continue;
+      // Skip a zone this tram already occupies, including with only its rear.
+      if (ownBody.some((id) => zone.segmentIds.includes(id))) continue;
+      const entry = path.find(({ segment }) => zone.segmentIds.includes(segment.id));
+      if (!entry || entry.startMeters < 0) continue;
       const occupiedBy = this.trams.find(
         (other) =>
           other.id !== tram.id &&
-          zone.segmentIds.includes(other.segmentId) &&
           other.serviceState !== "in-depot" &&
           other.serviceState !== "depot-ingress" &&
-          other.serviceState !== "depot-egress",
+          other.serviceState !== "depot-egress" &&
+          this.bodySegmentIds(other).some((id) => zone.segmentIds.includes(id)),
       );
       if (!occupiedBy) continue;
-      const entryDistance = (1 - tram.progress) * currentSegment.lengthMeters;
-      if (entryDistance <= Math.max(32, this.options.sensorRangeMeters)) {
-        candidates.push({
-          key: `junction:${zone.id}:${occupiedBy.id}`,
-          kind: "junction",
-          distanceMeters: entryDistance,
-          status: `${zone.label} · occupied by ${occupiedBy.label}`,
-          tone: "warning",
-          event: `waiting for ${occupiedBy.label} to clear ${zone.label}`,
-        });
-      }
+      candidates.push({
+        key: `junction:${zone.id}:${occupiedBy.id}`,
+        kind: "junction",
+        distanceMeters: entry.startMeters,
+        status: `${zone.label} · occupied by ${occupiedBy.label}`,
+        tone: "warning",
+        event: `waiting for ${occupiedBy.label} to clear ${zone.label}`,
+      });
     }
 
+    // The braking envelope halts a follower slightly before the physical
+    // limit, so the hold must also cover that resting position.
+    const physicalHoldMeters = MIN_FRONT_SEPARATION_METERS + STOP_POINT_MARGIN_METERS + 1;
     const protectedHeadway = tram.manualMode
-      ? PHYSICAL_TRAM_GAP_METERS
+      ? physicalHoldMeters
       : this.options.collisionAvoidance
-        ? SAFETY_HEADWAY_METERS
-        : PHYSICAL_TRAM_GAP_METERS;
+        ? Math.max(SAFETY_HEADWAY_METERS, physicalHoldMeters)
+        : physicalHoldMeters;
     if (leaderAhead && leaderAhead.distanceMeters <= protectedHeadway + 0.01) {
       const separation = leaderAhead.distanceMeters;
       candidates.push({
         key: `headway:${leaderAhead.tram.id}`,
         kind: "headway",
-        distanceMeters: Math.max(0, separation - PHYSICAL_TRAM_GAP_METERS),
+        distanceMeters: Math.max(0, separation - MIN_FRONT_SEPARATION_METERS),
         status: !tram.manualMode && this.options.collisionAvoidance
           ? `Headway hold · ${separation.toFixed(0)}m`
           : `Rail order hold · ${separation.toFixed(0)}m`,
@@ -5313,6 +5382,64 @@ export class SimulationEngine {
     }
 
     return candidates.sort((a, b) => a.distanceMeters - b.distanceMeters)[0] ?? null;
+  }
+
+  /** Segments ahead of the tram front in path order, with the distance to each start. */
+  private pathAhead(tram: TramState, maxMeters: number) {
+    const path: Array<{ segment: SegmentRuntime; startMeters: number }> = [];
+    let segment = this.segments.get(tram.segmentId) ?? null;
+    let startMeters = segment ? -tram.progress * segment.lengthMeters : 0;
+    const visited = new Set<string>();
+    while (segment && startMeters <= maxMeters && !visited.has(segment.id)) {
+      visited.add(segment.id);
+      path.push({ segment, startMeters });
+      startMeters += segment.lengthMeters;
+      segment = this.peekNextSegment(tram, segment);
+    }
+    return path;
+  }
+
+  /** Distance within which a stop requirement must be known to brake on the approach envelope. */
+  private stopLookaheadMeters(tram: TramState) {
+    const speed = Math.max(0, tram.speedMps);
+    return Math.max(
+      NEAR_BLOCK_RANGE_METERS,
+      this.options.sensorRangeMeters,
+      speed ** 2 / (2 * PROFILE_APPROACH_DECELERATION_MPS2) +
+        speed * STOP_REACTION_SECONDS +
+        STOP_POINT_MARGIN_METERS +
+        5,
+    );
+  }
+
+  /** Highest speed from which the tram still stops before a stop point on the approach envelope. */
+  private stopEnvelopeMps(distanceMeters: number, speedLimitMps: number) {
+    return cppStationApproachSpeed(
+      Math.max(0, distanceMeters - STOP_POINT_MARGIN_METERS),
+      speedLimitMps,
+    );
+  }
+
+  private resetSegmentTrail(tram: TramState) {
+    tram.segmentTrail = [{ segmentId: tram.segmentId, enteredAtMeters: tram.distanceMeters }];
+  }
+
+  private recordSegmentEntry(tram: TramState) {
+    tram.segmentTrail.push({ segmentId: tram.segmentId, enteredAtMeters: tram.distanceMeters });
+    if (tram.segmentTrail.length > 8) tram.segmentTrail.shift();
+  }
+
+  /** Every segment covered by the tram body, from the front segment back to the rear. */
+  private bodySegmentIds(tram: TramState): string[] {
+    const trail = tram.segmentTrail;
+    if (trail.at(-1)?.segmentId !== tram.segmentId) return [tram.segmentId];
+    const rearOdometerMeters = tram.distanceMeters - TRAM_LENGTH_METERS;
+    const ids = [tram.segmentId];
+    for (let index = trail.length - 2; index >= 0; index -= 1) {
+      if (rearOdometerMeters >= trail[index + 1].enteredAtMeters) break;
+      ids.push(trail[index].segmentId);
+    }
+    return ids;
   }
 
   private nearestTramAhead(tram: TramState, sameRouteOnly = false) {
@@ -5507,6 +5634,7 @@ export class SimulationEngine {
         };
         tram.segmentId = branch.id;
         tram.progress = 0;
+        this.recordSegmentEntry(tram);
         tram.triggeredOnSegment.clear();
         runtime.releaseAtDistance = tram.distanceMeters + TRAM_LENGTH_METERS;
         this.addEvent(
@@ -5534,6 +5662,7 @@ export class SimulationEngine {
         }
         tram.segmentId = next.id;
         tram.progress = 0;
+        this.recordSegmentEntry(tram);
         tram.triggeredOnSegment.clear();
         if (next.id === tram.lapMarkerSegmentId) {
           tram.lap += 1;
@@ -5913,9 +6042,17 @@ export class SimulationEngine {
         continue;
       }
       if (controller.manualMode === "tram-green") {
+        controller.activeSignalId = controller.manualSignalId;
+        if (controller.phase === "road-green") {
+          controller.phase = "amber-to-tram";
+          controller.phaseUntil = this.simulationTime + controller.amberSeconds;
+          continue;
+        }
+        if (controller.phase === "amber-to-tram" && this.simulationTime < controller.phaseUntil) {
+          continue;
+        }
         controller.phase = "tram-green";
         controller.phaseUntil = 0;
-        controller.activeSignalId = controller.manualSignalId;
         continue;
       }
       if (controller.manualMode === "road-green") {

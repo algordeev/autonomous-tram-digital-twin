@@ -91,7 +91,9 @@ for (const seed of [17, 71, 203]) {
       }
       engine.stepFixed(.05);
       for (const zone of zones) {
-        const occupants = engine.trams.filter((tram) => tram.serviceState === "in-service" && zone.segmentIds.includes(tram.segmentId));
+        // A tram occupies the zone with any part of its 15 m body, not only its front.
+        const occupants = engine.trams.filter((tram) => tram.serviceState === "in-service" &&
+          engine.bodySegmentIds(tram).some((segmentId) => zone.segmentIds.includes(segmentId)));
         assert.ok(occupants.length <= 1, `${seed}/${tick}: ${zone.id} occupied by ${occupants.map((tram) => tram.id)}`);
       }
     }

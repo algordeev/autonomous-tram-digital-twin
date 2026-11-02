@@ -124,7 +124,9 @@ test("the physical rail-order lock remains active when predictive headway is off
   const engine = new SimulationEngine("prototype-loop", 4);
   engine.setCollisionAvoidance(false);
   engine.setAutoDispatch(false);
-  advance(engine, 80);
+  // Followers brake on the approach envelope (~16 s from line speed), so
+  // allow the last arrival to come to rest behind its leader.
+  advance(engine, 90);
 
   const snapshot = engine.getSnapshot();
   const queuedTrams = snapshot.trams.filter((tram) =>
@@ -1697,7 +1699,9 @@ test("manual forward bypasses interval recovery but preserves the physical rail 
   const leader = engine.trams[1];
   engine.trams = [follower, leader];
   follower.segmentId = "N2B01";
-  follower.progress = 0.81;
+  // 28 m front-to-front: inside the 30 m regulation hold, outside the
+  // 22 m physical limit (15 m body + 7 m clear gap).
+  follower.progress = 0.85 - 28 / engine.segments.get("N2B01").lengthMeters;
   follower.speedMps = 0;
   follower.stationPhase = "none";
   leader.segmentId = "N2B01";
@@ -1716,7 +1720,7 @@ test("manual forward bypasses interval recovery but preserves the physical rail 
   assert.ok(follower.progress > before, "manual forward should leave a 30m regulation hold");
   const gapMeters =
     (leader.progress - follower.progress) * engine.segments.get("N2B01").lengthMeters;
-  assert.ok(gapMeters >= 6.9, "manual forward must retain the physical no-passing gap");
+  assert.ok(gapMeters >= 21.9, "manual forward must retain the body length plus the physical gap");
 });
 
 test("a stale signal grant is released and requeued instead of freezing a junction", () => {
@@ -1748,6 +1752,12 @@ test("manual signal control exposes tram, road and safe automatic modes", () => 
   const engine = new SimulationEngine("nizhny-routes-2-21");
   assert.equal(engine.setTrafficSignalMode("SG-OSH-A", "tram-green"), true);
   let controller = engine
+    .getSnapshot()
+    .trafficControllers.find((item) => item.id === "J-OSH");
+  assert.equal(controller?.phase, "amber-to-tram", "a manual green first clears the road");
+  engine.simulationTime += engine.trafficControllers.get("J-OSH").amberSeconds;
+  engine.updateTraffic();
+  controller = engine
     .getSnapshot()
     .trafficControllers.find((item) => item.id === "J-OSH");
   assert.equal(controller?.phase, "tram-green");
