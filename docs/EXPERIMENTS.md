@@ -44,22 +44,38 @@ peak reduction = (reference peak - strategy peak) / reference peak · 100%
 
 ## Current reproducible benchmark
 
-![Energy and peak-power benchmark](assets/energy-benchmark.png)
+![Energy and peak-power benchmark](assets/energy-benchmark.svg)
 
-Ten simulated minutes, service start 08:00:
+Ten simulated minutes, service start 08:00. Regenerate the table with
+`npm run benchmark:energy`, and the chart with
+`npm run benchmark:energy -- --write-chart`:
 
 | Scenario and controller | Grid-energy saving | Peak-power reduction | Notes |
 | --- | ---: | ---: | --- |
-| İzmir, 14 trams, reactive | 10.6% | 24.4% | Storage-only baseline |
-| İzmir, 14 trams, predictive | 10.6% | -6.2% | Peak logic requires tuning |
-| Nizhny 2+21, 12 trams, reactive | 10.3% | 6.5% | Shared-network baseline |
-| Nizhny 2+21, 12 trams, predictive | 9.8% | 23.5% | 120 interventions |
-| Nizhny Route 2, 10 trams, reactive | 10.5% | 40.7% | Storage-only comparison |
-| Nizhny Route 2, 10 trams, predictive | 8.6% | 47.5% | 83 interventions |
+| İzmir, 14 trams, reactive | 9.9% | 0.7% | Flywheel only, no traction guidance |
+| İzmir, 14 trams, predictive | 9.9% | 0.7% | 1 intervention |
+| Nizhny 2+21, 12 trams, reactive | 12.6% | 6.5% | Flywheel only, no traction guidance |
+| Nizhny 2+21, 12 trams, predictive | 12.1% | 23.5% | 66 interventions |
+| Nizhny Route 2, 10 trams, reactive | 10.7% | 40.7% | Flywheel only, no traction guidance |
+| Nizhny Route 2, 10 trams, predictive | 9.7% | 47.5% | 52 interventions |
 
-These are simulator outputs, not measured savings for either real operator. The
-negative İzmir peak result is retained because it exposes a controller-tuning
-problem.
+These are simulator outputs, not measured savings for either real operator.
+
+The İzmir peak figures are not a controller result. With a fixed tram count the
+comparison ignores the configured fleet groups and starts all 14 trams from one
+point in the Alsancak section, so the ten minutes cover a single dispatch wave.
+The network peak is the sum of six sections, and no section reaches the 480 kW
+threshold (24% of its 2,000 kW substation) above which İzmir flywheels
+discharge, so the peak is decided by whether two trams happen to accelerate
+together. When stop braking changed, this moved the reactive figure from 24.4%
+to 0.7% and the predictive figure from -6.2% to 0.7%. The İzmir energy figures
+are unaffected.
+
+The previous figures were 10.6%/24.4%, 10.6%/-6.2%, 10.3%/6.5%, 9.8%/23.5%,
+10.5%/40.7% and 8.6%/47.5% (energy saving / peak reduction, same row order).
+They changed when trams began braking to stop points instead of stopping in
+one step, and when a fully charged flywheel stopped throttling accelerating
+trams.
 
 ## Service metrics
 

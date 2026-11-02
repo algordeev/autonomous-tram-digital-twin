@@ -33,6 +33,7 @@
     "verify:repo": "node scripts/verify-repository.mjs",
     "test:all": "npm run verify:wasm && npm run verify:repo && npm run check && npm test && npm run test:cpp && npm run test:simulation && npm run test:izmir",
     "simulate:headless": "node scripts/run-headless.mjs",
+    "benchmark:energy": "node scripts/run-energy-benchmark.mjs",
     "build:wasm": "node cpp-core/scripts/compile-portable-wasm.mjs",
     "verify:wasm": "node cpp-core/scripts/compile-portable-wasm.mjs --check"
   },

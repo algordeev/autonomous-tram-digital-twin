@@ -182,6 +182,10 @@ for (const firstArrival of ["lower fleet rank", "higher fleet rank"]) test(`two 
     for (let tick = 0; tick < 20 * 60 / 0.05 && !departedAlongside; tick += 1) {
       engine.stepFixed(0.05);
       const snapshots = engine.getSnapshot().trams;
+      for (const item of snapshots) {
+        assert.ok(item.headwayAheadMeters === null || item.headwayAheadMeters >= 21.99,
+          `${item.id} reports a ${item.headwayAheadMeters} m headway`);
+      }
       if (dwelling(first) && dwelling(second)) {
         sideBySide = true;
         assert.notEqual(first.terminalBerth, second.terminalBerth);

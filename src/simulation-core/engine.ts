@@ -2430,17 +2430,24 @@ export class SimulationEngine {
   /**
    * Both Izmir platforms share one position on the schematic track, but they
    * are parallel rails: a tram standing at the other platform is not ahead of
-   * one arriving at, or leaving, its own platform.
+   * one arriving at, or leaving, its own platform, and a tram leaving the
+   * other platform is not ahead of one still standing at its own.
    */
   private standsAtParallelIzmirBerth(tram: TramState, other: TramState) {
     if (this.canUseParallelIzmirTerminalBerth(tram, other)) return true;
-    const departure = this.activeTerminalDeparture(tram);
-    return Boolean(
+    const berthedAtOtherPlatform = (
+      standing: TramState,
+      departure: TramState["terminalDeparture"],
+    ) => Boolean(
       departure &&
-      other.pendingStationReaderId === departure.readerId &&
-      other.stationPhase !== "none" &&
-      other.terminalBerth !== 0 &&
-      other.terminalBerth !== departure.berth,
+      standing.pendingStationReaderId === departure.readerId &&
+      standing.stationPhase !== "none" &&
+      standing.terminalBerth !== 0 &&
+      standing.terminalBerth !== departure.berth,
+    );
+    return (
+      berthedAtOtherPlatform(other, this.activeTerminalDeparture(tram)) ||
+      berthedAtOtherPlatform(tram, this.activeTerminalDeparture(other))
     );
   }
 
@@ -6675,10 +6682,15 @@ export class SimulationEngine {
           location = { ...location, angle: location.angle + Math.PI };
         }
       }
-      const leader =
+      let leader =
         tram.serviceState === "in-service"
           ? this.nearestTramAhead(tram, true)
           : null;
+      if (leader && this.standsAtParallelIzmirBerth(tram, leader.tram)) {
+        // The tram at the other platform shares the platform point but not the
+        // rail; reporting it as a 0 m headway would be misleading.
+        leader = this.nearestTramAhead(tram, true, leader.tram.id);
+      }
       const group = this.scenarioDefinition.fleetGroups?.find(
         (item) => item.id === tram.fleetGroupId,
       );
