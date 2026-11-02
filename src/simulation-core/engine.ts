@@ -370,7 +370,7 @@ export interface TramSnapshot {
   scheduledDepartureClock: string | null;
   scheduledDepartureKind: "depot" | "terminal" | null;
   scheduledDeparturePointLabel: string | null;
-  /** Assigned parallel platform at a dual-track Izmir terminus. */
+  /** Parallel platform at a dual-track Izmir terminus, assigned or still being vacated. */
   terminalBerth: 0 | 1 | 2;
   lastDepartureDeviationSeconds: number | null;
   distanceMeters: number;
@@ -762,6 +762,8 @@ interface TramState {
   terminalIntervalHold: boolean;
   /** 1/2 at the two Izmir terminal platforms, otherwise 0. */
   terminalBerth: 0 | 1 | 2;
+  /** Platform being vacated; it stays reserved until the rear has left it. */
+  terminalDeparture: { readerId: string; berth: 1 | 2; clearAtMeters: number } | null;
   /** Terminal reader where this tram waits while both Izmir berths are occupied. */
   terminalEntryQueueReaderId: string | null;
   lastBlockKey: string | null;
@@ -2165,6 +2167,7 @@ export class SimulationEngine {
         stationUntil: 0,
         terminalIntervalHold: false,
         terminalBerth: 0,
+        terminalDeparture: null,
         terminalEntryQueueReaderId: null,
         lastBlockKey: null,
         emergencyStops: 0,
@@ -2394,8 +2397,12 @@ export class SimulationEngine {
 
   private terminalBerthMask(readerId: string, excludeTramId?: string) {
     return this.trams.reduce((mask, other) => {
+      if (other.id === excludeTramId) return mask;
+      const departure = this.activeTerminalDeparture(other);
+      if (departure?.readerId === readerId) {
+        mask |= departure.berth === 1 ? 1 : 2;
+      }
       if (
-        other.id === excludeTramId ||
         other.pendingStationReaderId !== readerId ||
         other.stationPhase === "none" ||
         other.terminalBerth === 0
@@ -2404,6 +2411,34 @@ export class SimulationEngine {
       }
       return mask | (other.terminalBerth === 1 ? 1 : 2);
     }, 0);
+  }
+
+  private activeTerminalDeparture(tram: TramState) {
+    const departure = tram.terminalDeparture;
+    if (
+      departure &&
+      (tram.distanceMeters >= departure.clearAtMeters || tram.serviceState === "in-depot")
+    ) {
+      tram.terminalDeparture = null;
+    }
+    return tram.terminalDeparture;
+  }
+
+  /**
+   * Both Izmir platforms share one position on the schematic track, but they
+   * are parallel rails: a tram standing at the other platform is not ahead of
+   * one arriving at, or leaving, its own platform.
+   */
+  private standsAtParallelIzmirBerth(tram: TramState, other: TramState) {
+    if (this.canUseParallelIzmirTerminalBerth(tram, other)) return true;
+    const departure = this.activeTerminalDeparture(tram);
+    return Boolean(
+      departure &&
+      other.pendingStationReaderId === departure.readerId &&
+      other.stationPhase !== "none" &&
+      other.terminalBerth !== 0 &&
+      other.terminalBerth !== departure.berth,
+    );
   }
 
   private assignIzmirTerminalBerth(tram: TramState, reader: RFIDReader) {
@@ -4618,6 +4653,16 @@ export class SimulationEngine {
         this.recordScheduledDeparture(tram);
       }
       this.recordTerminalDeparture(tram);
+      tram.terminalDeparture =
+        tram.terminalBerth !== 0 && tram.pendingStationReaderId
+          ? {
+              readerId: tram.pendingStationReaderId,
+              berth: tram.terminalBerth,
+              // Released once a tram standing at the other platform has the
+              // full physical spacing behind this tram's rear.
+              clearAtMeters: tram.distanceMeters + MIN_FRONT_SEPARATION_METERS,
+            }
+          : null;
       tram.terminalIntervalHold = false;
       tram.terminalBerth = 0;
       tram.terminalEntryQueueReaderId = null;
@@ -4641,12 +4686,16 @@ export class SimulationEngine {
       return;
     }
 
-    const physicalLeaderAhead = this.nearestTramAhead(tram);
+    let physicalLeaderAhead = this.nearestTramAhead(tram);
+    if (
+      physicalLeaderAhead &&
+      this.standsAtParallelIzmirBerth(tram, physicalLeaderAhead.tram)
+    ) {
+      // Skip only the tram on the other platform; anything beyond it on the
+      // shared track (such as a tram still leaving) remains a physical leader.
+      physicalLeaderAhead = this.nearestTramAhead(tram, false, physicalLeaderAhead.tram.id);
+    }
     const routeLeaderAhead = this.nearestTramAhead(tram, true);
-    const parallelPhysicalBypass = this.canUseParallelIzmirTerminalBerth(
-      tram,
-      physicalLeaderAhead?.tram ?? null,
-    );
     const terminalLeaderAtApproach = this.leaderOccupiesApproachingIzmirTerminal(
       tram,
       routeLeaderAhead?.tram ?? null,
@@ -4654,10 +4703,7 @@ export class SimulationEngine {
     const block =
       tram.manualMode && tram.manualCommand === "stop"
         ? null
-        : this.findBlockingCondition(
-            tram,
-            parallelPhysicalBypass ? null : physicalLeaderAhead,
-          );
+        : this.findBlockingCondition(tram, physicalLeaderAhead);
     const intervalGuidance = this.intervalGuidance(
       tram,
       speedLimitMps,
@@ -5442,10 +5488,14 @@ export class SimulationEngine {
     return ids;
   }
 
-  private nearestTramAhead(tram: TramState, sameRouteOnly = false) {
+  private nearestTramAhead(
+    tram: TramState,
+    sameRouteOnly = false,
+    excludeTramId?: string,
+  ) {
     let nearest: { tram: TramState; distanceMeters: number } | null = null;
     for (const other of this.trams) {
-      if (other.id === tram.id) continue;
+      if (other.id === tram.id || other.id === excludeTramId) continue;
       if (
         other.serviceState === "in-depot" ||
         other.serviceState === "depot-ingress" ||
@@ -6638,7 +6688,7 @@ export class SimulationEngine {
             : formatClock(tram.scheduledDepartureClockSeconds),
         scheduledDepartureKind: tram.scheduledDepartureKind,
         scheduledDeparturePointLabel: tram.scheduledDeparturePointLabel,
-        terminalBerth: tram.terminalBerth,
+        terminalBerth: tram.terminalBerth || this.activeTerminalDeparture(tram)?.berth || 0,
         lastDepartureDeviationSeconds: tram.lastDepartureDeviationSeconds,
         distanceMeters: tram.distanceMeters,
         energyWh: tram.energyWh,
