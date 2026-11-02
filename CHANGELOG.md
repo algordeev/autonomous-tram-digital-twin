@@ -21,6 +21,9 @@ Keep a Changelog; release labels use semantic version numbers.
   the platform at about 0.2 m/s instead of 2 m/s.
 - A manual tram green clears the road through amber first.
 - Manual STOP and hold service-brake through the C++ core.
+- A late tram is exempt from energy peak smoothing beyond the ±60 s on-time
+  tolerance (previously 45 s), and `onTimePercent` is the share of in-service
+  trams within that tolerance.
 - Benchmark figures in `docs/EXPERIMENTS.md` regenerated for the new physics.
 
 ### Fixed
@@ -40,6 +43,13 @@ Keep a Changelog; release labels use semantic version numbers.
 - `npm run simulate:headless` ran on the TypeScript fallback instead of the
   C++ core, so its reports had no traction-power data (0 kWh grid supply).
   Reports now state the core in `coreRuntime`.
+- Tram delay grew without bound in normal running: it compared distance with
+  62% of the speed limit since dispatch, so planned dwells and terminal holds
+  counted as lateness and loop routes never reset. Healthy trams were
+  short-turned in long runs, and energy peak smoothing switched off for most of
+  the fleet. Delay is now the interval delay at stop departures, and short
+  turns use continuous unplanned hold time; see `docs/OPERATIONS.md`.
+- The automatic-dispatch help text described triggers that did not exist.
 
 ### Added
 

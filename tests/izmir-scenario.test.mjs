@@ -216,6 +216,56 @@ for (const firstArrival of ["lower fleet rank", "higher fleet rank"]) test(`two 
   }
 });
 
+test("a tram held at an obstacle past the threshold is short-turned, and no unaffected tram is", async () => {
+  resetCppRuntimeForTests();
+  await initializeCppRuntimeFromBytes(
+    await readFile(new URL("../public/wasm/tram-core.wasm", import.meta.url)),
+  );
+  try {
+    const engine = new SimulationEngine("izmir-konak");
+    engine.setServiceClockMinutes(8 * 60);
+    engine.setRunning(true);
+    const step = (seconds) => {
+      for (let tick = 0; tick < seconds / 0.05; tick += 1) engine.stepFixed(0.05);
+    };
+    step(180);
+    const victim = engine.trams.find((tram) =>
+      tram.serviceState === "in-service" && tram.stationPhase === "none" && tram.speedMps > 5);
+    assert.ok(victim, "a moving tram is needed");
+    const segment = engine.segments.get(victim.segmentId);
+    engine.obstacles.push({
+      id: "BLOCK",
+      segmentId: victim.segmentId,
+      at: Math.min(0.999, victim.progress + 120 / segment.lengthMeters),
+    });
+    // Morning peak: 4.6 min headway, so the threshold is 2.5 x 276 s = 690 s.
+    const thresholdSeconds = Math.max(600, 2.5 * 4.6 * 60);
+    const maxHeld = new Map();
+    const shortTurned = new Set();
+    let seenEvent = engine.events[0]?.id ?? 0;
+    for (let tick = 0; tick < 15 * 60 / 0.05; tick += 1) {
+      engine.stepFixed(0.05);
+      for (const tram of engine.trams) {
+        maxHeld.set(tram.id, Math.max(maxHeld.get(tram.id) ?? 0, tram.heldSeconds));
+      }
+      for (const event of [...engine.events].reverse()) {
+        if (event.id <= seenEvent) continue;
+        const tram = engine.trams.find((item) => event.message.startsWith(`${item.label}: short turn`));
+        if (tram) {
+          assert.ok(maxHeld.get(tram.id) >= thresholdSeconds - 0.05,
+            `${tram.id} was short-turned after only ${maxHeld.get(tram.id)?.toFixed(0)} s held`);
+          shortTurned.add(tram.id);
+        }
+      }
+      seenEvent = engine.events[0]?.id ?? seenEvent;
+    }
+    assert.ok(shortTurned.has(victim.id), "the stuck tram must be short-turned");
+    assert.notEqual(victim.serviceState, "in-service");
+  } finally {
+    resetCppRuntimeForTests();
+  }
+});
+
 test("Izmir detects an obstacle before entering its next track segment", () => {
   const engine = new SimulationEngine("izmir-konak");
   engine.setFleetGroupCount("konak-to-faltay", 1);

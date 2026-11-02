@@ -55,7 +55,7 @@ Ten simulated minutes, service start 08:00. Regenerate the table with
 | Scenario and controller | Grid-energy saving | Peak-power reduction | Notes |
 | --- | ---: | ---: | --- |
 | İzmir, 14 trams, reactive | 9.9% | 0.7% | Flywheel only, no traction guidance |
-| İzmir, 14 trams, predictive | 9.9% | 0.7% | 1 intervention |
+| İzmir, 14 trams, predictive | 9.9% | 0.7% | 4 interventions |
 | Nizhny 2+21, 12 trams, reactive | 12.6% | 6.5% | Flywheel only, no traction guidance |
 | Nizhny 2+21, 12 trams, predictive | 12.1% | 23.5% | 66 interventions |
 | Nizhny Route 2, 10 trams, reactive | 10.7% | 40.7% | Flywheel only, no traction guidance |
@@ -87,6 +87,8 @@ trams.
 | Headway CV | Standard deviation divided by mean headway; lower is more regular |
 | Departure adherence | Share of planned terminal departures inside the tolerance window |
 | Mean departure deviation | Mean absolute timing difference from the reserved slot |
+| Interval delay | How much later than planned a tram left its last stop, relative to the previous tram of its route |
+| On-time share (`onTimePercent`) | Share of in-service trams with an interval delay within ±60 s |
 | Average passenger wait | Estimated waiting time from queues and service state |
 | Left behind | Passengers remaining because capacity was reached |
 | Interventions | Energy-controller changes to vehicle traction guidance |

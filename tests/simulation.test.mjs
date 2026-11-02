@@ -372,6 +372,50 @@ test("junction queue policies choose FIFO, delay and fixed fleet rank", () => {
   assert.deepEqual(controller.queue.map((request) => request.tramId), ["T01", "T02", "T03"]);
 });
 
+test("interval delay compares a stop departure with the previous one of the route", () => {
+  const engine = new SimulationEngine("izmir-konak");
+  engine.setServiceClockMinutes(8 * 60); // morning peak, 4.6 min planned headway
+  const [first, second, third] = engine.trams;
+  for (const tram of [first, second, third]) tram.serviceState = "in-service";
+  const planned = engine.plannedIntervalSeconds(first);
+  assert.equal(planned, 4.6 * 60);
+
+  engine.simulationTime = 100;
+  engine.recordStopDeparture(first, "STOP");
+  assert.equal(first.delaySeconds, 0, "the first departure has no reference");
+  engine.simulationTime = 100 + planned + 40;
+  engine.recordStopDeparture(second, "STOP");
+  assert.ok(Math.abs(second.delaySeconds - 40) < 1e-9);
+  engine.simulationTime += planned - 30;
+  engine.recordStopDeparture(third, "STOP");
+  assert.equal(third.delaySeconds, 0, "an early departure is not delay");
+  // Other stops and routes keep their own reference.
+  engine.recordStopDeparture(first, "OTHER-STOP");
+  assert.equal(first.delaySeconds, 0);
+});
+
+test("normal running does not accumulate delay", async () => {
+  await initializeCppRuntimeFromBytes(wasmBytes);
+  try {
+    const engine = new SimulationEngine("nizhny-routes-2-21");
+    engine.setServiceClockMinutes(7 * 60);
+    engine.setRunning(true);
+    // The former distance heuristic counted planned dwells and holds as lateness:
+    // 20-30% of trams were over 60 s late within 15 minutes and on-time fell to 24%.
+    for (let minute = 5; minute <= 15; minute += 5) {
+      for (let tick = 0; tick < 5 * 60 / 0.05; tick += 1) engine.stepFixed(0.05);
+      const passengerTrams = engine.trams.filter((tram) => tram.serviceState === "in-service");
+      const late = passengerTrams.filter((tram) => tram.delaySeconds > 60);
+      assert.ok(late.length <= passengerTrams.length * 0.1,
+        `${minute} min: ${late.map((tram) => `${tram.id} ${tram.delaySeconds.toFixed(0)}s`).join(", ")} late`);
+      assert.ok(passengerTrams.every((tram) => tram.heldSeconds < 60), `${minute} min: a tram is stuck`);
+    }
+    assert.ok(engine.getSnapshot().metrics.onTimePercent >= 90);
+  } finally {
+    resetCppRuntimeForTests();
+  }
+});
+
 test("Route 2 keeps both tracks visibly separate and turnout paths monotonic", () => {
   const scenario = SCENARIOS.find((item) => item.id === "nizhny-route-2");
   assert.ok(scenario);

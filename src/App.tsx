@@ -2918,7 +2918,7 @@ export default function Home() {
                 ) : null;
               })()}
               <small>
-                Automatic dispatch gradually releases or withdraws one tram per route every 20 simulated seconds, and reacts to passenger demand: extra trams above ~4 min average wait, early depot returns below ~30s, and an early-withdrawal &quot;short turn&quot; for trams delayed past 7 min.
+                Automatic dispatch moves each route toward its planned fleet one tram every 20 simulated seconds. As last resorts it adds one emergency tram when the busiest stop&apos;s average wait stays above 10 min for 5 min, and short-turns a tram held at an unplanned stop (obstacle, signal or blocked line) for 10 min or 2.5 planned headways, whichever is longer.
               </small>
             </section>
           )}
@@ -3356,7 +3356,7 @@ export default function Home() {
               </select>
               <small className="control-help">
                 {snapshot.options.priorityPolicy === "schedule"
-                  ? "When requests conflict, the tram with the greatest accumulated delay goes next."
+                  ? "When requests conflict, the tram that left its last stop furthest behind its planned interval goes next."
                   : snapshot.options.priorityPolicy === "fleet"
                     ? "When requests conflict, the lowest fleet rank shown below goes next."
                     : "When requests conflict, the tram that called the junction first goes next."}
