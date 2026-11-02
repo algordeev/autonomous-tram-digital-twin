@@ -31,6 +31,7 @@ import {
   cppEnergyOptimizedTarget,
   cppSettleTractionPower,
   cppObserveTrafficAuthority,
+  setCppPowerStrategy,
   invalidateCppStation,
   invalidateCppDepotState,
   type CppVehicleAuthorityResult,
@@ -1863,7 +1864,9 @@ export class SimulationEngine {
 
   setEnergyStrategy(strategy: EnergyStrategy) {
     this.options.energyStrategy = strategy;
-    this.configureTractionPowerAuthority();
+    // Change the strategy in place: restarting the power subsystem would reset
+    // its energy baselines and report each tram's lifetime energy as one step.
+    setCppPowerStrategy(strategy);
     this.trams.forEach((tram) => {
       tram.energyGuidanceActive = false;
     });
@@ -1910,7 +1913,7 @@ export class SimulationEngine {
 
     tram.manualMode = enabled;
     tram.manualCommand = enabled ? "stop" : "forward";
-    tram.speedMps = 0;
+    // A hold is a braking command; the motion authority brings the tram to rest.
     tram.targetSpeedMps = 0;
     tram.pwm = 0;
     tram.releaseTime = 0;
@@ -1958,7 +1961,7 @@ export class SimulationEngine {
     this.invalidateStopBoards();
 
     if (command === "stop") {
-      tram.speedMps = 0;
+      // Service-brake to rest; the speed is owned by the motion authority.
       tram.targetSpeedMps = 0;
       tram.pwm = 0;
       tram.status = "Manual hold";
@@ -2800,7 +2803,8 @@ export class SimulationEngine {
     tram.depotProgress = 1;
     tram.depotEnteredAt = this.simulationTime;
     tram.lastPassengerStop = null;
-    tram.speedMps = 0;
+    const tramIndex = this.trams.findIndex((item) => item.id === tram.id);
+    this.haltVehicle(tram, tramIndex);
     tram.targetSpeedMps = 0;
     tram.pwm = 0;
     tram.stationPhase = "none";
@@ -2816,7 +2820,7 @@ export class SimulationEngine {
     tram.scheduledDepartureKind = null;
     tram.scheduledDeparturePointLabel = null;
     tram.lastDepartureDeviationSeconds = null;
-    invalidateCppDepotState(this.trams.findIndex((item) => item.id === tram.id));
+    invalidateCppDepotState(tramIndex);
     this.initializeHeadwayTargets();
     return true;
   }
@@ -3158,19 +3162,48 @@ export class SimulationEngine {
     if (tram.serviceState === "depot-egress" && tram.scheduledDepartureAt !== null) {
       this.recordScheduledDeparture(tram);
     }
+    const depotTrackLengthMeters = DEPOT_TRACK_SPEED_MPS * DEPOT_TRANSFER_SECONDS;
+    const exitRuntime = this.segments.get(assignment.portal.exitSegmentId);
+    const exitBlocked =
+      tram.serviceState === "depot-egress" &&
+      (!exitRuntime ||
+        this.trams.some(
+          (other) =>
+            other.id !== tram.id &&
+            other.serviceState !== "in-depot" &&
+            other.segmentId === assignment.portal.exitSegmentId &&
+            Math.abs(other.progress - assignment.portal.exitProgress) < 0.08,
+        ));
+    if (exitBlocked && tram.depotProgress >= 0.999) {
+      // Standing at the exit: hold without stepping the motion authority.
+      this.haltVehicle(tram, tramIndex);
+      tram.targetSpeedMps = 0;
+      tram.tractionForceN = 0;
+      tram.brakeForceN = 0;
+      tram.dynamicsMode = "coast";
+      tram.pwm = 0;
+      tram.status = "Depot exit held · rail occupied";
+      return;
+    }
+    // With the line occupied, brake to rest at the end of the depot track.
+    const targetSpeedMps = exitBlocked
+      ? this.stopEnvelopeMps(
+          (1 - tram.depotProgress) * depotTrackLengthMeters + STOP_POINT_MARGIN_METERS,
+          DEPOT_TRACK_SPEED_MPS,
+        )
+      : DEPOT_TRACK_SPEED_MPS;
     const dynamics = cppStepVehicleAuthority(
       tramIndex,
       this.vehicleAuthorityState(tram),
       {
-        targetSpeedMps: DEPOT_TRACK_SPEED_MPS,
+        targetSpeedMps,
         grade: 0,
         passengerCount: tram.onboardPassengers,
       },
       delta,
     );
-    tram.targetSpeedMps = DEPOT_TRACK_SPEED_MPS;
+    tram.targetSpeedMps = targetSpeedMps;
     this.applyVehicleAuthorityResult(tram, dynamics);
-    const depotTrackLengthMeters = DEPOT_TRACK_SPEED_MPS * DEPOT_TRANSFER_SECONDS;
     const progressStep = dynamics.distanceMeters / depotTrackLengthMeters;
     tram.depotProgress = clamp(tram.depotProgress + progressStep, 0, 1);
     tram.pwm = 24;
@@ -3191,25 +3224,14 @@ export class SimulationEngine {
       return;
     }
 
-    tram.status = `Leaving ${assignment.depot.shortName} · not in service`;
+    tram.status = exitBlocked
+      ? "Depot exit held · rail occupied"
+      : `Leaving ${assignment.depot.shortName} · not in service`;
     if (tram.depotProgress < 0.999999) return;
-    const exitRuntime = this.segments.get(assignment.portal.exitSegmentId);
-    const exitBlocked = this.trams.some(
-      (other) =>
-        other.id !== tram.id &&
-        other.serviceState !== "in-depot" &&
-        other.segmentId === assignment.portal.exitSegmentId &&
-        Math.abs(other.progress - assignment.portal.exitProgress) < 0.08,
-    );
     if (!exitRuntime || exitBlocked) {
+      // The rail became occupied too late to brake on the envelope.
       tram.depotProgress = 0.999;
-      tram.speedMps = 0;
-      tram.targetSpeedMps = 0;
-      tram.lastAcceleration = 0;
-      tram.tractionForceN = 0;
-      tram.brakeForceN = 0;
-      tram.dynamicsMode = "coast";
-      tram.status = "Depot exit held · rail occupied";
+      this.haltVehicle(tram, tramIndex, delta);
       return;
     }
     const nextState = cppDepotObserveAuthority(
@@ -3228,7 +3250,6 @@ export class SimulationEngine {
     tram.triggeredOnSegment.clear();
     tram.status = "Entered passenger service";
     tram.statusTone = "normal";
-    tram.speedMps = 0;
     // Reset the schedule-adherence baseline: without this, delaySeconds is
     // computed against how long ago the tram *first* ever entered service,
     // ignoring however long it just sat in the depot. That made every
@@ -4700,10 +4721,10 @@ export class SimulationEngine {
       tram,
       routeLeaderAhead?.tram ?? null,
     );
-    const block =
-      tram.manualMode && tram.manualCommand === "stop"
-        ? null
-        : this.findBlockingCondition(tram, physicalLeaderAhead);
+    // A manually held tram still brakes to rest, so it must keep respecting
+    // stop points ahead; it just does not request signal priority while held.
+    const manualHold = tram.manualMode && tram.manualCommand === "stop";
+    const block = this.findBlockingCondition(tram, physicalLeaderAhead, !manualHold);
     const intervalGuidance = this.intervalGuidance(
       tram,
       speedLimitMps,
@@ -4911,12 +4932,11 @@ export class SimulationEngine {
     const branch = this.segments.get(tram.segmentId);
     if (!origin || !branch || !branch.id.startsWith("N2X-")) {
       tram.manualCommand = "stop";
-      tram.speedMps = 0;
+      this.haltVehicle(tram, tramIndex, delta);
       tram.targetSpeedMps = 0;
       tram.pwm = 0;
       tram.status = "Reverse unavailable · manual hold";
       tram.statusTone = "warning";
-      tram.lastAcceleration = delta > 0 ? -previousSpeed / delta : 0;
       return;
     }
 
@@ -5258,6 +5278,7 @@ export class SimulationEngine {
   private findBlockingCondition(
     tram: TramState,
     leaderAhead: { tram: TramState; distanceMeters: number } | null,
+    requestPriority = true,
   ) {
     const candidates: Array<{
       key: string;
@@ -5326,6 +5347,7 @@ export class SimulationEngine {
           // stop-line range so a tram dwelling upstream cannot hold a green.
           if (
             controller &&
+            requestPriority &&
             signalDistance <= nearRangeMeters &&
             controller.activeTramId !== tram.id &&
             !controller.queue.some((request) => request.tramId === tram.id)
@@ -5464,6 +5486,16 @@ export class SimulationEngine {
       Math.max(0, distanceMeters - STOP_POINT_MARGIN_METERS),
       speedLimitMps,
     );
+  }
+
+  /**
+   * Stop at an interlock in the motion authority too. Writing only the
+   * mirrored speed would let the authority continue from its own state.
+   */
+  private haltVehicle(tram: TramState, tramIndex: number, deltaSeconds?: number) {
+    tram.lastAcceleration = deltaSeconds ? -tram.speedMps / deltaSeconds : 0;
+    tram.speedMps = 0;
+    cppOverrideVehicleMotion(tramIndex, 0, tram.lastAcceleration);
   }
 
   private resetSegmentTrail(tram: TramState) {
@@ -5652,7 +5684,7 @@ export class SimulationEngine {
         tram.terminalIntervalHold = false;
         tram.terminalBerth = 0;
         tram.terminalEntryQueueReaderId = null;
-        tram.speedMps = 0;
+        // The tram rolls on into the depot lead at its current speed.
         tram.status = `Entering ${depotPortal.depot.shortName} · not in service`;
         tram.statusTone = "warning";
         this.invalidateStopBoards();
@@ -5673,7 +5705,7 @@ export class SimulationEngine {
           this.scenarioDefinition.switches.indexOf(inlineSwitch.definition), runtime.state,
           runtime.lockedBy ? this.trams.findIndex((item) => item.id === runtime.lockedBy) : -1,
           runtime.state, tramIndex, true);
-        if (!reservation) { tram.speedMps = 0; return; }
+        if (!reservation) { this.haltVehicle(tram, tramIndex); return; }
         runtime.state = reservation.state;
         runtime.lockedBy = this.trams[reservation.lockedByIndex]?.id ?? null;
         runtime.resetAfterRelease = true;
@@ -5696,7 +5728,7 @@ export class SimulationEngine {
       if (tram.progress >= 0.999999) {
         const next = this.chooseNextSegment(tram, current);
         if (!next) {
-          tram.speedMps = 0;
+          this.haltVehicle(tram, tramIndex);
           tram.targetSpeedMps = 0;
           tram.pwm = 0;
           if (current.id.startsWith("N2X-") && tram.manualMode) {

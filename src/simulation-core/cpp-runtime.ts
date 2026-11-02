@@ -211,6 +211,10 @@ const initializedTrafficControllers = new Set<number>();
 let switchAuthorityCount = 0;
 const initializedSwitches = new Set<number>();
 let powerSectionMaxKw: number[] = [];
+/** Flywheel banks installed per section; the "no-storage" strategy isolates them. */
+let powerSectionFlywheels: Array<CppFlywheelConfig | undefined> = [];
+let powerStorageConnected = true;
+/** Banks as currently configured in the core. */
 let powerFlywheels: CppFlywheelConfig[] = [];
 let powerVehicleCount = 1;
 let powerStrategy = 1;
@@ -254,7 +258,7 @@ function acceptCppRuntime(instance: WebAssembly.Instance) {
   candidate.tram_core_switch_begin(switchAuthorityCount);
   candidate.tram_core_power_begin(powerSectionMaxKw.length, powerVehicleCount, powerStrategy);
   powerSectionMaxKw.forEach((maxPower, index) => candidate.tram_core_power_configure_section(index, maxPower));
-  powerFlywheels.forEach((storage, index) => candidate.tram_core_power_configure_flywheel(index, storage.modules, storage.modulePowerKw, storage.moduleEnergyWh, storage.chargeEfficiency, storage.dischargeEfficiency, storage.initialSoc));
+  configureCppFlywheels();
   initializedVehicles.clear();
   initializedStations.clear();
   initializedDepotStates.clear();
@@ -286,19 +290,49 @@ export function initializeCppRuntime() {
 
 export interface CppFlywheelConfig { modules: number; modulePowerKw: number; moduleEnergyWh: number; chargeEfficiency: number; dischargeEfficiency: number; initialSoc: number }
 export type CppEnergyStrategy = "no-storage" | "baseline" | "network-optimal";
+const NO_FLYWHEEL: CppFlywheelConfig = { modules: 0, modulePowerKw: 0, moduleEnergyWh: 0, chargeEfficiency: 1, dischargeEfficiency: 1, initialSoc: 0 };
+const connectedFlywheels = () =>
+  powerSectionFlywheels.map((flywheel) => (powerStorageConnected && flywheel) || NO_FLYWHEEL);
+function configureCppFlywheels() {
+  powerFlywheels.forEach((storage, index) => cppExports!.tram_core_power_configure_flywheel(index, storage.modules, storage.modulePowerKw, storage.moduleEnergyWh, storage.chargeEfficiency, storage.dischargeEfficiency, storage.initialSoc));
+}
+
+/** Starts a new power simulation; section and vehicle energy totals restart from zero. */
 export function configureCppPowerAuthority(sections: Array<{ maxPowerKw: number; flywheel?: CppFlywheelConfig }>, vehicleCount: number, strategy: CppEnergyStrategy) {
   powerSectionMaxKw = sections.slice(0, 16).map((section) => section.maxPowerKw);
-  powerFlywheels = sections.slice(0, 16).map((section) => strategy === "no-storage" ? { modules: 0, modulePowerKw: 0, moduleEnergyWh: 0, chargeEfficiency: 1, dischargeEfficiency: 1, initialSoc: 0 } : section.flywheel ?? { modules: 0, modulePowerKw: 0, moduleEnergyWh: 0, chargeEfficiency: 1, dischargeEfficiency: 1, initialSoc: 0 });
+  powerSectionFlywheels = sections.slice(0, 16).map((section) => section.flywheel);
+  powerStorageConnected = strategy !== "no-storage";
+  powerFlywheels = connectedFlywheels();
   powerVehicleCount = Math.max(1, Math.min(20, Math.round(vehicleCount)));
   powerStrategy = strategy === "network-optimal" ? 1 : 0;
   if (!cppExports) return;
   cppExports.tram_core_power_begin(powerSectionMaxKw.length, powerVehicleCount, powerStrategy);
   powerSectionMaxKw.forEach((maxPower, index) => cppExports!.tram_core_power_configure_section(index, maxPower));
-  powerFlywheels.forEach((storage, index) => cppExports!.tram_core_power_configure_flywheel(index, storage.modules, storage.modulePowerKw, storage.moduleEnergyWh, storage.chargeEfficiency, storage.dischargeEfficiency, storage.initialSoc));
+  configureCppFlywheels();
 }
 
+/**
+ * Changes the energy strategy of a running simulation. Unlike a new
+ * configuration it keeps the accumulated energy baselines, so the next step
+ * does not count each tram's lifetime consumption as one 50 ms pulse.
+ */
 export function setCppPowerStrategy(strategy: CppEnergyStrategy) {
   powerStrategy = strategy === "network-optimal" ? 1 : 0;
+  const connected = strategy !== "no-storage";
+  if (connected !== powerStorageConnected) {
+    if (!connected && cppExports) {
+      // An isolated bank keeps its energy; reconnecting resumes from it.
+      powerSectionFlywheels = powerSectionFlywheels.map((flywheel, index) => {
+        const capacityWh = cppExports!.tram_core_power_section_flywheel_capacity(index);
+        return flywheel && capacityWh > 0
+          ? { ...flywheel, initialSoc: cppExports!.tram_core_power_section_flywheel_energy(index) / capacityWh }
+          : flywheel;
+      });
+    }
+    powerStorageConnected = connected;
+    powerFlywheels = connectedFlywheels();
+    if (cppExports) configureCppFlywheels();
+  }
   cppExports?.tram_core_power_set_strategy(powerStrategy);
 }
 

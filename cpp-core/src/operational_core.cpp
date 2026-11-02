@@ -224,8 +224,13 @@ double tram_core_power_target(int i, int section, int manual_mode,
     v.guidance = 1;
     return target;
   }
-  double soft =
-      s.flywheel_modules > 0 ? s.flywheel_target_grid_kw : s.max_power * .24;
+  // Peak smoothing starts at the no-storage section threshold. A depleted
+  // flywheel raises it (the grid must carry more), but a well-charged one
+  // lowers its own discharge target, not this threshold: at a 0 kW target the
+  // flywheel is meant to feed accelerating trams, not hold them back.
+  double soft = s.max_power * .24;
+  if (s.flywheel_modules > 0 && s.flywheel_target_grid_kw > soft)
+    soft = s.flywheel_target_grid_kw;
   if (soft > 420)
     soft = 420;
   if (s.grid_power < soft)
