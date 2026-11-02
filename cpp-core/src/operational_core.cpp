@@ -513,7 +513,7 @@ int tram_core_signal_manual(int i, int mode, int signal) {
     // Changing a request cannot erase a reservation, including an approach
     // tram that has not yet reached the entry detector.
     s.pending = (s.active_tram >= 0 && !s.cleared) ||
-                (s.phase == 2 && s.active_tram < 0);
+                ((s.phase == 1 || s.phase == 2) && s.active_tram < 0);
     s.manual_mode = mode;
     s.manual_signal = signal;
   }
@@ -630,6 +630,15 @@ int tram_core_signal_step(int i, double now, int candidate_tram,
       s.event = 4;
       return 1;
     }
+    // A manual green clears the road through amber, exactly like a grant.
+    if (s.phase == 0) {
+      s.phase = 1;
+      s.until = now + amber;
+      s.active_signal = s.manual_signal;
+      return 1;
+    }
+    if (s.phase == 1 && now < s.until)
+      return 1;
     s.phase = 2;
     s.until = 0;
     s.active_signal = s.manual_signal;
@@ -960,7 +969,8 @@ int tram_core_authority_step(int i, double target_speed, int emergency,
       emergency_brake ? emergency_deceleration : service_deceleration;
   const double desired =
       emergency_brake ? -emergency_deceleration
-                      : clampd(error / 1.4, -deceleration, max_acceleration);
+                      : clampd(error / tram::kSpeedTrackingTimeConstantSeconds,
+                               -deceleration, max_acceleration);
   const double jerk = max_jerk * dt,
                requested = clampd(desired, current - jerk, current + jerk);
   const double resistance = 1100 * (mass / empty_mass) + 32 * speed +
@@ -1025,8 +1035,17 @@ double tram_core_station_approach_speed(double distance_to_platform,
   // A conservative braking envelope.  The 0.72 m/s2 curve leaves authority
   // for the 0.9 m/s3 jerk limiter, while the final 0.35 m is reserved for
   // precise platform alignment rather than being crossed at crawl speed.
-  const double target = __builtin_sqrt(2.0 * tram::kApproachDecelerationMps2 *
-                                       (distance > .35 ? distance - .35 : 0));
+  const double curve = __builtin_sqrt(2.0 * tram::kApproachDecelerationMps2 *
+                                      (distance > .35 ? distance - .35 : 0));
+  // Speed tracking lags a constant-deceleration curve by a * tau. Aim below
+  // the curve by that lag so the tram arrives at walking pace instead of being
+  // stopped dead by the move interlock; keep a slow creep so it still aligns.
+  double target = curve - tram::kApproachDecelerationMps2 *
+                              tram::kSpeedTrackingTimeConstantSeconds;
+  const double creep = curve < tram::kStopCreepSpeedMps ? curve
+                                                        : tram::kStopCreepSpeedMps;
+  if (target < creep)
+    target = creep;
   return target < speed_limit ? target : speed_limit;
 }
 double tram_core_resolve_target_speed(double speed_limit, int manual_mode,
@@ -1319,7 +1338,8 @@ int tram_core_step(void *, double dt) {
       t.dwell_ticks--;
     }
     double error = target - t.speed,
-           desired = clampd(error / 1.4, -tram::kServiceDecelerationMps2,
+           desired = clampd(error / tram::kSpeedTrackingTimeConstantSeconds,
+                            -tram::kServiceDecelerationMps2,
                             tram::kMaximumAccelerationMps2),
            jerk = tram::kMaximumJerkMps3 * dt;
     desired = clampd(desired, t.acceleration - jerk, t.acceleration + jerk);

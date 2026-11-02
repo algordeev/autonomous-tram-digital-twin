@@ -545,7 +545,9 @@ export function cppStationApproachSpeed(distanceMeters: number, speedLimitMps: n
   if (cppExports) {
     return cppExports.tram_core_station_approach_speed(distanceMeters, speedLimitMps);
   }
-  return Math.min(speedLimitMps, Math.sqrt(2 * 0.72 * Math.max(0, distanceMeters - 0.35)));
+  // Mirrors tram_core_station_approach_speed: lag-compensated curve with a final creep.
+  const curve = Math.sqrt(2 * 0.72 * Math.max(0, distanceMeters - 0.35));
+  return Math.min(speedLimitMps, Math.max(curve - 0.72 * 1.4, Math.min(curve, 0.1)));
 }
 
 export function cppSpeedProfileTarget(input: {
