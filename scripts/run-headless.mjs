@@ -1,7 +1,10 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { runHeadlessSimulation } from "../src/simulation-core/index.ts";
+import {
+  initializeCppRuntimeFromBytes,
+  runHeadlessSimulation,
+} from "../src/simulation-core/index.ts";
 
 const { values } = parseArgs({
   options: {
@@ -24,6 +27,12 @@ const startServiceMinute = values["start-minute"]
 if (!(durationHours > 0) || !(sampleEverySeconds > 0)) {
   throw new Error("--duration-hours and --sample-seconds must be positive numbers");
 }
+
+// Run on the same C++ core as the browser; without it the engine falls back to
+// the TypeScript reference and the traction-power network is not simulated.
+await initializeCppRuntimeFromBytes(
+  await readFile(new URL("../public/wasm/tram-core.wasm", import.meta.url)),
+);
 
 const report = runHeadlessSimulation({
   scenarioId: values.scenario,

@@ -37,6 +37,9 @@ Keep a Changelog; release labels use semantic version numbers.
   its neighbour. In a 3-hour run, on-time departures rose from 84% to 92%.
 - The dashboard reported a 0 m headway for trams side by side at İzmir
   terminals.
+- `npm run simulate:headless` ran on the TypeScript fallback instead of the
+  C++ core, so its reports had no traction-power data (0 kWh grid supply).
+  Reports now state the core in `coreRuntime`.
 
 ### Added
 

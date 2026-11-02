@@ -16,6 +16,8 @@ npm run simulate:headless -- \
 
 The report schema is versioned as `schemaVersion: 1` and contains:
 
+- the core that ran it (`coreRuntime`: `cpp-wasm`, as in the browser, or
+  `typescript-fallback`, which does not simulate the traction-power network);
 - requested and simulated duration;
 - start/end service clock;
 - final network metrics;

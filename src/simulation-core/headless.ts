@@ -5,6 +5,7 @@ import {
   type SimulationMetrics,
   type SimulationSnapshot,
 } from "./engine.ts";
+import { isCppRuntimeReady } from "./cpp-runtime.ts";
 
 export interface HeadlessSimulationOptions {
   scenarioId?: string;
@@ -24,6 +25,8 @@ export interface HeadlessSample {
 
 export interface HeadlessSimulationReport {
   schemaVersion: 1;
+  /** Core that ran the simulation; the TypeScript fallback has no traction-power network. */
+  coreRuntime: "cpp-wasm" | "typescript-fallback";
   scenarioId: string;
   scenarioName: string;
   requestedDurationSeconds: number;
@@ -93,6 +96,7 @@ export function runHeadlessSimulation(
 
   return {
     schemaVersion: 1,
+    coreRuntime: isCppRuntimeReady() ? "cpp-wasm" : "typescript-fallback",
     scenarioId: finalSnapshot.scenarioId,
     scenarioName: finalSnapshot.scenarioName,
     requestedDurationSeconds: options.durationSeconds,
