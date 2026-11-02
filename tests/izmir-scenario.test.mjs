@@ -141,7 +141,9 @@ test("smooth braking stops an Izmir tram at the platform marker", async () => {
   assert.equal(tram.speedKmh, 0);
 });
 
-test("two trams use both Izmir terminal platforms side by side and leave independently", async () => {
+// Both orders matter: at the shared platform point the tie-break reports the
+// standing tram as 0 m ahead only when it has the lower fleet rank.
+for (const firstArrival of ["lower fleet rank", "higher fleet rank"]) test(`two trams use both Izmir terminal platforms side by side and leave independently (${firstArrival} arrives first)`, async () => {
   resetCppRuntimeForTests();
   await initializeCppRuntimeFromBytes(
     await readFile(new URL("../public/wasm/tram-core.wasm", import.meta.url)),
@@ -151,8 +153,11 @@ test("two trams use both Izmir terminal platforms side by side and leave indepen
     engine.setAutoDispatch(false);
     const terminal = engine.scenario.readers.find((reader) => reader.id === "IZK-RO18");
     const segment = engine.segments.get(terminal.segmentId);
-    const [first, second] = engine.trams;
-    engine.trams = [first, second];
+    const [lowerRank, higherRank] = engine.trams;
+    const [first, second] = firstArrival === "lower fleet rank"
+      ? [lowerRank, higherRank]
+      : [higherRank, lowerRank];
+    engine.trams = [lowerRank, higherRank];
     for (const [tram, metersBeforeTrigger] of [[first, 40], [second, 140]]) {
       tram.serviceState = "in-service";
       tram.segmentId = segment.id;
@@ -181,9 +186,11 @@ test("two trams use both Izmir terminal platforms side by side and leave indepen
         sideBySide = true;
         assert.notEqual(first.terminalBerth, second.terminalBerth);
       }
-      // One tram leaves while the other is still at its platform.
-      if (sideBySide && [first, second].some(dwelling) &&
-          snapshots.some((tram) => tram.speedKmh > 5 && tram.segmentId === segment.id)) {
+      // One tram clears the platform area while the other is still standing.
+      const platformMeters = (terminal.displayAt ?? terminal.at) * segment.lengthMeters;
+      if (sideBySide && [first, second].some(dwelling) && [first, second].some((tram) =>
+        !dwelling(tram) &&
+        (tram.segmentId !== segment.id || tram.progress * segment.lengthMeters > platformMeters + 22))) {
         departedAlongside = true;
       }
       if (second.stationPhase === "crawl" && second.speedMps < 0.01 && dwelling(first)) {

@@ -4716,7 +4716,18 @@ export class SimulationEngine {
       // shared track (such as a tram still leaving) remains a physical leader.
       physicalLeaderAhead = this.nearestTramAhead(tram, false, physicalLeaderAhead.tram.id);
     }
-    const routeLeaderAhead = this.nearestTramAhead(tram, true);
+    let routeLeaderAhead = this.nearestTramAhead(tram, true);
+    if (
+      routeLeaderAhead &&
+      this.activeTerminalDeparture(tram) &&
+      this.standsAtParallelIzmirBerth(tram, routeLeaderAhead.tram)
+    ) {
+      // Leaving its platform, a tram is not regulated behind the tram still
+      // standing at the other one: at the shared platform point that reads as
+      // a 0 m interval and would hold it until the other tram departs.
+      // (Arrivals already skip interval regulation behind a terminal leader.)
+      routeLeaderAhead = this.nearestTramAhead(tram, true, routeLeaderAhead.tram.id);
+    }
     const terminalLeaderAtApproach = this.leaderOccupiesApproachingIzmirTerminal(
       tram,
       routeLeaderAhead?.tram ?? null,
