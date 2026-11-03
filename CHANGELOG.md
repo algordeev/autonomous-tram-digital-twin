@@ -104,6 +104,14 @@ Keep a Changelog; release labels use semantic version numbers.
   turnout uses its 20 km/h main-leg limit rather than the 15 km/h branch
   limit, and its misplaced main-leg limit at the start of the approach segment
   is gone.
+- Passengers never all got off: every stop, terminus included, used the same
+  alighting share. Everyone now leaves at a terminus before boarding for the
+  return trip, and at the last stop of a tram heading out of service, which
+  takes nobody on; previously those passengers vanished when it was stored.
+  In a 1-hour run the average load falls 27% on İzmir and 9% on routes 2 + 21.
+- A stop's "overcrowded" flag stayed on for good after its first overflow. It
+  now reflects the last tram to board there: it clears once a tram takes
+  everyone waiting.
 
 ### Added
 

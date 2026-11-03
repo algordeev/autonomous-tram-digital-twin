@@ -2719,14 +2719,19 @@ export class SimulationEngine {
       return { boarding: 0, alighting: 0, overflow: 0, dwellSeconds: PASSENGER_MIN_DWELL_SECONDS };
     }
     const tracker = this.peekDemand(reader.id);
+    // Everyone leaves at a terminus, and at the last stop of a tram heading
+    // out of service, which takes nobody on (its boarding queue is untouched).
+    const leavingService =
+      tram.serviceState === "to-depot" &&
+      reader.label === this.depotPortalById(tram.depotPortalId)?.portal.lastPassengerStop;
     const { boarding, alighting, overflow } = computeBoardingAlighting({
       onboard: tram.onboardPassengers,
       capacity: TRAM_CAPACITY,
-      waiting: tracker.boardable(),
-      alightFraction: PASSENGER_ALIGHT_FRACTION,
+      waiting: leavingService ? 0 : tracker.boardable(),
+      alightFraction: reader.terminal || leavingService ? 1 : PASSENGER_ALIGHT_FRACTION,
     });
     tram.onboardPassengers = tram.onboardPassengers - alighting + boarding;
-    tracker.board(boarding, overflow);
+    if (!leavingService) tracker.board(boarding, overflow);
 
     const dwellSeconds = clamp(
       computeDwellSeconds({

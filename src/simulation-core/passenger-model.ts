@@ -129,6 +129,8 @@ export class StopDemandTracker {
   private currentRatePerSecond = 0;
   totalBoarded = 0;
   totalOverflowed = 0;
+  /** Passengers the most recent boarding tram had to leave behind. */
+  lastVisitOverflow = 0;
 
   constructor(stopId: string) {
     this.stopId = stopId;
@@ -163,6 +165,7 @@ export class StopDemandTracker {
     this.waitingPassengers = Math.max(0, this.waitingPassengers - boarding);
     this.totalBoarded += boarding;
     this.totalOverflowed += overflow;
+    this.lastVisitOverflow = overflow;
   }
 
   /** Little's Law: average wait ≈ queue length / arrival rate. */
@@ -171,7 +174,11 @@ export class StopDemandTracker {
     return this.waitingPassengers / this.currentRatePerSecond;
   }
 
+  /**
+   * The last tram to offer boarding left people behind and some are still
+   * waiting. A later tram that takes everyone clears it.
+   */
   isOvercrowded(overflowThreshold = 1): boolean {
-    return this.waitingPassengers >= overflowThreshold && this.totalOverflowed > 0;
+    return this.waitingPassengers >= overflowThreshold && this.lastVisitOverflow > 0;
   }
 }

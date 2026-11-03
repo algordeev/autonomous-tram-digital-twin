@@ -7,6 +7,7 @@ import {
   computeDwellSeconds,
   StopDemandTracker,
 } from "../src/simulation-core/passenger-model.ts";
+import { SimulationEngine } from "../src/simulation-core/engine.ts";
 
 test("demand is higher during the morning peak than at night", () => {
   const peak = timeOfDayDemandFactor(8 * 60);
@@ -92,4 +93,63 @@ test("Little's Law wait estimate rises as the queue grows relative to arrival ra
     waitAfterTwentyMinutes > waitAfterTenMinutes,
     "unattended queue should mean rising estimated wait",
   );
+});
+
+test("the overcrowded flag clears once a tram takes everyone waiting", () => {
+  const tracker = new StopDemandTracker("R01");
+  tracker.advance(0, 8 * 60, 1.4);
+  tracker.advance(1200, 8 * 60, 1.4);
+  const full = computeBoardingAlighting({ onboard: 95, capacity: 100, waiting: tracker.boardable(), alightFraction: 0 });
+  tracker.board(full.boarding, full.overflow);
+  assert.ok(tracker.isOvercrowded());
+
+  const empty = computeBoardingAlighting({ onboard: 0, capacity: 100, waiting: tracker.boardable(), alightFraction: 0 });
+  assert.equal(empty.overflow, 0);
+  tracker.board(empty.boarding, empty.overflow);
+  tracker.advance(1260, 8 * 60, 1.4); // new arrivals after the tram left
+  assert.ok(tracker.boardable() > 0, "people are waiting again");
+  assert.equal(tracker.isOvercrowded(), false, "but nobody was left behind by the last tram");
+});
+
+test("everyone gets off at a terminus, and boarding continues for the return trip", () => {
+  const engine = new SimulationEngine("izmir-konak");
+  const terminus = engine.scenario.readers.find((reader) => reader.terminal);
+  const midline = engine.scenario.readers.find((reader) => reader.kind === "station" && !reader.terminal);
+  const tram = engine.trams[0];
+  const index = engine.trams.indexOf(tram);
+
+  tram.onboardPassengers = 80;
+  tram.pendingStationReaderId = midline.id;
+  const passing = engine.serviceStopPassengers(tram, index);
+  assert.ok(passing.alighting > 0 && passing.alighting < 80, "a mid-line stop keeps most passengers on");
+
+  tram.onboardPassengers = 80;
+  tram.pendingStationReaderId = terminus.id;
+  const end = engine.serviceStopPassengers(tram, index);
+  assert.equal(end.alighting, 80);
+  assert.equal(tram.onboardPassengers, end.boarding);
+});
+
+test("a tram heading out of service empties at its last stop and takes nobody on", () => {
+  const engine = new SimulationEngine("nizhny-routes-2-21");
+  engine.setAutoDispatch(false);
+  const tram = engine.trams[0];
+  const index = engine.trams.indexOf(tram);
+  assert.equal(engine.markForDepot(tram, false, true), true);
+  const { portal } = engine.depotPortalById(tram.depotPortalId);
+  const lastStop = engine.scenario.readers.find(
+    (reader) => reader.kind === "station" && reader.label === portal.lastPassengerStop,
+  );
+  const tracker = engine.peekDemand(lastStop.id);
+  tracker.advance(engine.simulationTime + 600, 8 * 60, 1.4);
+  const waiting = tracker.boardable();
+  assert.ok(waiting > 0);
+
+  tram.onboardPassengers = 60;
+  tram.pendingStationReaderId = lastStop.id;
+  const result = engine.serviceStopPassengers(tram, index);
+  assert.equal(result.alighting, 60);
+  assert.equal(result.boarding, 0);
+  assert.equal(tram.onboardPassengers, 0);
+  assert.equal(tracker.boardable(), waiting, "the queue waits for a tram in service");
 });
