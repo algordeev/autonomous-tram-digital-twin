@@ -1494,6 +1494,15 @@ export class SimulationEngine {
   private readonly fixedStepClock = new FixedStepClock(0.05, 20);
   private scenarioDefinition: ScenarioDefinition;
   private segments = new Map<string, SegmentRuntime>();
+  // Lookup tables over `segments` and the scenario, rebuilt with them on reset.
+  private outgoingSegmentsByNode = new Map<string, SegmentRuntime[]>();
+  private switchesByNode = new Map<string, SwitchDefinition>();
+  private routesById = new Map<string, RouteDefinition>();
+  private routeSegmentIndex = new Map<string, Map<string, number>>();
+  private forwardPathCache = new Map<
+    string,
+    { segments: SegmentRuntime[]; indexById: Map<string, number> }
+  >();
   private speedRestrictions: SpeedRestrictionRuntime[] = [];
   private speedRestrictionsBySegment = new Map<string, SpeedRestrictionRuntime[]>();
   private stationReadersBySegment = new Map<string, RFIDReader[]>();
@@ -2088,6 +2097,7 @@ export class SimulationEngine {
     this.segments = new Map(
       this.scenarioDefinition.segments.map((item) => [item.id, buildSegmentRuntime(item)]),
     );
+    this.buildTopologyIndexes();
     this.speedRestrictions = this.buildSpeedRestrictions();
     this.speedRestrictionsBySegment = new Map();
     for (const restriction of this.speedRestrictions) {
@@ -2738,6 +2748,34 @@ export class SimulationEngine {
       this.scenarioDefinition.routes[0]?.id ??
       "service"
     );
+  }
+
+  /** First match wins everywhere, as with the `find`/`indexOf` scans these replace. */
+  private buildTopologyIndexes() {
+    this.outgoingSegmentsByNode = new Map();
+    for (const segment of this.segments.values()) {
+      const list = this.outgoingSegmentsByNode.get(segment.from) ?? [];
+      list.push(segment);
+      this.outgoingSegmentsByNode.set(segment.from, list);
+    }
+    this.switchesByNode = new Map();
+    for (const switchDefinition of this.scenarioDefinition.switches) {
+      if (!this.switchesByNode.has(switchDefinition.nodeId)) {
+        this.switchesByNode.set(switchDefinition.nodeId, switchDefinition);
+      }
+    }
+    this.routesById = new Map();
+    this.routeSegmentIndex = new Map();
+    for (const route of this.scenarioDefinition.routes) {
+      if (this.routesById.has(route.id)) continue;
+      this.routesById.set(route.id, route);
+      const index = new Map<string, number>();
+      route.segmentIds.forEach((id, position) => {
+        if (!index.has(id)) index.set(id, position);
+      });
+      this.routeSegmentIndex.set(route.id, index);
+    }
+    this.forwardPathCache = new Map();
   }
 
   /**
@@ -5666,35 +5704,52 @@ export class SimulationEngine {
       }
     }
 
+    const path = this.forwardSegmentPath(tram, current);
+    const targetIndex = path.indexById.get(other.segmentId);
+    if (targetIndex === undefined) return null;
+    // Summed in walk order so the result matches a segment-by-segment walk.
     let distanceMeters = (1 - tram.progress) * current.lengthMeters;
-    let cursor = current;
-    const visited = new Set([current.id]);
+    for (let index = 0; index < targetIndex; index += 1) {
+      distanceMeters += path.segments[index].lengthMeters;
+    }
+    return distanceMeters + other.progress * path.segments[targetIndex].lengthMeters;
+  }
 
+  /**
+   * The segments a tram will follow from `current` until the path ends or
+   * repeats. It depends only on topology, the tram's route intent and its
+   * route, so it is cached for the lifetime of the segment graph.
+   */
+  private forwardSegmentPath(tram: TramState, current: SegmentRuntime) {
+    const key = `${current.id}|${tram.routeIntent}|${this.routeIdForTram(tram)}`;
+    const cached = this.forwardPathCache.get(key);
+    if (cached) return cached;
+
+    const segments: SegmentRuntime[] = [];
+    const indexById = new Map<string, number>();
+    const visited = new Set([current.id]);
+    let cursor = current;
     for (let guard = 0; guard <= this.segments.size; guard += 1) {
       const next = this.peekNextSegment(tram, cursor);
-      if (!next) return null;
-      if (next.id === other.segmentId) {
-        return distanceMeters + other.progress * next.lengthMeters;
-      }
-      if (visited.has(next.id)) return null;
+      if (!next) break;
+      if (!indexById.has(next.id)) indexById.set(next.id, segments.length);
+      segments.push(next);
+      if (visited.has(next.id)) break;
       visited.add(next.id);
-      distanceMeters += next.lengthMeters;
       cursor = next;
     }
 
-    return null;
+    const path = { segments, indexById };
+    this.forwardPathCache.set(key, path);
+    return path;
   }
 
   private peekNextSegment(tram: TramState, previous: SegmentRuntime) {
-    const outgoing = [...this.segments.values()].filter(
-      (item) => item.from === previous.to,
-    );
+    const outgoing = this.outgoingSegmentsByNode.get(previous.to) ?? [];
     if (outgoing.length === 0) return null;
     if (outgoing.length === 1) return outgoing[0];
 
-    const switchDefinition = this.scenarioDefinition.switches.find(
-      (item) => item.nodeId === previous.to,
-    );
+    const switchDefinition = this.switchesByNode.get(previous.to);
     if (!switchDefinition) {
       return this.nextRouteSegment(tram, previous, outgoing) ?? outgoing[0];
     }
@@ -5941,9 +5996,9 @@ export class SimulationEngine {
   ) {
     if (!this.scenarioDefinition.strictRouteSequence) return null;
     const routeId = this.routeIdForTram(tram);
-    const route = this.scenarioDefinition.routes.find((item) => item.id === routeId);
+    const route = this.routesById.get(routeId);
     if (!route) return null;
-    const currentIndex = route.segmentIds.indexOf(previous.id);
+    const currentIndex = this.routeSegmentIndex.get(routeId)?.get(previous.id) ?? -1;
     if (currentIndex < 0 || route.segmentIds.length === 0) return null;
     const nextId = route.segmentIds[(currentIndex + 1) % route.segmentIds.length];
     return outgoing.find((item) => item.id === nextId) ?? null;
