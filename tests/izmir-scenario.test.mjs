@@ -307,3 +307,29 @@ test("every Izmir crossing stops road traffic for both tram approaches", () => {
     [...new Set(engine.scenario.signals.map((signal) => signal.controllerId))].sort(),
   );
 });
+
+test("Izmir late service keeps running past midnight until 00:20", () => {
+  const engine = new SimulationEngine("izmir-konak");
+  const izmir = () => engine.getSnapshot().routeOperations.find((route) => route.routeId === "izmir-konak");
+
+  engine.setServiceClockMinutes(23 * 60 + 50);
+  assert.equal(engine.getSnapshot().serviceScheduleLabel, "Late service");
+  engine.setServiceClockMinutes(10);
+  assert.equal(engine.getSnapshot().serviceScheduleLabel, "Late service");
+  assert.equal(izmir().plannedHeadwayMinutes, 15.3);
+  engine.setServiceClockMinutes(20);
+  assert.match(engine.getSnapshot().serviceScheduleLabel, /^Night storage/);
+  assert.equal(izmir().plannedHeadwayMinutes, null);
+});
+
+test("an after-midnight departure stays on the late window's 21:00 timetable grid", () => {
+  const engine = new SimulationEngine("izmir-konak");
+  engine.setServiceClockMinutes(10);
+  const tram = engine.trams[0];
+  assert.equal(engine.reserveScheduledDeparture(tram, "IZK-RI19", "Halkapinar", "terminal"), true);
+  const headwaySeconds = 15.3 * 60;
+  const sinceWindowStart = tram.scheduledDepartureClockSeconds + 86_400 - 21 * 3_600;
+  const offGrid = sinceWindowStart / headwaySeconds - Math.round(sinceWindowStart / headwaySeconds);
+  assert.ok(Math.abs(offGrid) < 1e-9, `slot is ${offGrid} headways off the grid`);
+  assert.ok(tram.scheduledDepartureClockSeconds < 20 * 60 + headwaySeconds);
+});

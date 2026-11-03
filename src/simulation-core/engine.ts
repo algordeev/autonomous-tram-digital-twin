@@ -1,4 +1,4 @@
-import { NETWORK_CONFIGS, networkConfigById } from "./network-config.ts";
+import { NETWORK_CONFIGS } from "./network-config.ts";
 import { FixedStepClock } from "./fixed-step-clock.ts";
 import { type DynamicsMode } from "./vehicle-dynamics.ts";
 import {
@@ -889,6 +889,7 @@ const TRAM_COLORS = [
 ];
 const REFERENCE_TO_METERS = 0.55;
 const MAX_TRAMS = 20;
+const MAX_SIMULATION_RATE = 30;
 /** Clear gap between the rear of a leader and the front of its follower. */
 const PHYSICAL_TRAM_GAP_METERS = 7;
 const TRAM_LENGTH_METERS = 15;
@@ -1402,10 +1403,31 @@ export const SCENARIOS: ScenarioDefinition[] = [
   ...NETWORK_CONFIGS,
 ];
 
+/** Built-in layouts and JSON network configs, looked up by id. */
+const scenarioById = (id: string) =>
+  SCENARIOS.find((item) => item.id === id) ?? null;
+
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
 const distance = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
+
+/**
+ * Whether a service window covers a minute of the day (0-1439). Windows that
+ * cross midnight may be written either as 1260-1460 or as 1260-20.
+ */
+export const serviceWindowContainsMinute = (
+  window: Pick<ServiceScheduleWindow, "startMinute" | "endMinute">,
+  minute: number,
+) => {
+  const start = window.startMinute;
+  const end = window.endMinute;
+  if (start <= end) {
+    return (minute >= start && minute < end) ||
+      (minute + 1_440 >= start && minute + 1_440 < end);
+  }
+  return minute >= start || minute < end;
+};
 
 const formatClock = (seconds: number) => {
   const whole = Math.max(0, Math.floor(seconds));
@@ -1472,6 +1494,15 @@ export class SimulationEngine {
   private readonly fixedStepClock = new FixedStepClock(0.05, 20);
   private scenarioDefinition: ScenarioDefinition;
   private segments = new Map<string, SegmentRuntime>();
+  // Lookup tables over `segments` and the scenario, rebuilt with them on reset.
+  private outgoingSegmentsByNode = new Map<string, SegmentRuntime[]>();
+  private switchesByNode = new Map<string, SwitchDefinition>();
+  private routesById = new Map<string, RouteDefinition>();
+  private routeSegmentIndex = new Map<string, Map<string, number>>();
+  private forwardPathCache = new Map<
+    string,
+    { segments: SegmentRuntime[]; indexById: Map<string, number> }
+  >();
   private speedRestrictions: SpeedRestrictionRuntime[] = [];
   private speedRestrictionsBySegment = new Map<string, SpeedRestrictionRuntime[]>();
   private stationReadersBySegment = new Map<string, RFIDReader[]>();
@@ -1566,7 +1597,7 @@ export class SimulationEngine {
   }
 
   setScenario(scenarioId: string) {
-    const next = networkConfigById(scenarioId) ?? SCENARIOS.find((item) => item.id === scenarioId);
+    const next = scenarioById(scenarioId);
     if (!next || next.id === this.scenarioDefinition.id) return;
     this.scenarioDefinition = next;
     if (!supportsLegacyFirmware(next)) {
@@ -1603,15 +1634,16 @@ export class SimulationEngine {
 
   loadExperimentConfig(value: unknown) {
     const experiment = this.validateExperimentConfig(value);
-    const network = networkConfigById(experiment.networkId);
+    const network = scenarioById(experiment.networkId);
     if (!network) throw new Error(`Unknown network: ${experiment.networkId}`);
     const numeric = (candidate: unknown, fallback: number) =>
       typeof candidate === "number" && Number.isFinite(candidate) ? candidate : fallback;
 
-    this.scenarioDefinition = network;
-    this.options = {
+    // Work out the whole new configuration before touching the engine, so a
+    // rejected experiment leaves the current scenario and fleet untouched.
+    const options: SimulationOptions = {
       speedLimit: clamp(Math.round(numeric(experiment.options.speedLimit, 40)), 10, 70),
-      simulationRate: clamp(numeric(experiment.options.simulationRate, 1), 0.5, 5),
+      simulationRate: clamp(numeric(experiment.options.simulationRate, 1), 0.5, MAX_SIMULATION_RATE),
       autoDispatch: Boolean(experiment.options.autoDispatch),
       collisionAvoidance: Boolean(experiment.options.collisionAvoidance),
       priorityPolicy: experiment.options.priorityPolicy,
@@ -1628,8 +1660,10 @@ export class SimulationEngine {
     };
 
     const groups = network.fleetGroups ?? [];
+    let fleetGroupCounts: Map<string, number> | null = null;
+    let tramCount: number;
     if (groups.length > 0) {
-      this.fleetGroupCounts = new Map(
+      fleetGroupCounts = new Map(
         groups.map((group) => [
           group.id,
           clamp(
@@ -1639,15 +1673,18 @@ export class SimulationEngine {
           ),
         ]),
       );
-      this.tramCount = [...this.fleetGroupCounts.values()].reduce((sum, count) => sum + count, 0);
-      if (this.tramCount < 1 || this.tramCount > MAX_TRAMS) {
+      tramCount = [...fleetGroupCounts.values()].reduce((sum, count) => sum + count, 0);
+      if (tramCount < 1 || tramCount > MAX_TRAMS) {
         throw new Error(`Fleet size must be between 1 and ${MAX_TRAMS}`);
       }
     } else {
-      this.fleetGroupCounts = null;
-      this.tramCount = clamp(Math.round(numeric(experiment.tramCount, network.defaultTramCount ?? 2)), 1, MAX_TRAMS);
+      tramCount = clamp(Math.round(numeric(experiment.tramCount, network.defaultTramCount ?? 2)), 1, MAX_TRAMS);
     }
 
+    this.scenarioDefinition = network;
+    this.options = options;
+    this.fleetGroupCounts = fleetGroupCounts;
+    this.tramCount = tramCount;
     this.reset();
     this.setServiceClockMinutes(experiment.serviceMinute);
     this.obstacles = experiment.obstacles.map((obstacle, index) => ({
@@ -1685,7 +1722,7 @@ export class SimulationEngine {
     if (experiment.format !== "autonomous-tram-experiment" || experiment.version !== 1) {
       throw new Error("Unsupported experiment format or version");
     }
-    if (typeof experiment.networkId !== "string" || !networkConfigById(experiment.networkId)) {
+    if (typeof experiment.networkId !== "string" || !scenarioById(experiment.networkId)) {
       throw new Error("Experiment references an unknown network");
     }
     if (!experiment.options || typeof experiment.options !== "object") {
@@ -1698,7 +1735,7 @@ export class SimulationEngine {
       experiment.options.controlMode ?? "",
     );
     if (!validPriority || !validControl) throw new Error("Experiment control options are invalid");
-    const network = networkConfigById(experiment.networkId)!;
+    const network = scenarioById(experiment.networkId)!;
     const segmentIds = new Set(network.segments.map((segment) => segment.id));
     const obstacles = Array.isArray(experiment.obstacles) ? experiment.obstacles : [];
     if (obstacles.some((item) => !item || !segmentIds.has(item.segmentId) || !Number.isFinite(item.at))) {
@@ -1823,7 +1860,7 @@ export class SimulationEngine {
   }
 
   setSimulationRate(value: number) {
-    this.options.simulationRate = clamp(value, 0.5, 5);
+    this.options.simulationRate = clamp(value, 0.5, MAX_SIMULATION_RATE);
   }
 
   setAutoDispatch(enabled: boolean) {
@@ -2060,6 +2097,7 @@ export class SimulationEngine {
     this.segments = new Map(
       this.scenarioDefinition.segments.map((item) => [item.id, buildSegmentRuntime(item)]),
     );
+    this.buildTopologyIndexes();
     this.speedRestrictions = this.buildSpeedRestrictions();
     this.speedRestrictionsBySegment = new Map();
     for (const restriction of this.speedRestrictions) {
@@ -2338,8 +2376,8 @@ export class SimulationEngine {
   private activeServiceWindow() {
     const minute = this.serviceMinute();
     return (
-      this.scenarioDefinition.serviceSchedule?.find(
-        (window) => minute >= window.startMinute && minute < window.endMinute,
+      this.scenarioDefinition.serviceSchedule?.find((window) =>
+        serviceWindowContainsMinute(window, minute),
       ) ?? null
     );
   }
@@ -2357,7 +2395,10 @@ export class SimulationEngine {
 
     const absoluteClockSeconds = this.serviceClockOffsetSeconds + this.simulationTime;
     const dayStartSeconds = Math.floor(absoluteClockSeconds / 86_400) * 86_400;
-    const windowStartSeconds = dayStartSeconds + window.startMinute * 60;
+    // A window that crossed midnight (e.g. 21:00-00:20) started yesterday;
+    // anchoring it to today's 21:00 would shift its timetable grid.
+    let windowStartSeconds = dayStartSeconds + (window.startMinute % 1_440) * 60;
+    if (windowStartSeconds > absoluteClockSeconds) windowStartSeconds -= 86_400;
     // Each service window has its own timetable grid. Carrying the previous
     // window's reservation into a new headway would shift every later trip.
     const reservationKey = `${window.id}:${routeId}:${kind}:${pointKey}`;
@@ -2707,6 +2748,34 @@ export class SimulationEngine {
       this.scenarioDefinition.routes[0]?.id ??
       "service"
     );
+  }
+
+  /** First match wins everywhere, as with the `find`/`indexOf` scans these replace. */
+  private buildTopologyIndexes() {
+    this.outgoingSegmentsByNode = new Map();
+    for (const segment of this.segments.values()) {
+      const list = this.outgoingSegmentsByNode.get(segment.from) ?? [];
+      list.push(segment);
+      this.outgoingSegmentsByNode.set(segment.from, list);
+    }
+    this.switchesByNode = new Map();
+    for (const switchDefinition of this.scenarioDefinition.switches) {
+      if (!this.switchesByNode.has(switchDefinition.nodeId)) {
+        this.switchesByNode.set(switchDefinition.nodeId, switchDefinition);
+      }
+    }
+    this.routesById = new Map();
+    this.routeSegmentIndex = new Map();
+    for (const route of this.scenarioDefinition.routes) {
+      if (this.routesById.has(route.id)) continue;
+      this.routesById.set(route.id, route);
+      const index = new Map<string, number>();
+      route.segmentIds.forEach((id, position) => {
+        if (!index.has(id)) index.set(id, position);
+      });
+      this.routeSegmentIndex.set(route.id, index);
+    }
+    this.forwardPathCache = new Map();
   }
 
   /**
@@ -5635,35 +5704,52 @@ export class SimulationEngine {
       }
     }
 
+    const path = this.forwardSegmentPath(tram, current);
+    const targetIndex = path.indexById.get(other.segmentId);
+    if (targetIndex === undefined) return null;
+    // Summed in walk order so the result matches a segment-by-segment walk.
     let distanceMeters = (1 - tram.progress) * current.lengthMeters;
-    let cursor = current;
-    const visited = new Set([current.id]);
+    for (let index = 0; index < targetIndex; index += 1) {
+      distanceMeters += path.segments[index].lengthMeters;
+    }
+    return distanceMeters + other.progress * path.segments[targetIndex].lengthMeters;
+  }
 
+  /**
+   * The segments a tram will follow from `current` until the path ends or
+   * repeats. It depends only on topology, the tram's route intent and its
+   * route, so it is cached for the lifetime of the segment graph.
+   */
+  private forwardSegmentPath(tram: TramState, current: SegmentRuntime) {
+    const key = `${current.id}|${tram.routeIntent}|${this.routeIdForTram(tram)}`;
+    const cached = this.forwardPathCache.get(key);
+    if (cached) return cached;
+
+    const segments: SegmentRuntime[] = [];
+    const indexById = new Map<string, number>();
+    const visited = new Set([current.id]);
+    let cursor = current;
     for (let guard = 0; guard <= this.segments.size; guard += 1) {
       const next = this.peekNextSegment(tram, cursor);
-      if (!next) return null;
-      if (next.id === other.segmentId) {
-        return distanceMeters + other.progress * next.lengthMeters;
-      }
-      if (visited.has(next.id)) return null;
+      if (!next) break;
+      if (!indexById.has(next.id)) indexById.set(next.id, segments.length);
+      segments.push(next);
+      if (visited.has(next.id)) break;
       visited.add(next.id);
-      distanceMeters += next.lengthMeters;
       cursor = next;
     }
 
-    return null;
+    const path = { segments, indexById };
+    this.forwardPathCache.set(key, path);
+    return path;
   }
 
   private peekNextSegment(tram: TramState, previous: SegmentRuntime) {
-    const outgoing = [...this.segments.values()].filter(
-      (item) => item.from === previous.to,
-    );
+    const outgoing = this.outgoingSegmentsByNode.get(previous.to) ?? [];
     if (outgoing.length === 0) return null;
     if (outgoing.length === 1) return outgoing[0];
 
-    const switchDefinition = this.scenarioDefinition.switches.find(
-      (item) => item.nodeId === previous.to,
-    );
+    const switchDefinition = this.switchesByNode.get(previous.to);
     if (!switchDefinition) {
       return this.nextRouteSegment(tram, previous, outgoing) ?? outgoing[0];
     }
@@ -5910,9 +5996,9 @@ export class SimulationEngine {
   ) {
     if (!this.scenarioDefinition.strictRouteSequence) return null;
     const routeId = this.routeIdForTram(tram);
-    const route = this.scenarioDefinition.routes.find((item) => item.id === routeId);
+    const route = this.routesById.get(routeId);
     if (!route) return null;
-    const currentIndex = route.segmentIds.indexOf(previous.id);
+    const currentIndex = this.routeSegmentIndex.get(routeId)?.get(previous.id) ?? -1;
     if (currentIndex < 0 || route.segmentIds.length === 0) return null;
     const nextId = route.segmentIds[(currentIndex + 1) % route.segmentIds.length];
     return outgoing.find((item) => item.id === nextId) ?? null;
