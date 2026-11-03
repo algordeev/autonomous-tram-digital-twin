@@ -889,7 +889,7 @@ const TRAM_COLORS = [
 ];
 const REFERENCE_TO_METERS = 0.55;
 const MAX_TRAMS = 20;
-const MAX_SIMULATION_RATE = 20;
+const MAX_SIMULATION_RATE = 30;
 /** Clear gap between the rear of a leader and the front of its follower. */
 const PHYSICAL_TRAM_GAP_METERS = 7;
 const TRAM_LENGTH_METERS = 15;

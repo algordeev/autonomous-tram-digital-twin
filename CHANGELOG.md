@@ -25,7 +25,7 @@ Keep a Changelog; release labels use semantic version numbers.
   tolerance (previously 45 s), and `onTimePercent` is the share of in-service
   trams within that tolerance.
 - Benchmark figures in `docs/EXPERIMENTS.md` regenerated for the new physics.
-- Simulation rate options add 20× (the maximum rises from 5×).
+- Simulation rate options add 20× and 30× (the maximum rises from 5×).
 - Simulation steps are 7-22× faster (İzmir 8.0 → 0.5 ms, routes 2 + 21
   4.0 → 0.2 ms): the distance to the tram ahead uses a cached forward path
   and indexed track lookups instead of walking and rescanning the network for

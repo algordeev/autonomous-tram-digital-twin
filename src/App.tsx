@@ -3226,7 +3226,7 @@ export default function Home() {
           <div className="control-row control-row-stack">
             <span className="field-label">Simulation rate</span>
             <div className="segmented">
-              {[0.5, 1, 2, 5, 20].map((rate) => (
+              {[0.5, 1, 2, 5, 20, 30].map((rate) => (
                 <button
                   type="button"
                   className={snapshot.options.simulationRate === rate ? "selected" : ""}
