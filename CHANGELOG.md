@@ -78,6 +78,15 @@ Keep a Changelog; release labels use semantic version numbers.
   fleet distance falls 4.3% on İzmir and 2.1% on routes 2 + 21, with energy
   down 3.7% and 2.6%. The benchmark figures in `docs/EXPERIMENTS.md` predate
   this change.
+- Trams sped up after starting a stop approach and then braked: the platform
+  envelope replaced the target instead of capping it, eco-driving aimed for a
+  16 km/h crossing of the detector 160 m before the platform, and a tram slowed
+  by a curve, interval recovery or a departure was pulled up to the envelope.
+  An approach now keeps the speed it began with (or creeps in at the PWM 20
+  approach speed from rest), and eco-driving coasts and brakes towards the
+  platform itself. In a 1-hour run, grid energy falls 6.6% on İzmir and 6.8% on
+  routes 2 + 21 at practically unchanged distance, and friction braking about
+  11%.
 
 ### Added
 

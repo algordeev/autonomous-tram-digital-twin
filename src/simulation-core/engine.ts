@@ -767,6 +767,8 @@ interface TramState {
   dynamicsMode: DynamicsMode;
   triggeredOnSegment: Set<string>;
   stationPhase: "none" | "crawl" | "dwell";
+  /** Highest speed allowed for the current stop approach, fixed when it begins. */
+  approachSpeedCapMps: number | null;
   stationUntil: number;
   /** True while a terminal departure is checked against the temporal headway. */
   terminalIntervalHold: boolean;
@@ -2221,6 +2223,7 @@ export class SimulationEngine {
         dynamicsMode: "coast" as DynamicsMode,
         triggeredOnSegment: new Set<string>(),
         stationPhase: "none",
+        approachSpeedCapMps: null,
         stationUntil: 0,
         terminalIntervalHold: false,
         terminalBerth: 0,
@@ -3378,17 +3381,29 @@ export class SimulationEngine {
   ) {
     const section = this.powerSectionForSegment(tram.segmentId);
     const sections = this.scenarioDefinition.tractionPowerSystem?.sections ?? [];
-    const nextStop = this.nextPassengerStop(tram);
     // The first eco-driving layer optimizes coast-to-stop trajectories.
     // Curve and turnout envelopes remain hard C++ authorities in targetSpeedMps;
     // using every geometry vertex as an eco destination would cause repeated
     // micro-coasting on a long continuous curve.
+    // The constraint is the platform stopping point, not the detector 100-160 m
+    // before it: aiming for a slow detector crossing made the platform envelope
+    // accelerate the tram again before braking it. Past the detector the
+    // approach continues to the pending platform.
+    const approaching = tram.stationPhase === "crawl";
+    const pendingPlatform = approaching ? this.pendingStationPlatform(tram) : null;
+    const nextStop = approaching
+      ? pendingPlatform && tram.pendingStationReaderId
+        ? {
+            id: tram.pendingStationReaderId,
+            distanceMeters: pendingPlatform.distanceMeters,
+            label: this.readerById(tram.pendingStationReaderId)?.label ?? "platform",
+          }
+        : null
+      : this.withPlatformDistance(this.nextPassengerStop(tram));
     const constraintDistanceMeters = nextStop?.distanceMeters ?? null;
-    // The detector is the hand-off point, not the final stopping point. Reach
-    // it at about 16 km/h and let the precise platform controller perform the
-    // final braking. Crawling to the detector itself creates a large journey-
-    // time penalty on closely spaced urban stops.
-    const constraintSpeedMps = 4.5;
+    // Slightly above zero keeps the core's coast-to-stop latch engaged; the
+    // platform envelope performs the final stop below this speed.
+    const constraintSpeedMps = 0.5;
     const constraintLabel = nextStop ? `Stop · ${nextStop.label}` : null;
     const approachIsLatched = Boolean(
       nextStop && tram.ecoApproachStopId === nextStop.id,
@@ -3405,7 +3420,7 @@ export class SimulationEngine {
         PREDICTIVE_ECO_SPEED_CONTROL_ENABLED &&
         this.options.energyStrategy === "network-optimal" &&
         !tram.manualMode &&
-        tram.stationPhase === "none" &&
+        (tram.stationPhase === "none" || approaching) &&
         (approachIsLatched || headwayAllowsEco) &&
         targetSpeedMps > 0,
       speedMps: tram.speedMps,
@@ -4442,6 +4457,25 @@ export class SimulationEngine {
     return selected;
   }
 
+  private readerById(readerId: string) {
+    return this.scenarioDefinition.readers.find((reader) => reader.id === readerId) ?? null;
+  }
+
+  /** Moves a stop's distance from its detector to its platform stopping point. */
+  private withPlatformDistance(
+    stop: { id: string; distanceMeters: number; label: string } | null,
+  ) {
+    if (!stop) return null;
+    const reader = this.readerById(stop.id);
+    const segment = reader ? this.segments.get(reader.segmentId) : null;
+    if (!reader || !segment) return stop;
+    const platformAt = reader.displayAt ?? reader.at;
+    return {
+      ...stop,
+      distanceMeters: stop.distanceMeters + Math.max(0, platformAt - reader.at) * segment.lengthMeters,
+    };
+  }
+
   private nextPassengerStop(tram: TramState) {
     const routeId = this.routeIdForTram(tram);
     let segment = this.segments.get(tram.segmentId) ?? null;
@@ -4952,10 +4986,22 @@ export class SimulationEngine {
       intervalFactor: intervalGuidance?.speedFactor ?? null,
       dispatchHold: terminalEntryHold,
     });
+    if (tram.stationPhase !== "crawl") {
+      tram.approachSpeedCapMps = null;
+    } else if (tram.approachSpeedCapMps === null) {
+      // A stop approach never speeds the tram up: it keeps the speed it began
+      // with (after a curve, interval recovery or a departure) and brakes from
+      // there. A tram starting it slowly or from rest may still creep in at
+      // the PWM 20 approach speed.
+      tram.approachSpeedCapMps = Math.max(tram.speedMps, speedLimitMps * (20 / 55));
+    }
     if (!tram.manualMode && tram.stationPhase === "crawl" && stationPlatform) {
-      tram.targetSpeedMps = cppStationApproachSpeed(
-        stationPlatform.distanceMeters,
-        speedLimitMps,
+      // The platform envelope only ever lowers the target; replacing it would
+      // speed up a tram that is recovering its interval or coasting in.
+      tram.targetSpeedMps = Math.min(
+        tram.targetSpeedMps,
+        tram.approachSpeedCapMps ?? speedLimitMps,
+        cppStationApproachSpeed(stationPlatform.distanceMeters, speedLimitMps),
       );
     }
     tram.targetSpeedMps = Math.min(

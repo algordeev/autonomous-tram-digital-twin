@@ -280,3 +280,34 @@ test("a curve limit holds past the apex until the rear has left the curve", () =
   }
   assert.ok(checkedLookBack, "a curve near a segment end exists in some network");
 });
+
+test("a tram never speeds up once its stop approach has begun", () => {
+  for (const networkId of ["izmir-konak", "nizhny-routes-2-21"]) {
+    const engine = new SimulationEngine(networkId);
+    engine.setRunning(true);
+    // A tram starting the approach slowly may still creep in at the PWM 20 speed.
+    const creepMps = (engine.getSnapshot().options.speedLimit / 3.6) * (20 / 55);
+    const caps = new Map();
+    const previousSpeed = new Map();
+    let checked = 0;
+    for (let tick = 0; tick < 24_000; tick += 1) {
+      engine.stepFixed(0.05);
+      for (const tram of engine.trams) {
+        if (tram.stationPhase !== "crawl") {
+          if (caps.has(tram.id)) checked += 1;
+          caps.delete(tram.id);
+        } else {
+          // Taken from the step before the approach began: its first step may already contain a jump.
+          if (!caps.has(tram.id)) caps.set(tram.id, Math.max(previousSpeed.get(tram.id) ?? 0, creepMps));
+          // 0.5 m/s leaves room for gravity on a downhill coast, not for traction.
+          assert.ok(
+            tram.speedMps <= caps.get(tram.id) + 0.5,
+            `${networkId}: ${tram.id} sped up to ${(tram.speedMps * 3.6).toFixed(1)} km/h from ${(caps.get(tram.id) * 3.6).toFixed(1)} approaching ${tram.pendingStationReaderId}`,
+          );
+        }
+        previousSpeed.set(tram.id, tram.speedMps);
+      }
+    }
+    assert.ok(checked > 50, `${networkId}: ${checked} approaches checked`);
+  }
+});
