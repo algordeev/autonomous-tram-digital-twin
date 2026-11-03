@@ -121,6 +121,17 @@ Keep a Changelog; release labels use semantic version numbers.
   C++-only change replaces the cached core; and an open page reloads once when
   an updated service worker takes over. Browsers still on the old service
   worker need one more reload after this update.
+- Regenerative braking counted all wheel braking as generator input, without
+  the motors' limits: a 52 kN brake at 40 km/h is about 570 kW, against a
+  240 kW motor rating, and recovery continued to standstill. Braking is now
+  blended: the motors brake electrically up to 32 kN and 240 kW, fading out
+  between 7.2 and 1.8 km/h, and friction brakes supply the rest. Braking force
+  and stopping distances are unchanged; only the electric share is generator
+  output. Normal service braking is almost all electric, so in 1-hour runs
+  generator output falls only 0.6-1.4% and net grid energy rises 0.3-0.9%;
+  an emergency stop from 40 km/h is now about 63% electric instead of 100%.
+  The energy screen shows friction brake heat. The benchmark figures in
+  `docs/EXPERIMENTS.md` predate this change.
 
 ### Added
 

@@ -1915,6 +1915,7 @@ function EnergyStatisticsWindow({
                   <div><dt>Traction</dt><dd>{formatEnergy(route.tractionKWh)}</dd></div>
                   <div><dt>Auxiliaries</dt><dd>{formatEnergy(route.auxiliaryKWh)}</dd></div>
                   <div><dt>Wheel braking</dt><dd>{formatEnergy(route.mechanicalBrakeKWh)}</dd></div>
+                  <div><dt>Friction brake heat</dt><dd>{formatEnergy(route.frictionBrakeKWh)}</dd></div>
                   <div><dt>Generator output</dt><dd>{formatEnergy(route.grossRegeneratedKWh)}</dd></div>
                   <div><dt>Rejected + losses</dt><dd>{formatEnergy(route.rejectedKWh)}</dd></div>
                   <div><dt>Climb potential</dt><dd>{formatEnergy(route.climbPotentialKWh)}</dd></div>

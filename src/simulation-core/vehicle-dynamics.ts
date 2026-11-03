@@ -14,6 +14,10 @@ export interface TramVehicleParameters {
   resistanceC_Ns2PerM2: number;
   drivetrainEfficiency: number;
   regenerationEfficiency: number;
+  /** Electric (regenerative) brake: full above this speed... */
+  electricBrakeFullSpeedMps: number;
+  /** ...fading to nothing at this one; friction brakes supply the rest. */
+  electricBrakeZeroSpeedMps: number;
   gridReceptivity: number;
   auxiliaryPowerW: number;
 }
@@ -63,6 +67,8 @@ export const REFERENCE_TRAM_PARAMETERS: Readonly<TramVehicleParameters> = {
   resistanceC_Ns2PerM2: 2.1,
   drivetrainEfficiency: 0.88,
   regenerationEfficiency: 0.86,
+  electricBrakeFullSpeedMps: 2,
+  electricBrakeZeroSpeedMps: 0.5,
   gridReceptivity: 0.82,
   auxiliaryPowerW: 4_500,
 };
@@ -79,8 +85,32 @@ export const rollingResistanceForce = (
   parameters.resistanceC_Ns2PerM2 * Math.max(0, speedMps) ** 2;
 
 /**
+ * The part of a wheel braking force the traction motors take as electric
+ * (regenerative) braking: up to their force limit and power rating, fading
+ * out at low speed. Friction brakes supply the remainder, so the total
+ * braking force does not depend on this split. Mirrors the C++ core.
+ */
+export const electricBrakeForce = (
+  brakeForceN: number,
+  speedMps: number,
+  parameters: TramVehicleParameters,
+) => {
+  if (!(brakeForceN > 0)) return 0;
+  const fade = clampValue(
+    (speedMps - parameters.electricBrakeZeroSpeedMps) /
+      (parameters.electricBrakeFullSpeedMps - parameters.electricBrakeZeroSpeedMps),
+    0,
+    1,
+  );
+  const limit =
+    Math.min(parameters.maxTractionForceN, parameters.maxTractionPowerW / Math.max(speedMps, 1)) *
+    fade;
+  return Math.min(brakeForceN, limit);
+};
+
+/**
  * One-dimensional longitudinal dynamics with force/power limits, Davis-style
- * rolling resistance, jerk limiting and regenerative braking.
+ * rolling resistance, jerk limiting and blended electric/friction braking.
  */
 export function integrateVehicleDynamics(
   state: VehicleDynamicsState,
@@ -120,6 +150,7 @@ export function integrateVehicleDynamics(
 
   let tractionForceN = 0;
   let brakeForceN = 0;
+  let electricBrakeForceN = 0;
   let accelerationMps2 = requestedAcceleration;
   let mode: DynamicsMode = "coast";
 
@@ -137,6 +168,7 @@ export function integrateVehicleDynamics(
     if (tractionForceN > resistanceForceN + 1) mode = "traction";
   } else {
     brakeForceN = Math.min(parameters.maxBrakeForceN, -forceForAcceleration);
+    electricBrakeForceN = electricBrakeForce(brakeForceN, speed, parameters);
     accelerationMps2 =
       (-brakeForceN - resistanceForceN - gradeForceN) / parameters.massKg;
     mode = emergency ? "emergency-brake" : "service-brake";
@@ -158,10 +190,13 @@ export function integrateVehicleDynamics(
     deltaSeconds / 3600;
   const auxiliaryEnergyWh = parameters.auxiliaryPowerW * deltaSeconds / 3600;
   const consumedEnergyWh = tractionEnergyWh + auxiliaryEnergyWh;
+  // All wheel braking energy is recorded; only the electric share becomes
+  // generator output, the friction share is heat.
   const mechanicalBrakeEnergyWh =
     brakeForceN * averageSpeedMps * deltaSeconds / 3600;
   const grossRegeneratedEnergyWh =
-    mechanicalBrakeEnergyWh * parameters.regenerationEfficiency;
+    electricBrakeForceN * averageSpeedMps * deltaSeconds / 3600 *
+    parameters.regenerationEfficiency;
   const regeneratedEnergyWh = grossRegeneratedEnergyWh * parameters.gridReceptivity;
   const rejectedRegenerationEnergyWh = Math.max(
     0,

@@ -1,6 +1,6 @@
 import { NETWORK_CONFIGS } from "./network-config.ts";
 import { FixedStepClock } from "./fixed-step-clock.ts";
-import { type DynamicsMode } from "./vehicle-dynamics.ts";
+import { REFERENCE_TRAM_PARAMETERS, type DynamicsMode } from "./vehicle-dynamics.ts";
 import {
   configureCppAuthority,
   configureCppPowerAuthority,
@@ -572,6 +572,8 @@ export interface RouteEnergySnapshot {
   auxiliaryKWh: number;
   gridDrawKWh: number;
   mechanicalBrakeKWh: number;
+  /** Wheel braking done by the friction brakes (heat): beyond the motors' 32 kN / 240 kW or below 7 km/h. */
+  frictionBrakeKWh: number;
   grossRegeneratedKWh: number;
   acceptedRegeneratedKWh: number;
   rejectedKWh: number;
@@ -5348,6 +5350,9 @@ export class SimulationEngine {
       const gridDrawKWh = sum((tram) => tram.energyWh) / 1000;
       const acceptedRegeneratedKWh = sum((tram) => tram.recoveredWh) / 1000;
       const mechanicalBrakeKWh = sum((tram) => tram.mechanicalBrakeEnergyWh) / 1000;
+      const grossRegeneratedKWh = sum((tram) => tram.grossRegeneratedWh) / 1000;
+      // Generator output is the electric share of wheel braking after conversion.
+      const electricBrakeKWh = grossRegeneratedKWh / REFERENCE_TRAM_PARAMETERS.regenerationEfficiency;
       return {
         routeId,
         label,
@@ -5357,7 +5362,8 @@ export class SimulationEngine {
         auxiliaryKWh: sum((tram) => tram.auxiliaryEnergyWh) / 1000,
         gridDrawKWh,
         mechanicalBrakeKWh,
-        grossRegeneratedKWh: sum((tram) => tram.grossRegeneratedWh) / 1000,
+        frictionBrakeKWh: Math.max(0, mechanicalBrakeKWh - electricBrakeKWh),
+        grossRegeneratedKWh,
         acceptedRegeneratedKWh,
         rejectedKWh: sum((tram) => tram.rejectedRegenerationWh) / 1000,
         downhillPotentialKWh: sum((tram) => tram.downhillPotentialWh) / 1000,

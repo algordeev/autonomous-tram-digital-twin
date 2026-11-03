@@ -83,6 +83,23 @@ static double absd(double x) { return x < 0 ? -x : x; }
 static double clampd(double x, double lo, double hi) {
   return x < lo ? lo : (x > hi ? hi : x);
 }
+// The part of a wheel braking force the traction motors can take as electric
+// (regenerative) braking: up to their force limit and power rating, fading out
+// at low speed. Friction brakes supply the remainder, so the total braking
+// force, and with it stopping performance, does not depend on this split.
+static double electric_brake_force(double brake, double speed) {
+  if (!(brake > 0))
+    return 0;
+  const double fade = clampd(
+      (speed - tram::kElectricBrakeZeroSpeedMps) /
+          (tram::kElectricBrakeFullSpeedMps - tram::kElectricBrakeZeroSpeedMps),
+      0, 1);
+  double limit = tram::kMotorPowerLimitW / (speed > 1 ? speed : 1);
+  if (limit > tram::kMotorForceLimitN)
+    limit = tram::kMotorForceLimitN;
+  limit *= fade;
+  return brake < limit ? brake : limit;
+}
 static double wrap(double x, double length) {
   while (x >= length)
     x -= length;
@@ -957,7 +974,8 @@ int tram_core_authority_step(int i, double target_speed, int emergency,
   const double empty_mass = 27500, passenger_mass = 75,
                mass = empty_mass +
                       clampd(passenger_count, 0, 110) * passenger_mass,
-               max_traction = 32000, max_brake = 52000, max_power = 240000,
+               max_traction = tram::kMotorForceLimitN, max_brake = 52000,
+               max_power = tram::kMotorPowerLimitW,
                max_acceleration = tram::kMaximumAccelerationMps2,
                service_deceleration = tram::kServiceDecelerationMps2,
                emergency_deceleration = 2.4, max_jerk = tram::kMaximumJerkMps3;
@@ -983,7 +1001,7 @@ int tram_core_authority_step(int i, double target_speed, int emergency,
                slope = clampd(grade, -.12, .12),
                grade_force = mass * 9.80665 * slope;
   const double required = mass * requested + resistance + grade_force;
-  double traction = 0, brake = 0, acceleration = requested;
+  double traction = 0, brake = 0, electric_brake = 0, acceleration = requested;
   int mode = 0;
   if (required >= 0) {
     const double power_force = max_power / (speed > 1 ? speed : 1);
@@ -995,6 +1013,7 @@ int tram_core_authority_step(int i, double target_speed, int emergency,
       mode = 1;
   } else {
     brake = -required < max_brake ? -required : max_brake;
+    electric_brake = electric_brake_force(brake, speed);
     acceleration = (-brake - resistance - grade_force) / mass;
     mode = emergency_brake ? 3 : 2;
   }
@@ -1008,8 +1027,10 @@ int tram_core_authority_step(int i, double target_speed, int emergency,
   const double average = (speed + next) * .5, distance = average * dt,
                traction_wh = (traction * average / drivetrain) * dt / 3600,
                auxiliary_wh = auxiliary_power * dt / 3600;
+  // All wheel braking energy is recorded; only the electric share becomes
+  // generator output, the friction share is heat.
   const double mechanical_wh = brake * average * dt / 3600,
-               gross_wh = mechanical_wh * regen_efficiency,
+               gross_wh = electric_brake * average * dt / 3600 * regen_efficiency,
                regenerated_wh = gross_wh * receptivity,
                rejected_wh = mechanical_wh - regenerated_wh;
   double gravitational = grade_force < 0 ? -grade_force : grade_force;
@@ -1363,7 +1384,8 @@ int tram_core_step(void *, double dt) {
     } else {
       double brake = -(27500 * t.acceleration + resistance);
       if (brake > 0)
-        t.regenerated_wh += brake * av * dt / 3600 * .86 * .82;
+        t.regenerated_wh +=
+            electric_brake_force(brake, old) * av * dt / 3600 * .86 * .82;
       t.consumed_wh += 4500 * dt / 3600;
     }
     double movement = av * dt;

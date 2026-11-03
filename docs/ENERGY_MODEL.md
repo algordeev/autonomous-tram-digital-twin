@@ -22,6 +22,8 @@ All internal values use SI units.
 | Maximum traction force | 32 kN | Engineering assumption |
 | Maximum braking force | 52 kN | Engineering assumption |
 | Maximum traction power | 240 kW | Engineering assumption |
+| Electric brake limit | 32 kN and 240 kW (the traction motors) | Engineering assumption |
+| Electric brake fade | full above 7.2 km/h, none below 1.8 km/h | Engineering assumption |
 | Maximum acceleration | 1.15 m/s² | Plausibility-checked public tram range |
 | Service deceleration | 1.25 m/s² | Plausibility-checked public tram range |
 | Emergency deceleration | 2.40 m/s² | Engineering safety model |
@@ -37,9 +39,24 @@ integrated. Resistance follows an `A + Bv + Cv²` form. Segment gradients add
 
 ## Braking energy
 
+Braking is blended. The traction motors brake electrically first, up to their
+32 kN force limit and 240 kW rating (so about 21.6 kN at 40 km/h), fading
+linearly from 7.2 km/h to nothing at 1.8 km/h. Friction brakes supply the rest
+of the requested force and complete every stop, so stopping performance does
+not depend on the split. Only the electric share is converted to electricity:
+
+```text
+F_electric = min(F_brake, 32 kN, 240 kW / v) · fade(v)
+E_generator = integral(F_electric · v · dt) · 86%
+E_friction = integral((F_brake − F_electric) · v · dt)   (heat)
+```
+
+From 40 km/h an empty tram's service stop is about 89% electric and an
+emergency stop about 63%.
+
 The simulator distinguishes:
 
-1. mechanical braking energy at the wheel;
+1. mechanical braking energy at the wheel, and the friction (heat) part of it;
 2. generator output after regenerative conversion;
 3. energy directly consumed by accelerating trams in the same section;
 4. energy stored in a flywheel bank;

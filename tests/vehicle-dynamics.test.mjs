@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   FixedStepClock,
+  REFERENCE_TRAM_PARAMETERS,
+  electricBrakeForce,
   integrateVehicleDynamics,
 } from "../src/simulation-core/index.ts";
 
@@ -84,4 +86,32 @@ test("fixed simulation ticks are independent from render-frame grouping", () => 
   const irregular = run([0.11, 0.03, 0.17, 0.08, 0.21, 0.04, 0.19, 0.17]);
   assert.ok(Math.abs(regular.speedMps - irregular.speedMps) < 1e-9);
   assert.ok(Math.abs(regular.distanceMeters - irregular.distanceMeters) < 1e-9);
+});
+
+test("the electric brake is limited by the motors and fades out at low speed", () => {
+  const p = REFERENCE_TRAM_PARAMETERS;
+  // 52 kN at 40 km/h would be about 570 kW; the motors take 240 kW of it.
+  assert.ok(Math.abs(electricBrakeForce(52_000, 11.1, p) - 240_000 / 11.1) < 1e-6);
+  // A moderate brake at 18 km/h is entirely electric.
+  assert.equal(electricBrakeForce(30_000, 5, p), 30_000);
+  // Halfway through the fade only half the 32 kN motor force is available.
+  assert.equal(electricBrakeForce(40_000, 1.25, p), 16_000);
+  assert.equal(electricBrakeForce(40_000, 0.5, p), 0);
+});
+
+test("only the electric share of a stop is generator output", () => {
+  let state = { speedMps: 40 / 3.6, accelerationMps2: 0 };
+  let wheelWh = 0;
+  let grossWh = 0;
+  for (let index = 0; index < 600 && state.speedMps > 0; index += 1) {
+    const result = integrateVehicleDynamics(state, { targetSpeedMps: 0 }, 0.05);
+    assert.ok(result.grossRegeneratedEnergyWh <= result.mechanicalBrakeEnergyWh * 0.86 + 1e-12);
+    wheelWh += result.mechanicalBrakeEnergyWh;
+    grossWh += result.grossRegeneratedEnergyWh;
+    state = result;
+  }
+  assert.ok(state.speedMps < 0.05);
+  const electricShare = grossWh / 0.86 / wheelWh;
+  assert.ok(electricShare < 1, "the friction brake finishes the stop");
+  assert.ok(electricShare > 0.8, `a service stop is still mostly electric (${electricShare.toFixed(3)})`);
 });

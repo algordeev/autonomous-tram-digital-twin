@@ -1,6 +1,7 @@
 export { FixedStepClock } from "./fixed-step-clock.ts";
 export {
   REFERENCE_TRAM_PARAMETERS,
+  electricBrakeForce,
   integrateVehicleDynamics,
   rollingResistanceForce,
 } from "./vehicle-dynamics.ts";
