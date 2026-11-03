@@ -1,4 +1,4 @@
-import { readdir, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 
@@ -18,7 +18,14 @@ async function collectFiles(directory) {
 }
 
 const assets = ["./", ...await collectFiles(rootPath)];
-const revision = createHash("sha256").update(assets.join("\n")).digest("hex").slice(0, 12);
+// Hash contents, not names: tram-core.wasm keeps its name when the C++ core
+// changes, and a name-only revision would keep serving the old core.
+const hash = createHash("sha256");
+for (const asset of assets.slice(1)) {
+  hash.update(asset);
+  hash.update(await readFile(new URL(asset, outputDirectory)));
+}
+const revision = hash.digest("hex").slice(0, 12);
 const source = `const CACHE = "tram-twin-${revision}";
 const ASSETS = ${JSON.stringify(assets, null, 2)};
 
@@ -36,10 +43,30 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Content-hashed build files never change, so the cache can answer first.
+// The page and unhashed files (the WASM core, manifest, icons) go to the
+// network first: a cached page from an older build references hashed files
+// that no longer exist, which broke the app and its comparison worker.
+const HASHED = /\\/assets\\/[^/]+-[A-Za-z0-9_-]{8}\\.[a-z0-9]+$/;
+
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+  const request = event.request;
+  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+  if (HASHED.test(new URL(request.url).pathname)) {
+    event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
+    return;
+  }
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request)),
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request, { ignoreSearch: request.mode === "navigate" })
+        .then((cached) => cached || caches.match("./"))),
   );
 });
 `;

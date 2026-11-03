@@ -16,6 +16,15 @@ createRoot(root).render(
 );
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  // An updated worker takes over open pages and drops the old build's cache;
+  // reload once so the page does not keep running code whose files are gone.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
   window.addEventListener("load", () => {
     navigator.serviceWorker.register(new URL("./sw.js", document.baseURI));
   });

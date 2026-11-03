@@ -112,6 +112,15 @@ Keep a Changelog; release labels use semantic version numbers.
 - A stop's "overcrowded" flag stayed on for good after its first overflow. It
   now reflects the last tram to board there: it clears once a tram takes
   everyone waiting.
+- "Comparison worker failed to start" after an update: the offline service
+  worker answered every request from its cache first, including the page, so
+  the browser ran an older build whose hashed worker and chunks had already
+  been removed (sometimes the whole app failed to load). The page and unhashed
+  files such as `tram-core.wasm` now come from the network first, with the
+  cache as the offline fallback; the cache version hashes file contents, so a
+  C++-only change replaces the cached core; and an open page reloads once when
+  an updated service worker takes over. Browsers still on the old service
+  worker need one more reload after this update.
 
 ### Added
 

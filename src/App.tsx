@@ -1797,8 +1797,13 @@ function EnergyStatisticsWindow({
       setComparisonRunning(false);
       worker.terminate();
     };
-    worker.onerror = () => {
-      setComparisonError("Comparison worker failed to start");
+    worker.onerror = (event) => {
+      event.preventDefault();
+      setComparisonError(
+        event.message
+          ? `Comparison worker failed: ${event.message}`
+          : "Comparison worker failed to start · reload the page to load the current version",
+      );
       setComparisonRunning(false);
       worker.terminate();
     };
