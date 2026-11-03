@@ -2504,8 +2504,6 @@ export default function Home() {
           </div>
         </div>
         <div className="health-strip" aria-label="System status">
-          <StatusLed>System OK</StatusLed>
-          <StatusLed>Control loop 20 Hz</StatusLed>
           <StatusLed tone={snapshot.warningCount > 0 ? "warning" : "ok"}>
             {snapshot.warningCount} warning{snapshot.warningCount === 1 ? "" : "s"}
           </StatusLed>

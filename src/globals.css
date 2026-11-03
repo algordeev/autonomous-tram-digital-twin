@@ -85,7 +85,7 @@ button:disabled {
 .topbar {
   min-height: 62px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px 24px;
   padding: 8px 16px;
@@ -149,6 +149,10 @@ button:disabled {
   background: var(--cyan);
 }
 
+.brand-lockup > div {
+  min-width: 0;
+}
+
 .brand-lockup h1 {
   overflow: hidden;
   margin: 0;
@@ -162,12 +166,15 @@ button:disabled {
 }
 
 .brand-lockup p {
+  overflow: hidden;
   margin: 3px 0 0;
   color: var(--muted-dark);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 9px;
   letter-spacing: 0.08em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .health-strip {
@@ -226,9 +233,7 @@ button:disabled {
 }
 
 .transport-controls {
-  grid-column: 1 / -1;
   display: flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
@@ -3374,9 +3379,10 @@ button:disabled {
   }
 }
 
-@media (max-width: 1420px) {
+/* Too narrow for brand, status and controls side by side: controls take a second row. */
+@media (max-width: 1099px) {
   .topbar {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .health-strip {
@@ -3386,6 +3392,13 @@ button:disabled {
     white-space: normal;
   }
 
+  .transport-controls {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 1420px) {
   .analysis-button { min-width: 120px; }
   .energy-analysis-button { min-width: 88px; }
 
