@@ -1,4 +1,4 @@
-import { NETWORK_CONFIGS, networkConfigById } from "./network-config.ts";
+import { NETWORK_CONFIGS } from "./network-config.ts";
 import { FixedStepClock } from "./fixed-step-clock.ts";
 import { type DynamicsMode } from "./vehicle-dynamics.ts";
 import {
@@ -1402,10 +1402,31 @@ export const SCENARIOS: ScenarioDefinition[] = [
   ...NETWORK_CONFIGS,
 ];
 
+/** Built-in layouts and JSON network configs, looked up by id. */
+const scenarioById = (id: string) =>
+  SCENARIOS.find((item) => item.id === id) ?? null;
+
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
 const distance = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
+
+/**
+ * Whether a service window covers a minute of the day (0-1439). Windows that
+ * cross midnight may be written either as 1260-1460 or as 1260-20.
+ */
+export const serviceWindowContainsMinute = (
+  window: Pick<ServiceScheduleWindow, "startMinute" | "endMinute">,
+  minute: number,
+) => {
+  const start = window.startMinute;
+  const end = window.endMinute;
+  if (start <= end) {
+    return (minute >= start && minute < end) ||
+      (minute + 1_440 >= start && minute + 1_440 < end);
+  }
+  return minute >= start || minute < end;
+};
 
 const formatClock = (seconds: number) => {
   const whole = Math.max(0, Math.floor(seconds));
@@ -1566,7 +1587,7 @@ export class SimulationEngine {
   }
 
   setScenario(scenarioId: string) {
-    const next = networkConfigById(scenarioId) ?? SCENARIOS.find((item) => item.id === scenarioId);
+    const next = scenarioById(scenarioId);
     if (!next || next.id === this.scenarioDefinition.id) return;
     this.scenarioDefinition = next;
     if (!supportsLegacyFirmware(next)) {
@@ -1603,13 +1624,14 @@ export class SimulationEngine {
 
   loadExperimentConfig(value: unknown) {
     const experiment = this.validateExperimentConfig(value);
-    const network = networkConfigById(experiment.networkId);
+    const network = scenarioById(experiment.networkId);
     if (!network) throw new Error(`Unknown network: ${experiment.networkId}`);
     const numeric = (candidate: unknown, fallback: number) =>
       typeof candidate === "number" && Number.isFinite(candidate) ? candidate : fallback;
 
-    this.scenarioDefinition = network;
-    this.options = {
+    // Work out the whole new configuration before touching the engine, so a
+    // rejected experiment leaves the current scenario and fleet untouched.
+    const options: SimulationOptions = {
       speedLimit: clamp(Math.round(numeric(experiment.options.speedLimit, 40)), 10, 70),
       simulationRate: clamp(numeric(experiment.options.simulationRate, 1), 0.5, 5),
       autoDispatch: Boolean(experiment.options.autoDispatch),
@@ -1628,8 +1650,10 @@ export class SimulationEngine {
     };
 
     const groups = network.fleetGroups ?? [];
+    let fleetGroupCounts: Map<string, number> | null = null;
+    let tramCount: number;
     if (groups.length > 0) {
-      this.fleetGroupCounts = new Map(
+      fleetGroupCounts = new Map(
         groups.map((group) => [
           group.id,
           clamp(
@@ -1639,15 +1663,18 @@ export class SimulationEngine {
           ),
         ]),
       );
-      this.tramCount = [...this.fleetGroupCounts.values()].reduce((sum, count) => sum + count, 0);
-      if (this.tramCount < 1 || this.tramCount > MAX_TRAMS) {
+      tramCount = [...fleetGroupCounts.values()].reduce((sum, count) => sum + count, 0);
+      if (tramCount < 1 || tramCount > MAX_TRAMS) {
         throw new Error(`Fleet size must be between 1 and ${MAX_TRAMS}`);
       }
     } else {
-      this.fleetGroupCounts = null;
-      this.tramCount = clamp(Math.round(numeric(experiment.tramCount, network.defaultTramCount ?? 2)), 1, MAX_TRAMS);
+      tramCount = clamp(Math.round(numeric(experiment.tramCount, network.defaultTramCount ?? 2)), 1, MAX_TRAMS);
     }
 
+    this.scenarioDefinition = network;
+    this.options = options;
+    this.fleetGroupCounts = fleetGroupCounts;
+    this.tramCount = tramCount;
     this.reset();
     this.setServiceClockMinutes(experiment.serviceMinute);
     this.obstacles = experiment.obstacles.map((obstacle, index) => ({
@@ -1685,7 +1712,7 @@ export class SimulationEngine {
     if (experiment.format !== "autonomous-tram-experiment" || experiment.version !== 1) {
       throw new Error("Unsupported experiment format or version");
     }
-    if (typeof experiment.networkId !== "string" || !networkConfigById(experiment.networkId)) {
+    if (typeof experiment.networkId !== "string" || !scenarioById(experiment.networkId)) {
       throw new Error("Experiment references an unknown network");
     }
     if (!experiment.options || typeof experiment.options !== "object") {
@@ -1698,7 +1725,7 @@ export class SimulationEngine {
       experiment.options.controlMode ?? "",
     );
     if (!validPriority || !validControl) throw new Error("Experiment control options are invalid");
-    const network = networkConfigById(experiment.networkId)!;
+    const network = scenarioById(experiment.networkId)!;
     const segmentIds = new Set(network.segments.map((segment) => segment.id));
     const obstacles = Array.isArray(experiment.obstacles) ? experiment.obstacles : [];
     if (obstacles.some((item) => !item || !segmentIds.has(item.segmentId) || !Number.isFinite(item.at))) {
@@ -2338,8 +2365,8 @@ export class SimulationEngine {
   private activeServiceWindow() {
     const minute = this.serviceMinute();
     return (
-      this.scenarioDefinition.serviceSchedule?.find(
-        (window) => minute >= window.startMinute && minute < window.endMinute,
+      this.scenarioDefinition.serviceSchedule?.find((window) =>
+        serviceWindowContainsMinute(window, minute),
       ) ?? null
     );
   }
@@ -2357,7 +2384,10 @@ export class SimulationEngine {
 
     const absoluteClockSeconds = this.serviceClockOffsetSeconds + this.simulationTime;
     const dayStartSeconds = Math.floor(absoluteClockSeconds / 86_400) * 86_400;
-    const windowStartSeconds = dayStartSeconds + window.startMinute * 60;
+    // A window that crossed midnight (e.g. 21:00-00:20) started yesterday;
+    // anchoring it to today's 21:00 would shift its timetable grid.
+    let windowStartSeconds = dayStartSeconds + (window.startMinute % 1_440) * 60;
+    if (windowStartSeconds > absoluteClockSeconds) windowStartSeconds -= 86_400;
     // Each service window has its own timetable grid. Carrying the previous
     // window's reservation into a new headway would shift every later trip.
     const reservationKey = `${window.id}:${routeId}:${kind}:${pointKey}`;

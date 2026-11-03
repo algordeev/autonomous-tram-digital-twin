@@ -50,6 +50,13 @@ Keep a Changelog; release labels use semantic version numbers.
   the fleet. Delay is now the interval delay at stop departures, and short
   turns use continuous unplanned hold time; see `docs/OPERATIONS.md`.
 - The automatic-dispatch help text described triggers that did not exist.
+- Service windows crossing midnight stopped at 00:00, so İzmir had no service
+  from 00:00 to 00:20. After-midnight departures also stay on the window's
+  timetable grid from the previous evening.
+- A rejected experiment (for example an empty fleet) still switched the
+  scenario and options while keeping the old trams.
+- Experiments exported from the built-in layouts (prototype loop, shared
+  corridor, city interchange) were rejected on import as an unknown network.
 
 ### Added
 
