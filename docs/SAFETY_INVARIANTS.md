@@ -45,6 +45,14 @@ does not run on depot track; storing it releases the locks and reports its
 rear clear. An off-line tram counts as invalid for the unentered-reservation
 rule below, and its stale grant is not requeued.
 
+Look-ahead (trams ahead and behind, obstacles, signals, turnout locks, speed
+limits and stops) follows the route the tram will actually take: at a node
+turnout the tram requests the leg it looked along, and an inline turnout set to
+its branch diverts the route mid-segment for look-ahead as it does for motion.
+A tram leaving a depot joins the line only when the tram ahead leaves it room
+to stop and any tram approaching from behind, across segment ends, can stop
+behind it on the approach envelope.
+
 ## Fault policy
 
 The browser currently passes a **25 s assumed demonstration timeout** after

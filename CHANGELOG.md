@@ -87,6 +87,23 @@ Keep a Changelog; release labels use semantic version numbers.
   platform itself. In a 1-hour run, grid energy falls 6.6% on İzmir and 6.8% on
   routes 2 + 21 at practically unchanged distance, and friction braking about
   11%.
+- Look-ahead could follow a different route from the one the tram took. At a
+  node turnout it predicted the tram's route while the tram followed the points
+  as they lay; it now requests the leg it looked along, as its approach reader
+  does. An inline turnout set to its branch diverted trams mid-segment, but
+  look-ahead stayed on the main line, so a diverting tram could not see a tram
+  or obstacle on the branch. Results are unchanged when no diversion is set.
+- Depot exits deadlocked: a tram waiting on depot track kept its line position
+  at the portal, within the ±8% exit window of the other portal trams, so
+  waiting trams blocked one another. In a 2-hour İzmir morning run from 05:50,
+  2 trams left the depot instead of 14. The check also missed trams
+  approaching from the previous segment. A tram now joins only when the tram
+  ahead leaves it room to stop and a tram behind can stop behind it.
+- Turnout speed limits ended at the points like curve limits did; they now
+  hold until the rear is 20 m past the points. Straight through an inline
+  turnout uses its 20 km/h main-leg limit rather than the 15 km/h branch
+  limit, and its misplaced main-leg limit at the start of the approach segment
+  is gone.
 
 ### Added
 

@@ -696,6 +696,8 @@ interface SpeedRestrictionRuntime {
   infrastructureSpeedMps: number | null;
   /** How far the front may run past `at` with the limit still applying (rear clear of the curve). */
   holdMeters: number;
+  /** An inline turnout: its limit is the branch speed only while it is set to the branch. */
+  inlineSwitchId?: string;
 }
 
 interface SpeedProfileGuidanceResult {
@@ -932,6 +934,11 @@ const MAIN_TURNOUT_SPEED_MPS = 20 / 3.6;
 const BRANCH_TURNOUT_SPEED_MPS = 15 / 3.6;
 /** Longest stretch of a curve modelled beyond its apex (the junction chord is 25 m). */
 const CURVE_EXIT_METERS = 25;
+/** Length of a turnout from the start of its points, over which its speed limit applies. */
+const TURNOUT_LENGTH_METERS = 20;
+/** Furthest the front can be past a restriction point while it still applies. */
+const MAX_RESTRICTION_HOLD_METERS =
+  Math.max(CURVE_EXIT_METERS, TURNOUT_LENGTH_METERS) + TRAM_LENGTH_METERS;
 /** Baseline arrivals per minute at an "average" stop before time-of-day/stop weighting. */
 const PASSENGER_BASE_RATE_PER_MINUTE = 1.4;
 /** Fraction of onboard passengers that alight at an average stop. */
@@ -1503,11 +1510,14 @@ export class SimulationEngine {
   // Lookup tables over `segments` and the scenario, rebuilt with them on reset.
   private outgoingSegmentsByNode = new Map<string, SegmentRuntime[]>();
   private switchesByNode = new Map<string, SwitchDefinition>();
+  /** Mid-segment turnout approaches per segment, nearest first. */
+  private inlineApproachesBySegment = new Map<string, Array<{ definition: SwitchDefinition; at: number }>>();
+  private inlineSwitches: SwitchDefinition[] = [];
   private routesById = new Map<string, RouteDefinition>();
   private routeSegmentIndex = new Map<string, Map<string, number>>();
   private forwardPathCache = new Map<
     string,
-    { segments: SegmentRuntime[]; indexById: Map<string, number> }
+    { spans: Array<{ segment: SegmentRuntime; exitAt: number }>; indexById: Map<string, number> }
   >();
   private speedRestrictions: SpeedRestrictionRuntime[] = [];
   private speedRestrictionsBySegment = new Map<string, SpeedRestrictionRuntime[]>();
@@ -2766,11 +2776,27 @@ export class SimulationEngine {
       this.outgoingSegmentsByNode.set(segment.from, list);
     }
     this.switchesByNode = new Map();
+    this.inlineApproachesBySegment = new Map();
+    this.inlineSwitches = [];
     for (const switchDefinition of this.scenarioDefinition.switches) {
       if (!this.switchesByNode.has(switchDefinition.nodeId)) {
         this.switchesByNode.set(switchDefinition.nodeId, switchDefinition);
       }
+      const approaches = [
+        ...(switchDefinition.segmentId && switchDefinition.at !== undefined
+          ? [{ segmentId: switchDefinition.segmentId, at: switchDefinition.at }]
+          : []),
+        ...(switchDefinition.alternateApproaches ?? []),
+      ];
+      if (approaches.length > 0) this.inlineSwitches.push(switchDefinition);
+      for (const approach of approaches) {
+        const list = this.inlineApproachesBySegment.get(approach.segmentId) ?? [];
+        list.push({ definition: switchDefinition, at: approach.at });
+        this.inlineApproachesBySegment.set(approach.segmentId, list);
+      }
     }
+    // Stable, so equal positions keep declaration order as before.
+    for (const list of this.inlineApproachesBySegment.values()) list.sort((a, b) => a.at - b.at);
     this.routesById = new Map();
     this.routeSegmentIndex = new Map();
     for (const route of this.scenarioDefinition.routes) {
@@ -3247,14 +3273,7 @@ export class SimulationEngine {
     const exitRuntime = this.segments.get(assignment.portal.exitSegmentId);
     const exitBlocked =
       tram.serviceState === "depot-egress" &&
-      (!exitRuntime ||
-        this.trams.some(
-          (other) =>
-            other.id !== tram.id &&
-            other.serviceState !== "in-depot" &&
-            other.segmentId === assignment.portal.exitSegmentId &&
-            Math.abs(other.progress - assignment.portal.exitProgress) < 0.08,
-        ));
+      (!exitRuntime || !this.depotExitClear(tram, exitRuntime, assignment.portal.exitProgress));
     if (exitBlocked && tram.depotProgress >= 0.999) {
       // Standing at the exit: hold without stepping the motion authority.
       this.haltVehicle(tram, tramIndex);
@@ -4179,32 +4198,13 @@ export class SimulationEngine {
       return null;
     }
 
-    if (targetSegmentId === current.id) {
-      const progressDifference = targetProgress - tram.progress;
-      if (Math.abs(progressDifference) <= 0.000001) return 0;
-      if (progressDifference > 0) {
-        return progressDifference * current.lengthMeters;
-      }
-    }
-
-    let distanceMeters = (1 - tram.progress) * current.lengthMeters;
-    let cursor = current;
-    const visited = new Set([current.id]);
-    for (let guard = 0; guard <= this.segments.size; guard += 1) {
-      const next = this.peekNextSegment(tram, cursor);
-      if (!next) return null;
-      if (segmentScopePrefix && !next.id.startsWith(segmentScopePrefix)) {
-        return null;
-      }
-      if (next.id === targetSegmentId) {
-        return distanceMeters + targetProgress * next.lengthMeters;
-      }
-      if (visited.has(next.id)) return null;
-      visited.add(next.id);
-      distanceMeters += next.lengthMeters;
-      cursor = next;
-    }
-    return null;
+    return this.forwardDistanceAlongRoute(
+      tram,
+      targetSegmentId,
+      targetProgress,
+      true,
+      segmentScopePrefix,
+    );
   }
 
   private stopBoardApproach(
@@ -4341,19 +4341,29 @@ export class SimulationEngine {
     }
 
     for (const turnout of this.scenarioDefinition.switches) {
+      // A turnout limit holds until the rear has left the turnout, like a curve.
       const addTurnout = (segmentId: string, speedMps: number, suffix: string) => {
-        if (!this.segments.has(segmentId)) return;
+        const segment = this.segments.get(segmentId);
+        if (!segment) return;
+        const at = 0.04;
         restrictions.push({
           id: `turnout:${turnout.id}:${suffix}`,
           segmentId,
-          at: 0.04,
+          at,
           reason: "turnout",
           radiusMeters: null,
           infrastructureSpeedMps: speedMps,
-          holdMeters: 0,
+          // The points start at the node, before this restriction point.
+          holdMeters:
+            Math.max(0, TURNOUT_LENGTH_METERS - at * segment.lengthMeters) + TRAM_LENGTH_METERS,
         });
       };
-      addTurnout(turnout.mainSegmentId, MAIN_TURNOUT_SPEED_MPS, "main");
+      // An inline turnout's main leg is its own approach segment, so a limit
+      // near that segment's start would not be at the turnout; the approach
+      // restriction below marks the turnout itself.
+      if (!(turnout.segmentId && turnout.mainSegmentId === turnout.segmentId)) {
+        addTurnout(turnout.mainSegmentId, MAIN_TURNOUT_SPEED_MPS, "main");
+      }
       addTurnout(turnout.branchSegmentId, BRANCH_TURNOUT_SPEED_MPS, "branch");
       if (turnout.segmentId && turnout.at !== undefined) {
         restrictions.push({
@@ -4363,7 +4373,8 @@ export class SimulationEngine {
           reason: "turnout",
           radiusMeters: null,
           infrastructureSpeedMps: BRANCH_TURNOUT_SPEED_MPS,
-          holdMeters: 0,
+          holdMeters: TURNOUT_LENGTH_METERS + TRAM_LENGTH_METERS,
+          inlineSwitchId: turnout.id,
         });
       }
     }
@@ -4391,18 +4402,15 @@ export class SimulationEngine {
         candidates.push({ restriction, distanceMeters });
       }
     };
-    let segment = this.segments.get(tram.segmentId) ?? null;
-    let distanceToSegmentStart = segment ? -tram.progress * segment.lengthMeters : 0;
     const visited = new Set<string>();
-    while (segment && distanceToSegmentStart <= PROFILE_LOOKAHEAD_METERS && !visited.has(segment.id)) {
+    for (const { segment, startMeters, exitAt } of this.pathAhead(tram, PROFILE_LOOKAHEAD_METERS)) {
       visited.add(segment.id);
       for (const restriction of this.speedRestrictionsBySegment.get(segment.id) ?? []) {
-        consider(restriction, distanceToSegmentStart + restriction.at * segment.lengthMeters);
+        if (restriction.at > exitAt + 0.000001) continue;
+        consider(restriction, startMeters + restriction.at * segment.lengthMeters);
       }
-      distanceToSegmentStart += segment.lengthMeters;
-      segment = this.peekNextSegment(tram, segment);
     }
-    // Curves on segments the front has already left. The oldest trail entry
+    // Curves and turnouts on segments the front has already left. The oldest trail entry
     // can start mid-segment after a reset, so only recorded entries are used.
     const trail = tram.segmentTrail;
     if (trail.at(-1)?.segmentId === tram.segmentId) {
@@ -4410,7 +4418,7 @@ export class SimulationEngine {
         const passed = this.segments.get(trail[index].segmentId);
         if (!passed || visited.has(passed.id)) break;
         const startMeters = trail[index].enteredAtMeters - tram.distanceMeters;
-        if (startMeters + passed.lengthMeters < -(CURVE_EXIT_METERS + TRAM_LENGTH_METERS)) break;
+        if (startMeters + passed.lengthMeters < -MAX_RESTRICTION_HOLD_METERS) break;
         visited.add(passed.id);
         for (const restriction of this.speedRestrictionsBySegment.get(passed.id) ?? []) {
           consider(restriction, startMeters + restriction.at * passed.lengthMeters);
@@ -4418,11 +4426,17 @@ export class SimulationEngine {
       }
     }
     for (const { restriction, distanceMeters } of candidates) {
+      // Straight through an inline turnout is its main leg.
+      const infrastructureSpeedMps =
+        restriction.inlineSwitchId &&
+        this.switchStates.get(restriction.inlineSwitchId)?.state !== "branch"
+          ? MAIN_TURNOUT_SPEED_MPS
+          : restriction.infrastructureSpeedMps;
       const directLimitMps = cppSpeedProfileTarget({
         lineSpeedMps,
         curveRadiusMeters: restriction.radiusMeters,
         lateralAccelerationMps2: COMFORT_LATERAL_ACCELERATION_MPS2,
-        infrastructureSpeedMps: restriction.infrastructureSpeedMps,
+        infrastructureSpeedMps,
         distanceToRestrictionMeters: 0,
       });
       if (
@@ -4438,7 +4452,7 @@ export class SimulationEngine {
         lineSpeedMps,
         curveRadiusMeters: restriction.radiusMeters,
         lateralAccelerationMps2: COMFORT_LATERAL_ACCELERATION_MPS2,
-        infrastructureSpeedMps: restriction.infrastructureSpeedMps,
+        infrastructureSpeedMps,
         distanceToRestrictionMeters: effectiveDistance,
         approachDecelerationMps2: PROFILE_APPROACH_DECELERATION_MPS2,
       });
@@ -4478,15 +4492,12 @@ export class SimulationEngine {
 
   private nextPassengerStop(tram: TramState) {
     const routeId = this.routeIdForTram(tram);
-    let segment = this.segments.get(tram.segmentId) ?? null;
-    let distanceToSegmentStart = segment ? -tram.progress * segment.lengthMeters : 0;
-    const visited = new Set<string>();
     let selected: { id: string; distanceMeters: number; label: string } | null = null;
-    while (segment && distanceToSegmentStart <= PROFILE_LOOKAHEAD_METERS && !visited.has(segment.id)) {
-      visited.add(segment.id);
+    for (const { segment, startMeters, exitAt } of this.pathAhead(tram, PROFILE_LOOKAHEAD_METERS)) {
       for (const reader of this.stationReadersBySegment.get(segment.id) ?? []) {
         if (reader.routeId && reader.routeId !== routeId) continue;
-        const distanceMeters = distanceToSegmentStart + reader.at * segment.lengthMeters;
+        if (reader.at > exitAt + 0.000001) continue;
+        const distanceMeters = startMeters + reader.at * segment.lengthMeters;
         if (
           distanceMeters >= 0 &&
           distanceMeters <= PROFILE_LOOKAHEAD_METERS &&
@@ -4495,8 +4506,6 @@ export class SimulationEngine {
           selected = { id: reader.id, distanceMeters, label: reader.label };
         }
       }
-      distanceToSegmentStart += segment.lengthMeters;
-      segment = this.peekNextSegment(tram, segment);
     }
     return selected;
   }
@@ -4622,21 +4631,17 @@ export class SimulationEngine {
   private routeCycleDistanceMeters(tram: TramState) {
     const current = this.segments.get(tram.segmentId);
     if (!current || tram.segmentId.startsWith("N2X-")) return null;
-    let distanceMeters = (1 - tram.progress) * current.lengthMeters;
-    let cursor = current;
-    const visited = new Set([current.id]);
-    for (let guard = 0; guard <= this.segments.size; guard += 1) {
-      const next = this.peekNextSegment(tram, cursor);
-      if (!next) return null;
-      if (next.id === current.id) {
-        return distanceMeters + tram.progress * current.lengthMeters;
-      }
-      if (visited.has(next.id)) return null;
-      visited.add(next.id);
-      distanceMeters += next.lengthMeters;
-      cursor = next;
+    // Back to the front's own position after one full cycle of the route.
+    const diversion = this.inlineRouteExit(tram, current, tram.progress);
+    const exit = { exitAt: diversion?.exitAt ?? 1 };
+    const path = this.forwardSegmentPath(tram, current, diversion?.next ?? null);
+    const index = path.indexById.get(current.id);
+    if (index === undefined) return null;
+    let distanceMeters = (exit.exitAt - tram.progress) * current.lengthMeters;
+    for (let step = 0; step < index; step += 1) {
+      distanceMeters += path.spans[step].segment.lengthMeters * path.spans[step].exitAt;
     }
-    return null;
+    return distanceMeters + tram.progress * current.lengthMeters;
   }
 
   private trafficForSignal(signalId: string) {
@@ -5523,8 +5528,8 @@ export class SimulationEngine {
     const nearRangeMeters = Math.max(NEAR_BLOCK_RANGE_METERS, this.options.sensorRangeMeters);
     const path = this.pathAhead(tram, lookaheadMeters);
     const distanceAhead = (segmentId: string, at: number, inclusive = false) => {
-      for (const { segment, startMeters } of path) {
-        if (segment.id !== segmentId) continue;
+      for (const { segment, startMeters, exitAt } of path) {
+        if (segment.id !== segmentId || at > exitAt + 0.000001) continue;
         const distanceMeters = startMeters + at * segment.lengthMeters;
         const ahead = inclusive ? distanceMeters >= 0 : distanceMeters > 0.000001;
         if (ahead && distanceMeters <= lookaheadMeters) return distanceMeters;
@@ -5589,7 +5594,7 @@ export class SimulationEngine {
             : null,
         )
         .filter((value): value is number => value !== null);
-      const node = path.find(({ segment }) => segment.to === definition.nodeId);
+      const node = path.find(({ segment, exitAt }) => segment.to === definition.nodeId && exitAt === 1);
       const nodeDistance = node ? node.startMeters + node.segment.lengthMeters : null;
       const distance = approachDistances.length > 0
         ? Math.min(...approachDistances)
@@ -5655,16 +5660,24 @@ export class SimulationEngine {
   }
 
   /** Segments ahead of the tram front in path order, with the distance to each start. */
+  /**
+   * The route ahead within `maxMeters`: each segment with the distance from
+   * the front to its start (negative for the current one) and the progress
+   * where the route leaves it. Positions beyond `exitAt` are not on the route.
+   */
   private pathAhead(tram: TramState, maxMeters: number) {
-    const path: Array<{ segment: SegmentRuntime; startMeters: number }> = [];
+    const path: Array<{ segment: SegmentRuntime; startMeters: number; exitAt: number }> = [];
     let segment = this.segments.get(tram.segmentId) ?? null;
     let startMeters = segment ? -tram.progress * segment.lengthMeters : 0;
+    let fromProgress = tram.progress;
     const visited = new Set<string>();
     while (segment && startMeters <= maxMeters && !visited.has(segment.id)) {
       visited.add(segment.id);
-      path.push({ segment, startMeters });
-      startMeters += segment.lengthMeters;
-      segment = this.peekNextSegment(tram, segment);
+      const exit = this.routeExit(tram, segment, fromProgress);
+      path.push({ segment, startMeters, exitAt: exit.exitAt });
+      startMeters += segment.lengthMeters * exit.exitAt;
+      segment = exit.next;
+      fromProgress = 0;
     }
     return path;
   }
@@ -5771,58 +5784,123 @@ export class SimulationEngine {
   }
 
   private forwardDistanceToTram(tram: TramState, other: TramState) {
+    return this.forwardDistanceAlongRoute(
+      tram,
+      other.segmentId,
+      other.progress,
+      other.linePriority < tram.linePriority,
+    );
+  }
+
+  /**
+   * Distance from the tram's front to a position on the route it will
+   * actually take, or null when the route does not reach it. `atFrontWins`
+   * counts a position level with the front as ahead.
+   */
+  private forwardDistanceAlongRoute(
+    tram: TramState,
+    targetSegmentId: string,
+    targetProgress: number,
+    atFrontWins: boolean,
+    segmentScopePrefix?: string,
+  ) {
     const current = this.segments.get(tram.segmentId);
     if (!current) return null;
+    const diversion = this.inlineRouteExit(tram, current, tram.progress);
+    const exitAt = diversion?.exitAt ?? 1;
 
-    if (other.segmentId === tram.segmentId) {
-      const progressDifference = other.progress - tram.progress;
+    if (targetSegmentId === current.id && targetProgress <= exitAt + 0.000001) {
+      const progressDifference = targetProgress - tram.progress;
       if (progressDifference > 0.000001) {
         return progressDifference * current.lengthMeters;
       }
-      if (
-        Math.abs(progressDifference) <= 0.000001 &&
-        other.linePriority < tram.linePriority
-      ) {
+      if (Math.abs(progressDifference) <= 0.000001 && atFrontWins) {
         return 0;
       }
     }
 
-    const path = this.forwardSegmentPath(tram, current);
-    const targetIndex = path.indexById.get(other.segmentId);
+    const path = this.forwardSegmentPath(tram, current, diversion?.next ?? null);
+    const targetIndex = path.indexById.get(targetSegmentId);
     if (targetIndex === undefined) return null;
+    const target = path.spans[targetIndex];
+    if (targetProgress > target.exitAt + 0.000001) return null;
     // Summed in walk order so the result matches a segment-by-segment walk.
-    let distanceMeters = (1 - tram.progress) * current.lengthMeters;
+    let distanceMeters = (exitAt - tram.progress) * current.lengthMeters;
     for (let index = 0; index < targetIndex; index += 1) {
-      distanceMeters += path.segments[index].lengthMeters;
+      const span = path.spans[index];
+      if (segmentScopePrefix && !span.segment.id.startsWith(segmentScopePrefix)) return null;
+      distanceMeters += span.segment.lengthMeters * span.exitAt;
     }
-    return distanceMeters + other.progress * path.segments[targetIndex].lengthMeters;
+    if (segmentScopePrefix && !target.segment.id.startsWith(segmentScopePrefix)) return null;
+    return distanceMeters + targetProgress * target.segment.lengthMeters;
   }
 
   /**
-   * The segments a tram will follow from `current` until the path ends or
-   * repeats. It depends only on topology, the tram's route intent and its
-   * route, so it is cached for the lifetime of the segment graph.
+   * Where a tram that entered `segment` at `fromProgress` leaves it: at an
+   * inline turnout set to its branch, or else at the segment end. This and
+   * peekNextSegment are the single description of the route that look-ahead
+   * uses and that advanceTram and chooseNextSegment then follow.
    */
-  private forwardSegmentPath(tram: TramState, current: SegmentRuntime) {
-    const key = `${current.id}|${tram.routeIntent}|${this.routeIdForTram(tram)}`;
+  private routeExit(tram: TramState, segment: SegmentRuntime, fromProgress: number) {
+    return (
+      this.inlineRouteExit(tram, segment, fromProgress) ??
+      { next: this.peekNextSegment(tram, segment), exitAt: 1 }
+    );
+  }
+
+  /** The mid-segment exit into a branch, when an inline turnout ahead is set to it. */
+  private inlineRouteExit(tram: TramState, segment: SegmentRuntime, fromProgress: number) {
+    const inlineSwitch = this.nextActiveInlineSwitch(tram, segment, fromProgress);
+    const branch = inlineSwitch
+      ? this.segments.get(inlineSwitch.definition.branchSegmentId)
+      : undefined;
+    return inlineSwitch && branch ? { next: branch, exitAt: inlineSwitch.at } : null;
+  }
+
+  /** Inline turnouts currently set to their branch; part of every cached route. */
+  private activeInlineSwitchKey() {
+    let key = "";
+    for (const definition of this.inlineSwitches) {
+      if (this.switchStates.get(definition.id)?.state === "branch") key += `${definition.id},`;
+    }
+    return key;
+  }
+
+  /**
+   * The segments a tram will follow after leaving `current` into `first`
+   * (its next segment when null), until the route ends or repeats, each with
+   * the progress where the route leaves it. It depends only on topology, the
+   * tram's route intent and route, and the inline turnouts set to branch, so
+   * it is cached.
+   */
+  private forwardSegmentPath(
+    tram: TramState,
+    current: SegmentRuntime,
+    diversion: SegmentRuntime | null,
+  ) {
+    // With no diversion set, the first segment follows from the rest of the key.
+    const inlineKey = this.inlineSwitches.length > 0 ? this.activeInlineSwitchKey() : "";
+    const key = inlineKey
+      ? `${current.id}|${diversion?.id ?? ""}|${tram.routeIntent}|${this.routeIdForTram(tram)}|${inlineKey}`
+      : `${current.id}|${tram.routeIntent}|${this.routeIdForTram(tram)}`;
     const cached = this.forwardPathCache.get(key);
     if (cached) return cached;
+    const first = diversion ?? this.peekNextSegment(tram, current);
 
-    const segments: SegmentRuntime[] = [];
+    const spans: Array<{ segment: SegmentRuntime; exitAt: number }> = [];
     const indexById = new Map<string, number>();
     const visited = new Set([current.id]);
-    let cursor = current;
-    for (let guard = 0; guard <= this.segments.size; guard += 1) {
-      const next = this.peekNextSegment(tram, cursor);
-      if (!next) break;
-      if (!indexById.has(next.id)) indexById.set(next.id, segments.length);
-      segments.push(next);
+    let next: SegmentRuntime | null = first;
+    for (let guard = 0; guard <= this.segments.size && next; guard += 1) {
+      const exit = this.routeExit(tram, next, 0);
+      if (!indexById.has(next.id)) indexById.set(next.id, spans.length);
+      spans.push({ segment: next, exitAt: exit.exitAt });
       if (visited.has(next.id)) break;
       visited.add(next.id);
-      cursor = next;
+      next = exit.next;
     }
 
-    const path = { segments, indexById };
+    const path = { spans, indexById };
     this.forwardPathCache.set(key, path);
     return path;
   }
@@ -5974,6 +6052,49 @@ export class SimulationEngine {
     }
   }
 
+  /** Distance needed to stop from `speedMps` on the approach envelope, with reaction time. */
+  private stoppingDistanceMeters(speedMps: number) {
+    const speed = Math.max(0, speedMps);
+    return (
+      speed ** 2 / (2 * PROFILE_APPROACH_DECELERATION_MPS2) +
+      speed * STOP_REACTION_SECONDS +
+      STOP_POINT_MARGIN_METERS
+    );
+  }
+
+  /**
+   * Whether a tram leaving the depot may join the line at the exit point now.
+   * Measured along the route in metres, across segment ends: a tram ahead
+   * must leave the joining tram room to stop behind it, and a tram
+   * approaching from behind must be able to stop behind the joining tram.
+   */
+  private depotExitClear(tram: TramState, exit: SegmentRuntime, exitProgress: number) {
+    const joined = { ...tram, segmentId: exit.id, progress: exitProgress };
+    return this.trams.every((other) => {
+      if (
+        other.id === tram.id ||
+        other.serviceState === "in-depot" ||
+        other.serviceState === "depot-egress"
+      ) {
+        return true;
+      }
+      const ahead = this.forwardDistanceToTram(joined, other);
+      if (
+        ahead !== null &&
+        ahead < MIN_FRONT_SEPARATION_METERS + this.stoppingDistanceMeters(tram.speedMps)
+      ) {
+        return false;
+      }
+      // A tram turning into a depot is leaving the line, not approaching along it.
+      if (other.serviceState === "depot-ingress") return true;
+      const behind = this.forwardDistanceToTram(other, joined);
+      return (
+        behind === null ||
+        behind >= MIN_FRONT_SEPARATION_METERS + this.stoppingDistanceMeters(other.speedMps)
+      );
+    });
+  }
+
   private nextDepotPortal(tram: TramState, current: SegmentRuntime) {
     if (tram.serviceState !== "to-depot") return null;
     const assignment = this.depotPortalById(tram.depotPortalId);
@@ -5990,24 +6111,18 @@ export class SimulationEngine {
   private nextActiveInlineSwitch(
     tram: TramState,
     current: SegmentRuntime,
+    startProgress?: number,
   ) {
-    const candidates = this.scenarioDefinition.switches.flatMap((definition) => {
-      const approaches = [
-        ...(definition.segmentId && definition.at !== undefined
-          ? [{ segmentId: definition.segmentId, at: definition.at }]
-          : []),
-        ...(definition.alternateApproaches ?? []),
-      ];
-      return approaches
-        .filter(
-          (approach) =>
-            approach.segmentId === current.id &&
-            approach.at > tram.progress + 0.000001 &&
-            this.switchStates.get(definition.id)?.state === "branch",
-        )
-        .map((approach) => ({ definition, at: approach.at }));
-    });
-    return candidates.sort((first, second) => first.at - second.at)[0] ?? null;
+    const fromProgress = startProgress ?? tram.progress;
+    for (const approach of this.inlineApproachesBySegment.get(current.id) ?? []) {
+      if (
+        approach.at > fromProgress + 0.000001 &&
+        this.switchStates.get(approach.definition.id)?.state === "branch"
+      ) {
+        return approach;
+      }
+    }
+    return null;
   }
 
   private getSwitchPoint(definition: SwitchDefinition) {
@@ -6024,13 +6139,12 @@ export class SimulationEngine {
   }
 
   private chooseNextSegment(tram: TramState, previous: SegmentRuntime) {
-    const outgoing = [...this.segments.values()].filter((item) => item.from === previous.to);
+    // The same tables and order as peekNextSegment, so both pick alike.
+    const outgoing = this.outgoingSegmentsByNode.get(previous.to) ?? [];
     if (outgoing.length === 0) return null;
     if (outgoing.length === 1) return outgoing[0];
 
-    const switchDefinition = this.scenarioDefinition.switches.find(
-      (item) => item.nodeId === previous.to,
-    );
+    const switchDefinition = this.switchesByNode.get(previous.to);
     if (!switchDefinition) {
       return this.nextRouteSegment(tram, previous, outgoing) ?? outgoing[0];
     }
@@ -6058,16 +6172,30 @@ export class SimulationEngine {
       );
     }
 
+    // Take the leg look-ahead planned (peekNextSegment), as the approach
+    // reader does, rather than wherever the points happen to lie: a tram that
+    // reaches the points without holding them (it started past the reader, or
+    // its reader request lapsed) would otherwise drive a route it never
+    // looked along.
     const runtime = this.switchStates.get(switchDefinition.id);
     if (runtime) {
+      const planned = this.peekNextSegment(tram, previous);
+      const desired: SwitchPosition =
+        planned?.id === switchDefinition.branchSegmentId ? "branch" : "main";
       const tramIndex = this.trams.findIndex((item) => item.id === tram.id);
       const reservation = cppRequestSwitchAuthority(
         this.scenarioDefinition.switches.indexOf(switchDefinition), runtime.state,
         runtime.lockedBy ? this.trams.findIndex((item) => item.id === runtime.lockedBy) : -1,
-        runtime.state, tramIndex, true);
-      if (!reservation) return null;
-      runtime.state = reservation.state;
-      runtime.lockedBy = this.trams[reservation.lockedByIndex]?.id ?? null;
+        desired, tramIndex, true);
+      if (reservation) {
+        runtime.state = reservation.state;
+        runtime.lockedBy = this.trams[reservation.lockedByIndex]?.id ?? null;
+      } else if (runtime.lockedBy !== tram.id) {
+        return null;
+      } else {
+        // Its own lock lies the other way and cannot be re-thrown under it.
+        this.addEvent("warning", `${tram.label} holds ${switchDefinition.id} ${runtime.state.toUpperCase()} · following the points`);
+      }
     }
     const selectedId =
       runtime?.state === "branch"

@@ -311,3 +311,115 @@ test("a tram never speeds up once its stop approach has begun", () => {
     assert.ok(checked > 50, `${networkId}: ${checked} approaches checked`);
   }
 });
+
+test("a tram reaching a switch without its lock takes the leg it looked ahead along", () => {
+  const engine = new SimulationEngine("prototype-loop", 2);
+  const definition = engine.scenario.switches[0], runtime = engine.switchStates.get(definition.id);
+  const tram = engine.trams.find((item) => item.routeIntent === "main");
+  const approach = [...engine.segments.values()].find(
+    (segment) => segment.to === definition.nodeId && !definition.returnSegmentIds?.includes(segment.id),
+  );
+  // The points lie against the tram's route and nobody holds them.
+  assert.equal(engine.toggleSwitch(definition.id), true);
+  assert.equal(runtime.state, "branch");
+  assert.equal(runtime.lockedBy, null);
+  tram.segmentId = approach.id;
+  tram.progress = 1;
+
+  const planned = engine.peekNextSegment(tram, approach);
+  assert.equal(planned.id, definition.mainSegmentId);
+  assert.equal(engine.chooseNextSegment(tram, approach)?.id, planned.id);
+  assert.equal(runtime.state, "main");
+  assert.equal(runtime.lockedBy, tram.id);
+});
+
+test("look-ahead follows an inline turnout set to its branch", () => {
+  const engine = new SimulationEngine("nizhny-route-2");
+  engine.setAutoDispatch(false);
+  const definition = engine.scenario.switches.find((item) => item.id === "SW-LYD");
+  const approach = engine.segments.get(definition.segmentId);
+  const branch = engine.segments.get(definition.branchSegmentId);
+  const [tram, onBranch, pastTurnout] = engine.trams;
+  tram.segmentId = approach.id;
+  tram.progress = definition.at - 60 / approach.lengthMeters;
+  onBranch.segmentId = branch.id;
+  onBranch.progress = 0.5;
+  pastTurnout.segmentId = approach.id;
+  pastTurnout.progress = Math.min(0.99, definition.at + 40 / approach.lengthMeters);
+
+  assert.equal(engine.forwardDistanceToTram(tram, onBranch), null, "points set straight: the branch is off the route");
+  assert.ok(engine.forwardDistanceToTram(tram, pastTurnout) > 0);
+
+  assert.equal(engine.toggleSwitch(definition.id), true);
+  const toBranchTram = engine.forwardDistanceToTram(tram, onBranch);
+  assert.ok(Math.abs(toBranchTram - (60 + 0.5 * branch.lengthMeters)) < 0.01, `distance ${toBranchTram}`);
+  assert.equal(engine.forwardDistanceToTram(tram, pastTurnout), null, "the main line beyond the turnout is off the route");
+  assert.equal(engine.nearestTramAhead(tram)?.tram.id, onBranch.id);
+  assert.ok(engine.forwardDistanceToPosition(tram, branch.id, 0.2) !== null, "an obstacle on the branch is seen");
+  assert.ok(engine.pathAhead(tram, 200).some(({ segment }) => segment.id === branch.id));
+});
+
+test("a tram leaving the depot waits for a tram approaching the exit from the previous segment", () => {
+  const engine = new SimulationEngine("izmir-konak");
+  engine.setAutoDispatch(false);
+  const [tram, approaching] = engine.trams;
+  const tramIndex = engine.trams.indexOf(tram);
+  assert.equal(engine.placeInDepot(tram), true);
+  assert.equal(engine.dispatchFromDepot(tram, false, true), true);
+  const { portal } = engine.depotPortalById(tram.depotPortalId);
+  const exit = engine.segments.get(portal.exitSegmentId);
+  const cycle = engine.scenario.routes[0].segmentIds;
+  const previous = engine.segments.get(cycle[(cycle.indexOf(exit.id) - 1 + cycle.length) % cycle.length]);
+  // 30 m before the exit point, across the segment boundary, at line speed.
+  approaching.segmentId = previous.id;
+  approaching.progress = 1 - (30 - portal.exitProgress * exit.lengthMeters) / previous.lengthMeters;
+  approaching.speedMps = 11;
+  engine.resetSegmentTrail(approaching);
+
+  for (let step = 0; step < 400; step += 1) engine.updateDepotTransition(tram, 0.05, tramIndex);
+  assert.equal(tram.serviceState, "depot-egress", "it must not join in front of a tram that cannot stop");
+  assert.match(tram.status, /Depot exit held/);
+
+  approaching.speedMps = 0;
+  for (let step = 0; step < 40; step += 1) engine.updateDepotTransition(tram, 0.05, tramIndex);
+  assert.equal(tram.serviceState, "in-service", "a stopped tram 30 m back leaves room to join");
+});
+
+test("a turnout speed limit holds until the rear has left the turnout", () => {
+  const mainLegMps = 20 / 3.6, branchLegMps = 15 / 3.6;
+  for (const [networkId, restrictionId, divert, limitMps] of [
+    ["nizhny-routes-2-21", "turnout:SW-21-KRS:branch", false, branchLegMps],
+    // An inline turnout: straight through is its main leg, diverging its branch.
+    ["nizhny-route-2", "turnout:SW-LYD:approach", false, mainLegMps],
+    ["nizhny-route-2", "turnout:SW-LYD:approach", true, branchLegMps],
+  ]) {
+    const engine = new SimulationEngine(networkId);
+    engine.setAutoDispatch(false);
+    const restriction = engine.speedRestrictions.find((item) => item.id === restrictionId);
+    const segment = engine.segments.get(restriction.segmentId);
+    const tram = engine.trams[0];
+    tram.segmentId = segment.id;
+    if (divert) {
+      // Just before the points, then a step past them onto the branch.
+      assert.equal(engine.toggleSwitch(restriction.inlineSwitchId), true);
+      const branch = engine.segments.get(engine.scenario.switches.find((item) => item.id === restriction.inlineSwitchId).branchSegmentId);
+      tram.progress = restriction.at - 1 / segment.lengthMeters;
+      engine.resetSegmentTrail(tram);
+      tram.segmentTrail = [{ segmentId: "earlier", enteredAtMeters: tram.distanceMeters - 500 }, ...tram.segmentTrail];
+      tram.segmentTrail[1].enteredAtMeters = tram.distanceMeters - tram.progress * segment.lengthMeters;
+      tram.distanceMeters += 1 + 10;
+      tram.segmentId = branch.id;
+      tram.progress = 10 / branch.lengthMeters;
+      tram.segmentTrail.push({ segmentId: branch.id, enteredAtMeters: tram.distanceMeters - 10 });
+    } else {
+      tram.progress = restriction.at + 10 / segment.lengthMeters;
+      engine.resetSegmentTrail(tram);
+    }
+    const guidance = engine.speedProfileGuidance(tram, 70 / 3.6);
+    assert.ok(
+      guidance.targetSpeedMps <= limitMps + 1e-9,
+      `${restrictionId}${divert ? " diverging" : ""}: ${(guidance.targetSpeedMps * 3.6).toFixed(1)} km/h 10 m past the turnout`,
+    );
+    if (!divert) assert.ok(guidance.targetSpeedMps > limitMps - 0.5, `${restrictionId}: no tighter limit than the turnout's own`);
+  }
+});
