@@ -889,6 +889,7 @@ const TRAM_COLORS = [
 ];
 const REFERENCE_TO_METERS = 0.55;
 const MAX_TRAMS = 20;
+const MAX_SIMULATION_RATE = 20;
 /** Clear gap between the rear of a leader and the front of its follower. */
 const PHYSICAL_TRAM_GAP_METERS = 7;
 const TRAM_LENGTH_METERS = 15;
@@ -1633,7 +1634,7 @@ export class SimulationEngine {
     // rejected experiment leaves the current scenario and fleet untouched.
     const options: SimulationOptions = {
       speedLimit: clamp(Math.round(numeric(experiment.options.speedLimit, 40)), 10, 70),
-      simulationRate: clamp(numeric(experiment.options.simulationRate, 1), 0.5, 5),
+      simulationRate: clamp(numeric(experiment.options.simulationRate, 1), 0.5, MAX_SIMULATION_RATE),
       autoDispatch: Boolean(experiment.options.autoDispatch),
       collisionAvoidance: Boolean(experiment.options.collisionAvoidance),
       priorityPolicy: experiment.options.priorityPolicy,
@@ -1850,7 +1851,7 @@ export class SimulationEngine {
   }
 
   setSimulationRate(value: number) {
-    this.options.simulationRate = clamp(value, 0.5, 5);
+    this.options.simulationRate = clamp(value, 0.5, MAX_SIMULATION_RATE);
   }
 
   setAutoDispatch(enabled: boolean) {

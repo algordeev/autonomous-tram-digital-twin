@@ -25,6 +25,7 @@ Keep a Changelog; release labels use semantic version numbers.
   tolerance (previously 45 s), and `onTimePercent` is the share of in-service
   trams within that tolerance.
 - Benchmark figures in `docs/EXPERIMENTS.md` regenerated for the new physics.
+- Simulation rate options add 20× (the maximum rises from 5×).
 
 ### Fixed
 
