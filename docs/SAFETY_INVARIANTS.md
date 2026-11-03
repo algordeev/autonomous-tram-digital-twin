@@ -34,7 +34,16 @@ these tests are simulator checks, not a certification of physical signalling.
 The browser retains a turnout lock until the rear has travelled 15 m beyond
 its crossing point. The inline turnout's automatic reset is also delayed until
 that point. A queued request that C++ refuses stays queued; it cannot update
-the mirrored position anyway.
+the mirrored position anyway. A tram rejoining from a depot return track locks
+the points to that leg before crossing them, like any other movement.
+
+A tram leaving the line at a depot portal can no longer reach a turnout or
+crossing: its queued requests are dropped and locks on points it has not yet
+crossed are released through C++. Locks on points it has crossed, and a
+crossing it has entered, are kept until it is stored, because the odometer
+does not run on depot track; storing it releases the locks and reports its
+rear clear. An off-line tram counts as invalid for the unentered-reservation
+rule below, and its stale grant is not requeued.
 
 ## Fault policy
 

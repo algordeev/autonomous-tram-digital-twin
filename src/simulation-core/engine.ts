@@ -694,6 +694,8 @@ interface SpeedRestrictionRuntime {
   reason: "curve" | "turnout";
   radiusMeters: number | null;
   infrastructureSpeedMps: number | null;
+  /** How far the front may run past `at` with the limit still applying (rear clear of the curve). */
+  holdMeters: number;
 }
 
 interface SpeedProfileGuidanceResult {
@@ -926,6 +928,8 @@ const PROFILE_APPROACH_DECELERATION_MPS2 = 0.72;
 const PROFILE_LOOKAHEAD_METERS = 1_000;
 const MAIN_TURNOUT_SPEED_MPS = 20 / 3.6;
 const BRANCH_TURNOUT_SPEED_MPS = 15 / 3.6;
+/** Longest stretch of a curve modelled beyond its apex (the junction chord is 25 m). */
+const CURVE_EXIT_METERS = 25;
 /** Baseline arrivals per minute at an "average" stop before time-of-day/stop weighting. */
 const PASSENGER_BASE_RATE_PER_MINUTE = 1.4;
 /** Fraction of onboard passengers that alight at an average stop. */
@@ -2909,6 +2913,7 @@ export class SimulationEngine {
     tram.scheduledDeparturePointLabel = null;
     tram.lastDepartureDeviationSeconds = null;
     invalidateCppDepotState(tramIndex);
+    this.releaseOffLineClaims(tram, true);
     this.initializeHeadwayTargets();
     return true;
   }
@@ -4250,7 +4255,13 @@ export class SimulationEngine {
       "nizhny-routes-2-21",
       "izmir-konak",
     ].includes(this.scenarioDefinition.id)) return restrictions;
-    const addCurve = (id: string, segmentId: string, at: number, radiusMeters: number) => {
+    const addCurve = (
+      id: string,
+      segmentId: string,
+      at: number,
+      radiusMeters: number,
+      exitMeters: number,
+    ) => {
       if (!Number.isFinite(radiusMeters) || radiusMeters >= 230) return;
       restrictions.push({
         id,
@@ -4261,6 +4272,9 @@ export class SimulationEngine {
         // 18 m is a conservative physical floor for the geometry-derived model.
         radiusMeters: Math.max(18, radiusMeters),
         infrastructureSpeedMps: null,
+        // The restriction sits at the apex; the curve continues beyond it and
+        // the limit holds until the rear of the tram has left the curve too.
+        holdMeters: Math.min(CURVE_EXIT_METERS, Math.max(0, exitMeters)) + TRAM_LENGTH_METERS,
       });
     };
 
@@ -4276,6 +4290,7 @@ export class SimulationEngine {
             segment.points[index],
             segment.points[index + 1],
           ) * scale,
+          (segment.cumulative[index + 1] - segment.cumulative[index]) * scale,
         );
       }
     }
@@ -4305,6 +4320,7 @@ export class SimulationEngine {
           nextId,
           0,
           circumradius(before, node, after) * ((currentScale + nextScale) / 2),
+          Math.min(chordMeters, next.lengthMeters),
         );
       });
     }
@@ -4319,6 +4335,7 @@ export class SimulationEngine {
           reason: "turnout",
           radiusMeters: null,
           infrastructureSpeedMps: speedMps,
+          holdMeters: 0,
         });
       };
       addTurnout(turnout.mainSegmentId, MAIN_TURNOUT_SPEED_MPS, "main");
@@ -4331,6 +4348,7 @@ export class SimulationEngine {
           reason: "turnout",
           radiusMeters: null,
           infrastructureSpeedMps: BRANCH_TURNOUT_SPEED_MPS,
+          holdMeters: 0,
         });
       }
     }
@@ -4351,19 +4369,38 @@ export class SimulationEngine {
       nextConstraintReason: "line" as "line" | "curve" | "turnout",
     };
     const candidates: Array<{ restriction: SpeedRestrictionRuntime; distanceMeters: number }> = [];
+    // A negative distance means the front is already past the restriction
+    // point; it still applies within the restriction's hold distance.
+    const consider = (restriction: SpeedRestrictionRuntime, distanceMeters: number) => {
+      if (distanceMeters >= -restriction.holdMeters && distanceMeters <= PROFILE_LOOKAHEAD_METERS) {
+        candidates.push({ restriction, distanceMeters });
+      }
+    };
     let segment = this.segments.get(tram.segmentId) ?? null;
     let distanceToSegmentStart = segment ? -tram.progress * segment.lengthMeters : 0;
     const visited = new Set<string>();
     while (segment && distanceToSegmentStart <= PROFILE_LOOKAHEAD_METERS && !visited.has(segment.id)) {
       visited.add(segment.id);
       for (const restriction of this.speedRestrictionsBySegment.get(segment.id) ?? []) {
-        const distanceMeters = distanceToSegmentStart + restriction.at * segment.lengthMeters;
-        if (distanceMeters >= 0 && distanceMeters <= PROFILE_LOOKAHEAD_METERS) {
-          candidates.push({ restriction, distanceMeters });
-        }
+        consider(restriction, distanceToSegmentStart + restriction.at * segment.lengthMeters);
       }
       distanceToSegmentStart += segment.lengthMeters;
       segment = this.peekNextSegment(tram, segment);
+    }
+    // Curves on segments the front has already left. The oldest trail entry
+    // can start mid-segment after a reset, so only recorded entries are used.
+    const trail = tram.segmentTrail;
+    if (trail.at(-1)?.segmentId === tram.segmentId) {
+      for (let index = trail.length - 2; index >= 1; index -= 1) {
+        const passed = this.segments.get(trail[index].segmentId);
+        if (!passed || visited.has(passed.id)) break;
+        const startMeters = trail[index].enteredAtMeters - tram.distanceMeters;
+        if (startMeters + passed.lengthMeters < -(CURVE_EXIT_METERS + TRAM_LENGTH_METERS)) break;
+        visited.add(passed.id);
+        for (const restriction of this.speedRestrictionsBySegment.get(passed.id) ?? []) {
+          consider(restriction, startMeters + restriction.at * passed.lengthMeters);
+        }
+      }
     }
     for (const { restriction, distanceMeters } of candidates) {
       const directLimitMps = cppSpeedProfileTarget({
@@ -4377,7 +4414,7 @@ export class SimulationEngine {
         selected.nextConstraintDistanceMeters === null ||
         distanceMeters < selected.nextConstraintDistanceMeters
       ) {
-        selected.nextConstraintDistanceMeters = distanceMeters;
+        selected.nextConstraintDistanceMeters = Math.max(0, distanceMeters);
         selected.nextConstraintSpeedMps = directLimitMps;
         selected.nextConstraintReason = restriction.reason;
       }
@@ -4394,7 +4431,7 @@ export class SimulationEngine {
         selected = {
           targetSpeedMps,
           reason: restriction.reason,
-          distanceMeters,
+          distanceMeters: Math.max(0, distanceMeters),
           radiusMeters: restriction.radiusMeters,
           nextConstraintDistanceMeters: selected.nextConstraintDistanceMeters,
           nextConstraintSpeedMps: selected.nextConstraintSpeedMps,
@@ -5816,6 +5853,7 @@ export class SimulationEngine {
         tram.depotId = depotPortal.depot.id;
         tram.depotPortalId = depotPortal.portal.id;
         tram.depotProgress = 0;
+        this.releaseOffLineClaims(tram, false);
         tram.stationPhase = "none";
         tram.terminalIntervalHold = false;
         tram.terminalBerth = 0;
@@ -5951,8 +5989,24 @@ export class SimulationEngine {
       return this.nextRouteSegment(tram, previous, outgoing) ?? outgoing[0];
     }
     if (switchDefinition.returnSegmentIds?.includes(previous.id)) {
+      // Rejoining trails through the points from the branch leg: lock them to
+      // that leg like any other movement over the turnout, then restore them.
       const runtime = this.switchStates.get(switchDefinition.id);
-      if (runtime?.lockedBy === tram.id) runtime.releaseAtDistance = tram.distanceMeters + TRAM_LENGTH_METERS;
+      if (runtime) {
+        const tramIndex = this.trams.findIndex((item) => item.id === tram.id);
+        const previousState = runtime.state;
+        const reservation = cppRequestSwitchAuthority(
+          this.scenarioDefinition.switches.indexOf(switchDefinition), runtime.state,
+          runtime.lockedBy ? this.trams.findIndex((item) => item.id === runtime.lockedBy) : -1,
+          "branch", tramIndex, true);
+        if (!reservation) return null;
+        runtime.state = reservation.state;
+        runtime.lockedBy = this.trams[reservation.lockedByIndex]?.id ?? null;
+        if (runtime.lockedBy !== tram.id) return null;
+        if (previousState !== runtime.state) runtime.resetAfterRelease = true;
+        runtime.releaseAtDistance = tram.distanceMeters + TRAM_LENGTH_METERS;
+        this.addEvent("info", `${tram.label} rejoined through ${switchDefinition.id} · locked BRANCH`);
+      }
       return (
         outgoing.find((item) => item.id === switchDefinition.mainSegmentId) ?? outgoing[0]
       );
@@ -6352,6 +6406,7 @@ export class SimulationEngine {
         const stillWaitingOnApproach = Boolean(
           activeTram &&
             activeSignal &&
+            !this.isOffLine(activeTram) &&
             activeTram.segmentId === activeSignal.segmentId &&
             activeTram.progress < activeSignal.at &&
             !activeTram.manualMode,
@@ -6361,13 +6416,13 @@ export class SimulationEngine {
           this.simulationTime - controller.activeGrantedAt >=
             TRAFFIC_GRANT_TIMEOUT_SECONDS &&
           !stillWaitingOnApproach &&
-          (!activeTram ||
-            activeTram.serviceState === "in-depot" ||
-            (activeTram.manualMode && activeTram.manualCommand === "stop"));
+          (this.isOffLine(activeTram) ||
+            (activeTram!.manualMode && activeTram!.manualCommand === "stop"));
         if (staleBeforeEntry) {
           if (
             controller.activeTramId &&
             controller.activeSignalId &&
+            !this.isOffLine(activeTram) &&
             !controller.queue.some(
               (request) => request.tramId === controller.activeTramId,
             )
@@ -6383,7 +6438,9 @@ export class SimulationEngine {
             this.simulationTime + controller.clearanceSeconds;
           this.addEvent(
             "warning",
-            `${controller.label}: stale tram grant released and requeued`,
+            this.isOffLine(activeTram)
+              ? `${controller.label}: stale tram grant released · tram left the line`
+              : `${controller.label}: stale tram grant released and requeued`,
           );
           continue;
         }
@@ -6425,14 +6482,14 @@ export class SimulationEngine {
     const stillWaiting = Boolean(
       activeTramBefore &&
         activeSignalBefore &&
+        !this.isOffLine(activeTramBefore) &&
         activeTramBefore.segmentId === activeSignalBefore.segmentId &&
         activeTramBefore.progress < activeSignalBefore.at &&
         !activeTramBefore.manualMode,
     );
     const activeInvalid = Boolean(
-      !activeTramBefore ||
-        activeTramBefore.serviceState === "in-depot" ||
-        (activeTramBefore.manualMode && activeTramBefore.manualCommand === "stop"),
+      this.isOffLine(activeTramBefore) ||
+        (activeTramBefore!.manualMode && activeTramBefore!.manualCommand === "stop"),
     );
     const phases: TrafficPhase[] = [
       "road-green",
@@ -6522,6 +6579,7 @@ export class SimulationEngine {
       if (
         previousActiveTramId &&
         previousActiveSignalId &&
+        !this.isOffLine(activeTramBefore) &&
         !controller.queue.some((request) => request.tramId === previousActiveTramId)
       ) {
         controller.queue.push({
@@ -6530,7 +6588,12 @@ export class SimulationEngine {
           requestedAt: this.simulationTime,
         });
       }
-      this.addEvent("warning", `${controller.label}: stale tram grant released and requeued`);
+      this.addEvent(
+        "warning",
+        this.isOffLine(activeTramBefore)
+          ? `${controller.label}: stale tram grant released · tram left the line`
+          : `${controller.label}: stale tram grant released and requeued`,
+      );
     } else if (result.event === 4) {
       this.addEvent(
         "warning",
@@ -6574,18 +6637,68 @@ export class SimulationEngine {
       const tramIndex = this.trams.findIndex((tram) => tram.id === runtime.lockedBy);
       const tram = this.trams[tramIndex];
       if (!tram || tram.distanceMeters < runtime.releaseAtDistance) continue;
-      const released = cppReleaseSwitchAuthority(index, runtime.state, tramIndex, tramIndex);
-      runtime.state = released.state;
-      runtime.lockedBy = released.lockedByIndex < 0 ? null : this.trams[released.lockedByIndex]?.id ?? null;
-      if (runtime.lockedBy) continue;
-      delete runtime.releaseAtDistance;
-      if (runtime.resetAfterRelease && runtime.state === "branch" && runtime.queue.length === 0) {
-        const reset = cppToggleSwitchAuthority(index, runtime.state, -1, true);
-        if (reset) runtime.state = reset.state;
-      }
-      delete runtime.resetAfterRelease;
-      this.applyNextSwitchRequest(runtime, definition);
+      this.releaseSwitchLock(index, definition, runtime, tramIndex);
     }
+  }
+
+  private releaseSwitchLock(
+    index: number,
+    definition: SwitchDefinition,
+    runtime: SwitchRuntime,
+    tramIndex: number,
+  ) {
+    const released = cppReleaseSwitchAuthority(index, runtime.state, tramIndex, tramIndex);
+    runtime.state = released.state;
+    runtime.lockedBy = released.lockedByIndex < 0 ? null : this.trams[released.lockedByIndex]?.id ?? null;
+    if (runtime.lockedBy) return;
+    delete runtime.releaseAtDistance;
+    if (runtime.resetAfterRelease && runtime.state === "branch" && runtime.queue.length === 0) {
+      const reset = cppToggleSwitchAuthority(index, runtime.state, -1, true);
+      if (reset) runtime.state = reset.state;
+    }
+    delete runtime.resetAfterRelease;
+    this.applyNextSwitchRequest(runtime, definition);
+  }
+
+  /**
+   * A tram that has left the passenger line can no longer reach a turnout or
+   * crossing, so its queued requests and its locks on points it never reached
+   * are dropped. Locks on points it has crossed, and a crossing it has
+   * entered, are kept until it is stored: only then is its rear certainly
+   * off the line (the odometer does not run on depot track).
+   */
+  private releaseOffLineClaims(tram: TramState, stored: boolean) {
+    const tramIndex = this.trams.findIndex((item) => item.id === tram.id);
+    for (const [index, definition] of this.scenarioDefinition.switches.entries()) {
+      const runtime = this.switchStates.get(definition.id);
+      if (!runtime) continue;
+      runtime.queue = runtime.queue.filter((request) => request.tramId !== tram.id);
+      if (runtime.lockedBy !== tram.id) continue;
+      if (!stored && runtime.releaseAtDistance !== undefined) continue;
+      this.releaseSwitchLock(index, definition, runtime, tramIndex);
+      if (!runtime.lockedBy || runtime.lockedBy !== tram.id) {
+        this.addEvent("info", `${definition.id} released · ${tram.label} left the line`);
+      }
+    }
+    for (const controller of this.trafficControllers.values()) {
+      controller.queue = controller.queue.filter((request) => request.tramId !== tram.id);
+      if (
+        stored &&
+        controller.activeTramId === tram.id &&
+        controller.activeSignalId &&
+        controller.activeTramEntered &&
+        !controller.activeTramCleared
+      ) {
+        controller.activeTramCleared = true;
+        this.observeTraffic(controller, tram, controller.activeSignalId, true);
+        this.addEvent("ok", `${tram.label} stored · rear clear of ${controller.label}`);
+      }
+    }
+  }
+
+  /** Off the passenger line: a request or grant for it can never be used. */
+  private isOffLine(tram: TramState | undefined) {
+    return !tram || tram.serviceState === "in-depot" || tram.serviceState === "depot-ingress";
   }
 
   private reconcileActiveTrafficOccupancy(controller: TrafficRuntime) {

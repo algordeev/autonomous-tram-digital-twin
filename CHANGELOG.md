@@ -62,6 +62,22 @@ Keep a Changelog; release labels use semantic version numbers.
   scenario and options while keeping the old trams.
 - Experiments exported from the built-in layouts (prototype loop, shared
   corridor, city interchange) were rejected on import as an unknown network.
+- A withdrawn tram kept its claims on the line. Its queued turnout and signal
+  requests are now dropped when it leaves the line, locks on points it never
+  reached are released, and points it crossed are released once it is stored.
+  A crossing grant it never used is released once instead of being requeued
+  for a tram in the depot, and a crossing it entered is reported clear once it
+  is stored rather than latching all-red.
+- A tram rejoining the main line from a depot return track crossed the points
+  without locking them, so they could be thrown under it or claimed by another
+  tram. It now locks them to its leg, waits while another tram holds them, and
+  the points are restored after its rear clears.
+- Curve speed limits ended at the curve's apex, so trams accelerated through
+  the second half of every curve. The limit now holds until the rear of the
+  tram has left the curve, including across a segment end. In a 1-hour run,
+  fleet distance falls 4.3% on İzmir and 2.1% on routes 2 + 21, with energy
+  down 3.7% and 2.6%. The benchmark figures in `docs/EXPERIMENTS.md` predate
+  this change.
 
 ### Added
 
