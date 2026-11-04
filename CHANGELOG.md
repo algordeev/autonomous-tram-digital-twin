@@ -126,6 +126,13 @@ Keep a Changelog; release labels use semantic version numbers.
   document, so it requested the core from the site root (`/wasm/...`, a 404).
   The page now passes the resolved core URL to the worker, and a failed load
   reports its cause.
+- The emergency brake could not reach its stated 2.4 m/s²: it was capped by
+  the 52 kN wheel brakes (about 1.95 m/s² empty, 1.5 m/s² full) and built up
+  at the 0.9 m/s³ comfort jerk, so it took 2.7 s to reach even that. A stop
+  from 40 km/h took 43 m empty and 50 m full. Emergency braking now adds 36 kN
+  of magnetic track brakes and builds up at 5 m/s³: empty or full, it reaches
+  2.4 m/s² within 0.45 s and stops from 40 km/h in 28 m. Service braking is
+  unchanged, and normal running sees no difference.
 - Regenerative braking counted all wheel braking as generator input, without
   the motors' limits: a 52 kN brake at 40 km/h is about 570 kW, against a
   240 kW motor rating, and recovery continued to standstill. Braking is now
@@ -134,7 +141,7 @@ Keep a Changelog; release labels use semantic version numbers.
   and stopping distances are unchanged; only the electric share is generator
   output. Normal service braking is almost all electric, so in 1-hour runs
   generator output falls only 0.6-1.4% and net grid energy rises 0.3-0.9%;
-  an emergency stop from 40 km/h is now about 63% electric instead of 100%.
+  an emergency stop from 40 km/h is now under half electric instead of 100%.
   The energy screen shows friction brake heat. The benchmark figures in
   `docs/EXPERIMENTS.md` predate this change.
 

@@ -27,7 +27,9 @@ All internal values use SI units.
 | Maximum acceleration | 1.15 m/s² | Plausibility-checked public tram range |
 | Service deceleration | 1.25 m/s² | Plausibility-checked public tram range |
 | Emergency deceleration | 2.40 m/s² | Engineering safety model |
+| Magnetic track brakes (emergency only) | 36 kN, four magnets | Engineering assumption, sized for 2.40 m/s² at full load |
 | Maximum jerk | 0.90 m/s³ | Comfort-oriented assumption |
+| Emergency brake build-up | 5 m/s³ (about 0.5 s to full) | Engineering assumption |
 | Drivetrain efficiency | 88% | Engineering assumption |
 | Regeneration conversion | 86% | Engineering assumption |
 | Section receptivity | 82% | Original model assumption |
@@ -51,8 +53,15 @@ E_generator = integral(F_electric · v · dt) · 86%
 E_friction = integral((F_brake − F_electric) · v · dt)   (heat)
 ```
 
-From 40 km/h an empty tram's service stop is about 89% electric and an
-emergency stop about 63%.
+In an emergency the magnetic track brakes add 36 kN of friction on the rail,
+independent of wheel-rail adhesion, and braking builds up at 5 m/s³ instead of
+the 0.9 m/s³ comfort limit. An empty or full tram therefore reaches 2.4 m/s²
+within about 0.5 s and stops from 40 km/h in about 28 m; the 52 kN wheel
+brakes alone would allow only about 1.9 m/s² empty and 1.5 m/s² full.
+
+From 40 km/h an empty tram's service stop is about 89% electric; in an
+emergency the track brakes and the motors' 240 kW limit leave the electric
+share much lower.
 
 The simulator distinguishes:
 

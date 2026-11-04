@@ -8,7 +8,11 @@ export interface TramVehicleParameters {
   maxAccelerationMps2: number;
   serviceDecelerationMps2: number;
   emergencyDecelerationMps2: number;
+  /** Magnetic track brakes, added to the wheel brakes in an emergency only. */
+  trackBrakeForceN: number;
   maxJerkMps3: number;
+  /** Brake build-up rate in an emergency, instead of the comfort jerk. */
+  emergencyJerkMps3: number;
   resistanceA_N: number;
   resistanceB_NsPerM: number;
   resistanceC_Ns2PerM2: number;
@@ -61,7 +65,9 @@ export const REFERENCE_TRAM_PARAMETERS: Readonly<TramVehicleParameters> = {
   maxAccelerationMps2: 1.15,
   serviceDecelerationMps2: 1.25,
   emergencyDecelerationMps2: 2.4,
+  trackBrakeForceN: 36_000,
   maxJerkMps3: 0.9,
+  emergencyJerkMps3: 5,
   resistanceA_N: 1_100,
   resistanceB_NsPerM: 32,
   resistanceC_Ns2PerM2: 2.1,
@@ -138,7 +144,8 @@ export function integrateVehicleDynamics(
   const desiredAcceleration = emergency
     ? -parameters.emergencyDecelerationMps2
     : clampValue(speedError / 1.4, -accelerationLimit, parameters.maxAccelerationMps2);
-  const jerkStep = parameters.maxJerkMps3 * deltaSeconds;
+  const jerkStep =
+    (emergency ? parameters.emergencyJerkMps3 : parameters.maxJerkMps3) * deltaSeconds;
   const requestedAcceleration = clampValue(
     desiredAcceleration,
     currentAcceleration - jerkStep,
@@ -167,7 +174,10 @@ export function integrateVehicleDynamics(
       (tractionForceN - resistanceForceN - gradeForceN) / parameters.massKg;
     if (tractionForceN > resistanceForceN + 1) mode = "traction";
   } else {
-    brakeForceN = Math.min(parameters.maxBrakeForceN, -forceForAcceleration);
+    brakeForceN = Math.min(
+      parameters.maxBrakeForceN + (emergency ? parameters.trackBrakeForceN : 0),
+      -forceForAcceleration,
+    );
     electricBrakeForceN = electricBrakeForce(brakeForceN, speed, parameters);
     accelerationMps2 =
       (-brakeForceN - resistanceForceN - gradeForceN) / parameters.massKg;

@@ -978,7 +978,8 @@ int tram_core_authority_step(int i, double target_speed, int emergency,
                max_power = tram::kMotorPowerLimitW,
                max_acceleration = tram::kMaximumAccelerationMps2,
                service_deceleration = tram::kServiceDecelerationMps2,
-               emergency_deceleration = 2.4, max_jerk = tram::kMaximumJerkMps3;
+               emergency_deceleration = tram::kEmergencyDecelerationMps2,
+               max_jerk = tram::kMaximumJerkMps3;
   const double drivetrain = .88, regen_efficiency = .86, receptivity = .82,
                auxiliary_power = 4500;
   const double speed = v.speed > 0 ? v.speed : 0,
@@ -994,7 +995,8 @@ int tram_core_authority_step(int i, double target_speed, int emergency,
       emergency_brake ? -emergency_deceleration
                       : clampd(error / tram::kSpeedTrackingTimeConstantSeconds,
                                -deceleration, max_acceleration);
-  const double jerk = max_jerk * dt,
+  const double jerk =
+                   (emergency_brake ? tram::kEmergencyJerkMps3 : max_jerk) * dt,
                requested = clampd(desired, current - jerk, current + jerk);
   const double resistance = 1100 * (mass / empty_mass) + 32 * speed +
                             2.1 * speed * speed,
@@ -1012,7 +1014,10 @@ int tram_core_authority_step(int i, double target_speed, int emergency,
     if (traction > resistance + 1)
       mode = 1;
   } else {
-    brake = -required < max_brake ? -required : max_brake;
+    // Track brakes add to the wheel brakes in an emergency only.
+    const double brake_limit =
+        max_brake + (emergency_brake ? tram::kTrackBrakeForceN : 0);
+    brake = -required < brake_limit ? -required : brake_limit;
     electric_brake = electric_brake_force(brake, speed);
     acceleration = (-brake - resistance - grade_force) / mass;
     mode = emergency_brake ? 3 : 2;

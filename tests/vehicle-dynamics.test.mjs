@@ -115,3 +115,25 @@ test("only the electric share of a stop is generator output", () => {
   assert.ok(electricShare < 1, "the friction brake finishes the stop");
   assert.ok(electricShare > 0.8, `a service stop is still mostly electric (${electricShare.toFixed(3)})`);
 });
+
+test("emergency braking reaches 2.4 m/s2 within half a second, empty or full", () => {
+  for (const passengers of [0, 110]) {
+    const massKg = REFERENCE_TRAM_PARAMETERS.massKg + passengers * 75;
+    const parameters = {
+      ...REFERENCE_TRAM_PARAMETERS,
+      massKg,
+      resistanceA_N: REFERENCE_TRAM_PARAMETERS.resistanceA_N * (massKg / REFERENCE_TRAM_PARAMETERS.massKg),
+    };
+    let state = { speedMps: 40 / 3.6, accelerationMps2: 0 };
+    let distanceMeters = 0;
+    let reachedAt = null;
+    for (let step = 1; step <= 600 && state.speedMps > 0; step += 1) {
+      state = integrateVehicleDynamics(state, { targetSpeedMps: 0, emergencyBrake: true }, 0.05, parameters);
+      distanceMeters += state.distanceMeters;
+      assert.ok(-state.accelerationMps2 <= 2.4 + 1e-9);
+      if (reachedAt === null && -state.accelerationMps2 >= 0.99 * 2.4) reachedAt = step * 0.05;
+    }
+    assert.ok(reachedAt !== null && reachedAt <= 0.6, `${passengers} passengers: full braking after ${reachedAt} s`);
+    assert.ok(distanceMeters < 30, `${passengers} passengers: ${distanceMeters.toFixed(1)} m from 40 km/h`);
+  }
+});

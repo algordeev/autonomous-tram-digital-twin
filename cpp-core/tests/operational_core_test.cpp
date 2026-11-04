@@ -78,6 +78,40 @@ int main() {
     assert(tram_core_authority_speed(0) == 0);
     assert(friction_used);
   }
+  // Emergency braking reaches 2.4 m/s2 empty and full, within about 0.5 s,
+  // with track brakes and a fast build-up; service braking keeps 1.25 m/s2
+  // and the comfort jerk.
+  const int passenger_loads[] = {0, 110}, emergency_modes[] = {1, 0};
+  for (const int passengers : passenger_loads) {
+    for (const int emergency : emergency_modes) {
+      assert(tram_core_authority_begin(1) == 1);
+      assert(tram_core_authority_sync(0, 11.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) ==
+             1);
+      double distance = 0, peak = 0, reached = -1, previous = 0;
+      for (int n = 0; n < 600 && tram_core_authority_speed(0) > 1e-9; ++n) {
+        assert(tram_core_authority_step(0, 0, emergency, 0, passengers, .05) ==
+               1);
+        const double deceleration = -tram_core_authority_acceleration(0);
+        distance += tram_core_authority_distance(0);
+        if (deceleration > peak)
+          peak = deceleration;
+        if (reached < 0 && deceleration >= .99 * tram::kEmergencyDecelerationMps2)
+          reached = (n + 1) * .05;
+        if (!emergency && tram_core_authority_speed(0) > .5)
+          assert(deceleration - previous <=
+                 tram::kMaximumJerkMps3 * .05 + 1e-9);
+        previous = deceleration;
+      }
+      if (emergency) {
+        assert(peak <= tram::kEmergencyDecelerationMps2 + 1e-9);
+        assert(reached > 0 && reached <= .6);
+        assert(distance < 30);
+      } else {
+        assert(peak <= tram::kServiceDecelerationMps2 + 1e-9);
+        assert(distance > 40);
+      }
+    }
+  }
   // Native and WASM share reset semantics and reject invalid time steps.
   assert(tram_core_step(nullptr, 0) == 0);
   assert(tram_core_step(nullptr, 1.1) == 0);

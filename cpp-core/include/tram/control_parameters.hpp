@@ -6,6 +6,13 @@ inline constexpr double kServiceDecelerationMps2 = 1.25;
 inline constexpr double kApproachDecelerationMps2 = 0.72;
 inline constexpr double kMaximumAccelerationMps2 = 1.15;
 inline constexpr double kMaximumJerkMps3 = 0.9;
+// Emergency braking adds magnetic track brakes (four magnets of about 9 kN,
+// independent of wheel-rail adhesion) to the 52 kN wheel brakes, sized so a
+// full tram still reaches the stated deceleration. It builds up in about
+// 0.5 s rather than at the 0.9 m/s3 comfort jerk.
+inline constexpr double kEmergencyDecelerationMps2 = 2.4;
+inline constexpr double kTrackBrakeForceN = 36000.0;
+inline constexpr double kEmergencyJerkMps3 = 5.0;
 // The traction motors provide the electric (regenerative) brake. It is limited
 // by the same 32 kN force and 240 kW rating as traction, and fades out between
 // these speeds (7.2 and 1.8 km/h); friction brakes supply the rest of the
