@@ -271,20 +271,38 @@ export function initializeCppRuntimeFromBytes(bytes: BufferSource) {
   return WebAssembly.instantiate(bytes, {}).then(({ instance }) => acceptCppRuntime(instance));
 }
 
-export function initializeCppRuntime() {
-  if (cppExports) return Promise.resolve(true);
-  if (loading) return loading;
-  const wasmUrl = typeof document === "undefined"
+/**
+ * Where the page serves the C++ core. Only a page can resolve it: a worker has
+ * no document, and an absolute "/wasm/..." misses the app when it is hosted
+ * under a sub-path such as GitHub Pages, so a worker is handed this URL.
+ */
+export function defaultCppWasmUrl() {
+  return typeof document === "undefined"
     ? "/wasm/tram-core.wasm"
     : new URL(`${import.meta.env.BASE_URL}wasm/tram-core.wasm`, document.baseURI).toString();
+}
+
+/** Why the last initializeCppRuntime() failed, for diagnostics. */
+export let cppRuntimeLoadError: string | null = null;
+
+export function initializeCppRuntime(wasmUrl = defaultCppWasmUrl()) {
+  if (cppExports) return Promise.resolve(true);
+  if (loading) return loading;
   loading = fetch(wasmUrl)
     .then((response) => {
-      if (!response.ok) throw new Error(`C++ core HTTP ${response.status}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status} for ${wasmUrl}`);
       return response.arrayBuffer();
     })
     .then((bytes) => WebAssembly.instantiate(bytes, {}))
-    .then(({ instance }) => acceptCppRuntime(instance))
-    .catch(() => false);
+    .then(({ instance }) => {
+      const accepted = acceptCppRuntime(instance);
+      cppRuntimeLoadError = accepted ? null : "ABI version mismatch";
+      return accepted;
+    })
+    .catch((error) => {
+      cppRuntimeLoadError = error instanceof Error ? error.message : String(error);
+      return false;
+    });
   return loading;
 }
 

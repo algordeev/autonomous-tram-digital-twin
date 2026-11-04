@@ -14,6 +14,7 @@ import {
 import {
   SCENARIOS,
   SimulationEngine,
+  defaultCppWasmUrl,
   initializeCppRuntime,
   isCppRuntimeReady,
   sampleTrackSegment,
@@ -1808,6 +1809,7 @@ function EnergyStatisticsWindow({
       worker.terminate();
     };
     worker.postMessage({
+      wasmUrl: defaultCppWasmUrl(),
       scenarioId: snapshot.scenarioId,
       tramCount: Math.min(6, snapshot.trams.length),
       durationSeconds: 600,

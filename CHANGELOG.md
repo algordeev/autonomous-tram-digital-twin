@@ -121,6 +121,11 @@ Keep a Changelog; release labels use semantic version numbers.
   C++-only change replaces the cached core; and an open page reloads once when
   an updated service worker takes over. Browsers still on the old service
   worker need one more reload after this update.
+- "C++ energy core could not be loaded" in the energy comparison whenever the
+  app was hosted under a sub-path, as on GitHub Pages: a worker has no
+  document, so it requested the core from the site root (`/wasm/...`, a 404).
+  The page now passes the resolved core URL to the worker, and a failed load
+  reports its cause.
 - Regenerative braking counted all wheel braking as generator input, without
   the motors' limits: a 52 kN brake at 40 km/h is about 570 kW, against a
   240 kW motor rating, and recovery continued to standstill. Braking is now
