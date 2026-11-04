@@ -1811,7 +1811,13 @@ function EnergyStatisticsWindow({
     worker.postMessage({
       wasmUrl: defaultCppWasmUrl(),
       scenarioId: snapshot.scenarioId,
-      tramCount: Math.min(6, snapshot.trams.length),
+      // The fleet as configured, group by group: a bare count would stack
+      // grouped networks' trams on one start point.
+      tramCount: snapshot.trams.length,
+      fleetGroups: snapshot.fleetGroups.length
+        ? Object.fromEntries(snapshot.fleetGroups.map((group) => [group.id, group.count]))
+        : undefined,
+      warmUpSeconds: 300,
       durationSeconds: 600,
       startServiceMinute: hours * 60 + minutes,
     });
@@ -1861,7 +1867,7 @@ function EnergyStatisticsWindow({
           <header>
             <div>
               <span>CONTROLLED A/B/C EXPERIMENT</span>
-              <strong id="energy-comparison-title">Same six-tram reference fleet · same clock · 10 simulated minutes</strong>
+              <strong id="energy-comparison-title">Current {snapshot.trams.length}-tram fleet · same clock · 5 min warm-up, 10 min measured</strong>
             </div>
             <button type="button" onClick={runComparison} disabled={comparisonRunning}>
               {comparisonRunning ? "Running three cases…" : comparison ? "Run again" : "Run comparison"}
@@ -1870,7 +1876,7 @@ function EnergyStatisticsWindow({
           {comparison ? (
             <div className="energy-comparison-table" role="table" aria-label="Energy strategy comparison">
               <div className="energy-comparison-row energy-comparison-head" role="row">
-                <span>Strategy</span><span>Grid</span><span>Peak</span><span>Rejected</span><span>Energy/km saved</span><span>Peak cut</span>
+                <span>Strategy</span><span title="Grid supply corrected for the change in flywheel charge">Grid (charge-adjusted)</span><span>Peak</span><span>Rejected</span><span>Energy/km saved</span><span>Peak cut</span>
               </div>
               {comparison.rows.map((row) => (
                 <div className={`energy-comparison-row ${row.energySavingPercent === Math.max(...comparison.rows.map((item) => item.energySavingPercent)) ? "is-best" : ""}`} role="row" key={row.strategy}>
@@ -1882,7 +1888,7 @@ function EnergyStatisticsWindow({
                         : `${row.departureAdherencePercent.toFixed(0)}% timed departures · ${row.scheduledDepartures} recorded · ${row.meanDepartureDeviationSeconds?.toFixed(0) ?? "—"}s mean deviation`}
                     </small>
                   </strong>
-                  <span>{formatEnergy(row.gridSupplyKWh)}</span>
+                  <span title={`Metered ${formatEnergy(row.gridSupplyKWh)} · flywheels ${formatEnergy(row.flywheelStartKWh)} → ${formatEnergy(row.flywheelEndKWh)}`}>{formatEnergy(row.socCorrectedGridKWh)}</span>
                   <span>{formatPower(row.peakGridPowerKw)}</span>
                   <span>{formatEnergy(row.rejectedRegenerationKWh)}</span>
                   <b>{row.strategy === "no-storage" ? "reference" : `${row.energySavingPercent >= 0 ? "+" : ""}${row.energySavingPercent.toFixed(1)}%`}</b>
@@ -1891,7 +1897,7 @@ function EnergyStatisticsWindow({
               ))}
             </div>
           ) : (
-            <p>Runs identical starting conditions without storage, with reactive flywheels, and with forecast SOC plus section peak dispatch. Speed-target eco-coasting is withheld after service-quality validation; energy remains normalized per vehicle-kilometre.</p>
+            <p>Runs identical starting conditions without storage, with reactive flywheels, and with forecast SOC plus section peak dispatch. The start-up wave is excluded by a warm-up, energy is normalized per vehicle-kilometre, and grid energy is corrected for the change in flywheel charge.</p>
           )}
           {comparisonError && <p className="energy-comparison-error">{comparisonError}</p>}
           <small>Results are simulation estimates, not measurements from the real İzmir or Nizhny Novgorod traction network.</small>

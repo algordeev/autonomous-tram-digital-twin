@@ -14,6 +14,9 @@ npm run simulate:headless -- \
   --output outputs/nizhny-0800.json
 ```
 
+On a network with fleet groups, `--tram-count` is spread over the groups, so
+the trams keep their groups' start positions, directions and routes.
+
 The report schema is versioned as `schemaVersion: 1` and contains:
 
 - the core that ran it (`coreRuntime`: `cpp-wasm`, as in the browser, or
@@ -34,12 +37,25 @@ The report schema is versioned as `schemaVersion: 1` and contains:
 2. reactive flywheel storage;
 3. predictive SOC and peak dispatch.
 
-Energy saving is calculated using grid energy per vehicle-kilometre, not raw
-grid kWh, so small strategy-dependent distance differences do not bias the
-comparison.
+Each case uses the network's configured fleet (its fleet groups, start
+positions and directions), runs a warm-up, and is measured over a following
+window only, so the start-up wave of every tram leaving its start position is
+not what is compared. The peak is the network grid-power peak inside that
+window.
+
+Energy left in the flywheels when the window ends is not yet a saving, and a
+bank drained during the window was not free, so grid energy is corrected by
+the change in stored energy: a gain is credited at the discharge efficiency
+(what it will later displace), a loss is charged at the charge efficiency (what
+it costs to restore). Energy saving then uses grid energy per
+vehicle-kilometre, so small strategy-dependent distance differences do not
+bias the comparison.
 
 ```text
-grid Wh/vkm = grid supply Wh / simulated vehicle distance km
+ΔE = flywheel energy at window end - at window start
+grid* = grid supply - ΔE·η_discharge   (ΔE ≥ 0)
+grid* = grid supply - ΔE / η_charge    (ΔE < 0)
+grid Wh/vkm = grid* Wh / simulated vehicle distance km
 energy saving = (reference - strategy) / reference · 100%
 peak reduction = (reference peak - strategy peak) / reference peak · 100%
 ```
@@ -48,36 +64,37 @@ peak reduction = (reference peak - strategy peak) / reference peak · 100%
 
 ![Energy and peak-power benchmark](assets/energy-benchmark.svg)
 
-Ten simulated minutes, service start 08:00. Regenerate the table with
+Each network's default fleet, service from 08:00, a 10-minute warm-up and a
+60-minute measured window. Regenerate the table with
 `npm run benchmark:energy`, and the chart with
-`npm run benchmark:energy -- --write-chart`:
+`npm run benchmark:energy -- --write-chart` (about three minutes):
 
-| Scenario and controller | Grid-energy saving | Peak-power reduction | Notes |
-| --- | ---: | ---: | --- |
-| İzmir, 14 trams, reactive | 9.9% | 0.7% | Flywheel only, no traction guidance |
-| İzmir, 14 trams, predictive | 9.9% | 0.7% | 4 interventions |
-| Nizhny 2+21, 12 trams, reactive | 12.6% | 6.5% | Flywheel only, no traction guidance |
-| Nizhny 2+21, 12 trams, predictive | 12.1% | 23.5% | 66 interventions |
-| Nizhny Route 2, 10 trams, reactive | 10.7% | 40.7% | Flywheel only, no traction guidance |
-| Nizhny Route 2, 10 trams, predictive | 9.7% | 47.5% | 52 interventions |
+| Scenario and controller | Grid-energy saving | Peak-power reduction | Flywheel charge, start → end | Notes |
+| --- | ---: | ---: | ---: | --- |
+| İzmir, 14 trams, reactive | 22.0% | 12.2% | 7.7 → 7.8 kWh | Flywheel only, no traction guidance |
+| İzmir, 14 trams, predictive | 21.8% | 14.5% | 7.7 → 7.8 kWh | 166 interventions |
+| Nizhny 2+21, 10 trams, reactive | 23.1% | 9.7% | 15.2 → 16.3 kWh | Flywheel only, no traction guidance |
+| Nizhny 2+21, 10 trams, predictive | 23.1% | 8.7% | 15.2 → 16.3 kWh | 89 interventions |
+| Nizhny Route 2, 10 trams, reactive | 23.9% | 36.2% | 15.4 → 15.5 kWh | Flywheel only, no traction guidance |
+| Nizhny Route 2, 10 trams, predictive | 23.8% | 28.5% | 16.1 → 15.9 kWh | 127 interventions |
 
 These are simulator outputs, not measured savings for either real operator.
 
-The İzmir peak figures are not a controller result. With a fixed tram count the
-comparison ignores the configured fleet groups and starts all 14 trams from one
-point in the Alsancak section, so the ten minutes cover a single dispatch wave.
-The network peak is the sum of six sections, and no section reaches the 480 kW
-threshold (24% of its 2,000 kW substation) above which İzmir flywheels
-discharge, so the peak is decided by whether two trams happen to accelerate
-together. When stop braking changed, this moved the reactive figure from 24.4%
-to 0.7% and the predictive figure from -6.2% to 0.7%. The İzmir energy figures
-are unaffected.
+The predictive controller does not improve on reactive flywheels: energy
+savings are equal within 0.2 points, it cuts the İzmir peak slightly more and
+the Nizhny peaks less (on Route 2, 28.5% against 36.2%). Its traction guidance
+should not be presented as a benefit until it beats the reactive case.
 
-The previous figures were 10.6%/24.4%, 10.6%/-6.2%, 10.3%/6.5%, 9.8%/23.5%,
-10.5%/40.7% and 8.6%/47.5% (energy saving / peak reduction, same row order).
-They changed when trams began braking to stop points instead of stopping in
-one step, and when a fully charged flywheel stopped throttling accelerating
-trams.
+Earlier figures (10.6% and 24.4% for İzmir, for example) are not comparable and
+were withdrawn. They covered ten minutes from a cold start, so the start-up
+wave dominated; the İzmir case started all 14 trams from one point because a
+fixed tram count bypassed its fleet groups; Nizhny 2+21 stacked 12 trams on 10
+start positions; and energy still stored in the flywheels at the end was
+ignored (on Nizhny 2+21, more than the claimed saving). They also predate the
+model corrections of this release: braking to stop points, curve and turnout
+limits held through the curve, no acceleration during stop approaches,
+corrected depot exits and passenger loads, blended electric and friction
+braking, and track brakes for emergency stops.
 
 ## Service metrics
 

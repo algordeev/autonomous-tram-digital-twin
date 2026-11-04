@@ -76,8 +76,7 @@ Keep a Changelog; release labels use semantic version numbers.
   the second half of every curve. The limit now holds until the rear of the
   tram has left the curve, including across a segment end. In a 1-hour run,
   fleet distance falls 4.3% on İzmir and 2.1% on routes 2 + 21, with energy
-  down 3.7% and 2.6%. The benchmark figures in `docs/EXPERIMENTS.md` predate
-  this change.
+  down 3.7% and 2.6%.
 - Trams sped up after starting a stop approach and then braked: the platform
   envelope replaced the target instead of capping it, eco-driving aimed for a
   16 km/h crossing of the detector 160 m before the platform, and a tram slowed
@@ -133,6 +132,20 @@ Keep a Changelog; release labels use semantic version numbers.
   of magnetic track brakes and builds up at 5 m/s³: empty or full, it reaches
   2.4 m/s² within 0.45 s and stops from 40 km/h in 28 m. Service braking is
   unchanged, and normal running sees no difference.
+- The energy benchmark was not a fair comparison. A fixed tram count bypassed
+  the fleet groups, so all 14 İzmir trams started from one point and Nizhny
+  2+21 stacked 12 trams on 10 start positions; ten minutes from a cold start
+  measured mostly the start-up wave; and energy still stored in the flywheels
+  at the end was ignored (on Nizhny 2+21, more than the claimed saving). The
+  comparison now uses each network's fleet groups (`setFleetSize` spreads a
+  plain count over them, also for `--tram-count`), measures a window after a
+  warm-up with the peak taken inside it, and corrects grid energy for the
+  change in flywheel charge. The benchmark (10-minute warm-up, 60 minutes
+  measured) and its chart are regenerated with all corrections in this
+  release: about 22-24% grid-energy saving on every network, with the
+  predictive controller no better than reactive flywheels. The in-app
+  comparison uses the current fleet with a 5-minute warm-up and 10 measured
+  minutes.
 - Regenerative braking counted all wheel braking as generator input, without
   the motors' limits: a 52 kN brake at 40 km/h is about 570 kW, against a
   240 kW motor rating, and recovery continued to standstill. Braking is now
@@ -142,8 +155,7 @@ Keep a Changelog; release labels use semantic version numbers.
   output. Normal service braking is almost all electric, so in 1-hour runs
   generator output falls only 0.6-1.4% and net grid energy rises 0.3-0.9%;
   an emergency stop from 40 km/h is now under half electric instead of 100%.
-  The energy screen shows friction brake heat. The benchmark figures in
-  `docs/EXPERIMENTS.md` predate this change.
+  The energy screen shows friction brake heat.
 
 ### Added
 

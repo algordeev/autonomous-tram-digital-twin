@@ -9,6 +9,8 @@ interface ComparisonRequest {
   wasmUrl: string;
   scenarioId: string;
   tramCount: number;
+  fleetGroups?: Record<string, number>;
+  warmUpSeconds: number;
   durationSeconds: number;
   startServiceMinute: number;
 }

@@ -5,14 +5,17 @@ import {
   runEnergyComparison,
 } from "../src/simulation-core/index.ts";
 
-// Reproduces the benchmark in docs/EXPERIMENTS.md: ten simulated minutes from
-// 08:00, each energy strategy compared against the no-storage reference.
+// Reproduces the benchmark in docs/EXPERIMENTS.md: each network's own fleet
+// (its fleet groups, start positions and directions), service from 08:00, a
+// 10-minute warm-up and a 60-minute measured window, each energy strategy
+// compared against the no-storage reference.
 const BENCHMARKS = [
-  { scenarioId: "izmir-konak", label: "İzmir", tramCount: 14 },
-  { scenarioId: "nizhny-routes-2-21", label: "Nizhny 2+21", tramCount: 12 },
-  { scenarioId: "nizhny-route-2", label: "Nizhny Route 2", tramCount: 10 },
+  { scenarioId: "izmir-konak", label: "İzmir" },
+  { scenarioId: "nizhny-routes-2-21", label: "Nizhny 2+21" },
+  { scenarioId: "nizhny-route-2", label: "Nizhny Route 2" },
 ];
-const DURATION_SECONDS = 600;
+const WARM_UP_SECONDS = 600;
+const DURATION_SECONDS = 3600;
 const START_SERVICE_MINUTE = 480;
 const CHART_PATH = new URL("../docs/assets/energy-benchmark.svg", import.meta.url);
 
@@ -29,16 +32,19 @@ const results = [];
 for (const benchmark of BENCHMARKS) {
   const report = runEnergyComparison({
     scenarioId: benchmark.scenarioId,
-    tramCount: benchmark.tramCount,
+    warmUpSeconds: WARM_UP_SECONDS,
     durationSeconds: DURATION_SECONDS,
     startServiceMinute: START_SERVICE_MINUTE,
   });
   for (const row of report.rows.filter((item) => item.strategy !== "no-storage")) {
     results.push({
       ...benchmark,
+      tramCount: report.tramCount,
       controller: row.strategy === "baseline" ? "reactive" : "predictive",
       energySavingPercent: row.energySavingPercent,
       peakReductionPercent: row.peakReductionPercent,
+      flywheelStartKWh: row.flywheelStartKWh,
+      flywheelEndKWh: row.flywheelEndKWh,
       interventions: row.interventions,
     });
   }
@@ -50,11 +56,11 @@ const note = (result) =>
     ? "Flywheel only, no traction guidance"
     : `${result.interventions} intervention${result.interventions === 1 ? "" : "s"}${result.peakReductionPercent < 0 ? "; peak logic requires tuning" : ""}`;
 
-console.log("| Scenario and controller | Grid-energy saving | Peak-power reduction | Notes |");
-console.log("| --- | ---: | ---: | --- |");
+console.log("| Scenario and controller | Grid-energy saving | Peak-power reduction | Flywheel charge, start → end | Notes |");
+console.log("| --- | ---: | ---: | ---: | --- |");
 for (const result of results) {
   console.log(
-    `| ${result.label}, ${result.tramCount} trams, ${result.controller} | ${percent(result.energySavingPercent)} | ${percent(result.peakReductionPercent)} | ${note(result)} |`,
+    `| ${result.label}, ${result.tramCount} trams, ${result.controller} | ${percent(result.energySavingPercent)} | ${percent(result.peakReductionPercent)} | ${result.flywheelStartKWh.toFixed(1)} → ${result.flywheelEndKWh.toFixed(1)} kWh | ${note(result)} |`,
   );
 }
 
@@ -142,7 +148,7 @@ function renderChart(rows) {
     );
   });
   const footnotes = [
-    `${DURATION_SECONDS / 60} simulated minutes from ${String(START_SERVICE_MINUTE / 60).padStart(2, "0")}:00 · npm run benchmark:energy`,
+    `Default fleets from ${String(START_SERVICE_MINUTE / 60).padStart(2, "0")}:00 · ${WARM_UP_SECONDS / 60} min warm-up, ${DURATION_SECONDS / 60} min measured · grid energy corrected for flywheel charge · npm run benchmark:energy`,
   ];
   if (rows.some((row) => row.peakReductionPercent < 0)) {
     footnotes.push("A negative peak value identifies a tuning problem, not an improvement.");

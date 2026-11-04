@@ -81,3 +81,39 @@ test("the headless CLI runs on the C++ core and simulates the traction-power net
   assert.ok(power.gridSupplyKWh > 0, "substations must supply the trams' demand");
   assert.ok(power.peakGridPowerKw > 0);
 });
+
+test("a plain fleet size is spread over the fleet groups instead of one start point", () => {
+  const engine = new SimulationEngine("izmir-konak");
+  engine.setFleetSize(14);
+  const positions = new Set(engine.getSnapshot().trams.map((tram) => `${tram.segmentId}@${tram.progress}`));
+  assert.equal(positions.size, 14);
+  assert.deepEqual(engine.getFleetGroupCounts(), { "konak-to-faltay": 7, "konak-to-halkapinar": 7 });
+
+  const report = runHeadlessSimulation({ scenarioId: "izmir-konak", tramCount: 6, durationSeconds: 1 });
+  assert.equal(report.routeOperations.reduce((sum, route) => sum + route.totalFleet, 0), 6);
+});
+
+test("the energy comparison measures a window after warm-up and credits stored flywheel energy", async () => {
+  await initializeCppRuntimeFromBytes(await readFile(new URL("../public/wasm/tram-core.wasm", import.meta.url)));
+  const report = runEnergyComparison({
+    scenarioId: "izmir-konak",
+    tramCount: 6,
+    startServiceMinute: 480,
+    warmUpSeconds: 60,
+    durationSeconds: 120,
+  });
+  assert.equal(report.tramCount, 6);
+  assert.deepEqual(report.fleetGroups, { "konak-to-faltay": 3, "konak-to-halkapinar": 3 });
+  const [reference, reactive] = report.rows;
+  assert.equal(reference.flywheelStartKWh, 0);
+  assert.equal(reference.socCorrectedGridKWh, reference.gridSupplyKWh);
+  // Charge gained in the window is credited at the discharge efficiency.
+  const gained = reactive.flywheelEndKWh - reactive.flywheelStartKWh;
+  const expected = reactive.gridSupplyKWh - (gained >= 0 ? gained * 0.95 : gained / 0.95);
+  assert.ok(Math.abs(reactive.socCorrectedGridKWh - expected) < 1e-9);
+  for (const row of report.rows) {
+    // Six trams for two minutes at under 70 km/h: the warm-up is not counted.
+    assert.ok(row.distanceKm > 0 && row.distanceKm < 6 * (120 / 3600) * 70);
+    assert.ok(row.peakGridPowerKw > 0);
+  }
+});

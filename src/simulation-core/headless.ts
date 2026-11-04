@@ -9,7 +9,10 @@ import { isCppRuntimeReady } from "./cpp-runtime.ts";
 
 export interface HeadlessSimulationOptions {
   scenarioId?: string;
+  /** Spread over the network's fleet groups, as setFleetSize does. */
   tramCount?: number;
+  /** Trams per fleet group; takes precedence over tramCount. */
+  fleetGroups?: Record<string, number>;
   durationSeconds: number;
   startServiceMinute?: number;
   sampleEverySeconds?: number;
@@ -42,6 +45,42 @@ export interface HeadlessSimulationReport {
 
 const cloneMetrics = (metrics: SimulationMetrics): SimulationMetrics => ({ ...metrics });
 
+/** Engine with the requested fleet, strategy and service clock, ready to run. */
+function createHeadlessEngine(options: {
+  scenarioId?: string;
+  tramCount?: number;
+  fleetGroups?: Record<string, number>;
+  startServiceMinute?: number;
+  energyStrategy?: "no-storage" | "baseline" | "network-optimal";
+}) {
+  const engine = new SimulationEngine(options.scenarioId);
+  const groupsApplied = options.fleetGroups
+    ? engine.setFleetGroupCounts(options.fleetGroups)
+    : false;
+  if (!groupsApplied && options.tramCount !== undefined) {
+    engine.setFleetSize(options.tramCount);
+  }
+  if (options.energyStrategy) engine.setEnergyStrategy(options.energyStrategy);
+  if (options.startServiceMinute !== undefined) {
+    engine.setServiceClockMinutes(options.startServiceMinute);
+  }
+  engine.setSimulationRate(5);
+  engine.setRunning(true);
+  return engine;
+}
+
+/** Advances by exactly `seconds` of simulated time in deterministic batches. */
+function advanceHeadless(engine: SimulationEngine, seconds: number, onBatch?: (elapsed: number) => void) {
+  const fixedBatchSeconds = 0.5;
+  let elapsedSeconds = 0;
+  while (elapsedSeconds + 1e-9 < seconds) {
+    const simulatedBatch = Math.min(fixedBatchSeconds, seconds - elapsedSeconds);
+    engine.step(simulatedBatch / 5);
+    elapsedSeconds += simulatedBatch;
+    onBatch?.(elapsedSeconds);
+  }
+}
+
 const cloneRouteOperations = (
   operations: RouteOperationsSnapshot[],
 ): RouteOperationsSnapshot[] => operations.map((item) => ({ ...item }));
@@ -57,27 +96,14 @@ export function runHeadlessSimulation(
     throw new Error("durationSeconds must be positive");
   }
 
-  const engine = new SimulationEngine(options.scenarioId, options.tramCount);
-  if (options.energyStrategy) engine.setEnergyStrategy(options.energyStrategy);
-  if (options.startServiceMinute !== undefined) {
-    engine.setServiceClockMinutes(options.startServiceMinute);
-  }
-  engine.setSimulationRate(5);
-  engine.setRunning(true);
+  const engine = createHeadlessEngine(options);
 
   const start = engine.getSnapshot();
   const sampleEvery = Math.max(1, options.sampleEverySeconds ?? 60);
   const samples: HeadlessSample[] = [];
-  const fixedBatchSeconds = 0.5;
-  let elapsedSeconds = 0;
   let nextSampleAt = sampleEvery;
 
-  while (elapsedSeconds + 1e-9 < options.durationSeconds) {
-    const remaining = options.durationSeconds - elapsedSeconds;
-    const simulatedBatch = Math.min(fixedBatchSeconds, remaining);
-    engine.step(simulatedBatch / 5);
-    elapsedSeconds += simulatedBatch;
-
+  advanceHeadless(engine, options.durationSeconds, (elapsedSeconds) => {
     if (elapsedSeconds + 1e-9 >= nextSampleAt) {
       const snapshot = engine.getSnapshot();
       samples.push({
@@ -88,7 +114,7 @@ export function runHeadlessSimulation(
       });
       nextSampleAt += sampleEvery;
     }
-  }
+  });
 
   const finalSnapshot: SimulationSnapshot = engine.getSnapshot();
   const eventCounts = { info: 0, ok: 0, warning: 0, danger: 0 };
@@ -114,7 +140,13 @@ export function runHeadlessSimulation(
 export interface EnergyComparisonRow {
   strategy: "no-storage" | "baseline" | "network-optimal";
   label: string;
+  /** Grid supply during the measured window, as metered. */
   gridSupplyKWh: number;
+  /** Grid supply corrected for the change in flywheel charge over the window. */
+  socCorrectedGridKWh: number;
+  flywheelStartKWh: number;
+  flywheelEndKWh: number;
+  /** Network grid-power peak within the measured window (start-up excluded). */
   peakGridPowerKw: number;
   rejectedRegenerationKWh: number;
   localReuseKWh: number;
@@ -132,86 +164,107 @@ export interface EnergyComparisonRow {
 
 export interface EnergyComparisonReport {
   scenarioId: string;
+  warmUpSeconds: number;
   durationSeconds: number;
   tramCount: number;
+  fleetGroups: Record<string, number> | null;
   rows: EnergyComparisonRow[];
 }
 
-/** Runs identical deterministic service for all three energy-control cases. */
+/**
+ * Runs identical deterministic service for all three energy-control cases and
+ * compares them over a measured window after a warm-up, so the start-up wave
+ * of every tram leaving its start position is not what is measured.
+ *
+ * Flywheel charge at the end of the window is not a saving yet and a drained
+ * bank is not free: the grid figure is corrected by the change in stored
+ * energy, valued at the discharge efficiency when the bank gained energy and
+ * at the charge efficiency when it lost energy.
+ */
 export function runEnergyComparison(options: {
   scenarioId: string;
-  tramCount: number;
+  /** Spread over the network's fleet groups; the default fleet when omitted. */
+  tramCount?: number;
+  fleetGroups?: Record<string, number>;
   durationSeconds?: number;
+  warmUpSeconds?: number;
   startServiceMinute?: number;
 }): EnergyComparisonReport {
   const durationSeconds = options.durationSeconds ?? 600;
+  const warmUpSeconds = options.warmUpSeconds ?? 300;
   const variants = [
     ["no-storage", "No wayside storage"],
     ["baseline", "Flywheel · reactive"],
     ["network-optimal", "Predictive SOC + peak dispatch"],
   ] as const;
+  let tramCount = 0;
+  let fleetGroups: Record<string, number> | null = null;
   const raw = variants.map(([strategy, label]) => {
-    const report = runHeadlessSimulation({
-      scenarioId: options.scenarioId,
-      tramCount: options.tramCount,
-      durationSeconds,
-      startServiceMinute: options.startServiceMinute,
-      sampleEverySeconds: durationSeconds,
-      energyStrategy: strategy,
-    });
+    const engine = createHeadlessEngine({ ...options, energyStrategy: strategy });
+    tramCount = engine.getSnapshot().trams.length;
+    fleetGroups = engine.getFleetGroupCounts();
+    advanceHeadless(engine, warmUpSeconds);
+    const before = engine.getSnapshot();
+    engine.resetGridPeakWindow();
+    advanceHeadless(engine, durationSeconds);
+    const after = engine.getSnapshot();
+
+    const powerBefore = before.energyStatistics.powerSystem;
+    const power = after.energyStatistics.powerSystem;
+    const delta = (key: "gridSupplyKWh" | "rejectedGeneratorKWh" | "localReuseKWh" | "flywheelLossesKWh" | "interventions") =>
+      power[key] - powerBefore[key];
+    const flywheel = engine.scenario.tractionPowerSystem?.sections.find((section) => section.flywheel)?.flywheel;
+    const storedChangeKWh = power.flywheelStoredKWh - powerBefore.flywheelStoredKWh;
+    const storageCorrectionKWh = storedChangeKWh >= 0
+      ? storedChangeKWh * (flywheel?.dischargeEfficiency ?? 1)
+      : storedChangeKWh / (flywheel?.chargeEfficiency ?? 1);
+    const gridSupplyKWh = delta("gridSupplyKWh");
+    const distanceKm = after.energyStatistics.total.distanceKm - before.energyStatistics.total.distanceKm;
+    const departuresBefore = before.metrics.scheduledDepartures;
+    const departures = after.metrics.scheduledDepartures - departuresBefore;
+    const onTime = (snapshot: SimulationSnapshot) =>
+      ((snapshot.metrics.departureAdherencePercent ?? 0) / 100) * snapshot.metrics.scheduledDepartures;
+    const deviation = (snapshot: SimulationSnapshot) =>
+      (snapshot.metrics.meanDepartureDeviationSeconds ?? 0) * snapshot.metrics.scheduledDepartures;
     return {
       strategy,
       label,
-      power: report.energyStatistics.powerSystem,
-      distanceKm: report.energyStatistics.total.distanceKm,
-      averageSpeedKmh: report.finalMetrics.averageSpeedKmh,
-      scheduledDepartures: report.finalMetrics.scheduledDepartures,
-      departureAdherencePercent: report.finalMetrics.departureAdherencePercent,
-      meanDepartureDeviationSeconds: report.finalMetrics.meanDepartureDeviationSeconds,
+      gridSupplyKWh,
+      socCorrectedGridKWh: gridSupplyKWh - storageCorrectionKWh,
+      flywheelStartKWh: powerBefore.flywheelStoredKWh,
+      flywheelEndKWh: power.flywheelStoredKWh,
+      peakGridPowerKw: engine.getWindowPeakGridPowerKw(),
+      rejectedRegenerationKWh: delta("rejectedGeneratorKWh"),
+      localReuseKWh: delta("localReuseKWh"),
+      flywheelLossesKWh: delta("flywheelLossesKWh"),
+      interventions: delta("interventions"),
+      distanceKm,
+      averageSpeedKmh: tramCount > 0 ? distanceKm / tramCount / (durationSeconds / 3600) : 0,
+      scheduledDepartures: departures,
+      departureAdherencePercent: departures > 0 ? ((onTime(after) - onTime(before)) / departures) * 100 : null,
+      meanDepartureDeviationSeconds: departures > 0 ? (deviation(after) - deviation(before)) / departures : null,
     };
   });
   const reference = raw[0];
   const normalizedGridWh = (gridKWh: number, distanceKm: number) =>
     distanceKm > 0 ? (gridKWh * 1000) / distanceKm : 0;
-  const referenceGridWhPerKm = normalizedGridWh(
-    reference.power.gridSupplyKWh,
-    reference.distanceKm,
-  );
+  const referenceGridWhPerKm = normalizedGridWh(reference.socCorrectedGridKWh, reference.distanceKm);
   const percentReduction = (value: number, baseline: number) =>
     baseline > 0 ? ((baseline - value) / baseline) * 100 : 0;
   return {
     scenarioId: options.scenarioId,
+    warmUpSeconds,
     durationSeconds,
-    tramCount: options.tramCount,
-    rows: raw.map(({
-      strategy,
-      label,
-      power,
-      distanceKm,
-      averageSpeedKmh,
-      scheduledDepartures,
-      departureAdherencePercent,
-      meanDepartureDeviationSeconds,
-    }) => ({
-      strategy,
-      label,
-      gridSupplyKWh: power.gridSupplyKWh,
-      peakGridPowerKw: power.peakGridPowerKw,
-      rejectedRegenerationKWh: power.rejectedGeneratorKWh,
-      localReuseKWh: power.localReuseKWh,
-      flywheelLossesKWh: power.flywheelLossesKWh,
-      interventions: power.interventions,
-      distanceKm,
-      averageSpeedKmh,
-      scheduledDepartures,
-      departureAdherencePercent,
-      meanDepartureDeviationSeconds,
-      gridWhPerVehicleKm: normalizedGridWh(power.gridSupplyKWh, distanceKm),
+    tramCount,
+    fleetGroups,
+    rows: raw.map((row) => ({
+      ...row,
+      gridWhPerVehicleKm: normalizedGridWh(row.socCorrectedGridKWh, row.distanceKm),
       energySavingPercent: percentReduction(
-        normalizedGridWh(power.gridSupplyKWh, distanceKm),
+        normalizedGridWh(row.socCorrectedGridKWh, row.distanceKm),
         referenceGridWhPerKm,
       ),
-      peakReductionPercent: percentReduction(power.peakGridPowerKw, reference.power.peakGridPowerKw),
+      peakReductionPercent: percentReduction(row.peakGridPowerKw, reference.peakGridPowerKw),
     })),
   };
 }

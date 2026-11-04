@@ -1584,6 +1584,8 @@ export class SimulationEngine {
   private powerSectionRuntime = new Map<string, PowerSectionRuntime>();
   private energyInterventions = 0;
   private peakNetworkGridPowerKw = 0;
+  /** Network grid-power peak since resetGridPeakWindow(), for measured windows. */
+  private windowPeakGridPowerKw = 0;
 
   constructor(scenarioId = "nizhny-routes-2-21", tramCount?: number) {
     this.scenarioDefinition =
@@ -1789,6 +1791,61 @@ export class SimulationEngine {
       selectedTramId: typeof experiment.selectedTramId === "string" ? experiment.selectedTramId : null,
       selectedStopId: typeof experiment.selectedStopId === "string" ? experiment.selectedStopId : null,
     };
+  }
+
+  /**
+   * Sets the fleet size the way a dispatcher would: on a network with fleet
+   * groups the trams are spread over them round-robin (within each group's
+   * limit), so they keep the groups' start positions, directions and routes.
+   * A plain tram count on such a network starts every tram from the
+   * scenario's fallback starts, which on İzmir is a single point.
+   */
+  setFleetSize(count: number) {
+    const groups = this.scenarioDefinition.fleetGroups ?? [];
+    if (groups.length === 0) {
+      this.setTramCount(count);
+      return;
+    }
+    const total = clamp(Math.round(count), 1, MAX_TRAMS);
+    const counts = new Map(groups.map((group) => [group.id, 0]));
+    let placed = 0;
+    let added = true;
+    while (placed < total && added) {
+      added = false;
+      for (const group of groups) {
+        const current = counts.get(group.id) ?? 0;
+        if (placed >= total || current >= (group.maxCount ?? 10)) continue;
+        counts.set(group.id, current + 1);
+        placed += 1;
+        added = true;
+      }
+    }
+    this.fleetGroupCounts = counts;
+    this.tramCount = placed;
+    this.reset();
+  }
+
+  /** Fleet size per group, for re-creating this fleet elsewhere (null without groups). */
+  getFleetGroupCounts() {
+    return this.fleetGroupCounts ? Object.fromEntries(this.fleetGroupCounts) : null;
+  }
+
+  /** Applies per-group counts; groups not listed keep zero trams. */
+  setFleetGroupCounts(counts: Record<string, number>) {
+    const groups = this.scenarioDefinition.fleetGroups ?? [];
+    if (groups.length === 0) return false;
+    const next = new Map(
+      groups.map((group) => [
+        group.id,
+        clamp(Math.round(counts[group.id] ?? 0), 0, group.maxCount ?? 10),
+      ]),
+    );
+    const total = [...next.values()].reduce((sum, value) => sum + value, 0);
+    if (total < 1 || total > MAX_TRAMS) return false;
+    this.fleetGroupCounts = next;
+    this.tramCount = total;
+    this.reset();
+    return true;
   }
 
   setTramCount(count: number) {
@@ -2058,6 +2115,7 @@ export class SimulationEngine {
     this.isRunning = false;
     this.energyInterventions = 0;
     this.peakNetworkGridPowerKw = 0;
+    this.windowPeakGridPowerKw = 0;
     this.powerSectionRuntime = new Map(
       (this.scenarioDefinition.tractionPowerSystem?.sections ?? []).map((section) => [
         section.id,
@@ -3516,7 +3574,20 @@ export class SimulationEngine {
     });
     result.sections.forEach((runtime, index) => this.powerSectionRuntime.set(system.sections[index].id, runtime));
     this.peakNetworkGridPowerKw = result.peakNetworkGridPowerKw;
+    this.windowPeakGridPowerKw = Math.max(
+      this.windowPeakGridPowerKw,
+      result.sections.reduce((sum, section) => sum + section.gridPowerKw, 0),
+    );
     this.energyInterventions = result.interventions;
+  }
+
+  /** Starts a new peak-measurement window (the lifetime peak is kept). */
+  resetGridPeakWindow() {
+    this.windowPeakGridPowerKw = 0;
+  }
+
+  getWindowPeakGridPowerKw() {
+    return this.windowPeakGridPowerKw;
   }
 
   toggleSwitch(switchId?: string) {
