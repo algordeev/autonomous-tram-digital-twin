@@ -118,6 +118,33 @@ test("a well-charged flywheel feeds accelerating trams instead of throttling the
   assert.equal(ex.tram_core_power_guidance(1), 2);
 });
 
+test("peak smoothing leaves trams alone while the flywheel holds the grid at its target", async () => {
+  const ex = await loadCore();
+  ex.tram_core_power_begin(1, 2, 1);
+  ex.tram_core_power_configure_section(0, 2000); // 480 kW, capped to a 420 kW threshold
+  ex.tram_core_power_configure_flywheel(0, 3, 125, 520.833, .95, .95, .6); // balanced band
+  const kwToWhPerStep = (kw) => kw / 72;
+  // 600 kW of traction: the 375 kW bank covers the 180 kW above its 420 kW target.
+  ex.tram_core_power_sync_vehicle(0, 0, kwToWhPerStep(600), 0, 0, 0, 0);
+  ex.tram_core_power_step(.05);
+  assert.ok(Math.abs(ex.tram_core_power_section_grid(0) - 420) < 1e-6, "flywheel holds the grid at its target");
+  assert.equal(ex.tram_core_power_target(1, 0, 0, 1, 1, 2, 12), 12, "no throttling while the flywheel covers the excess");
+  assert.equal(ex.tram_core_power_guidance(1), 0);
+});
+
+test("a depleted flywheel raises the peak-smoothing threshold above the 420 kW cap", async () => {
+  const ex = await loadCore();
+  ex.tram_core_power_begin(1, 2, 1);
+  ex.tram_core_power_configure_section(0, 2000);
+  ex.tram_core_power_configure_flywheel(0, 3, 125, 520.833, .95, .95, .3); // 15-40%: target 700 kW
+  const kwToWhPerStep = (kw) => kw / 72;
+  ex.tram_core_power_sync_vehicle(0, 0, kwToWhPerStep(600), 0, 0, 0, 0);
+  ex.tram_core_power_step(.05);
+  assert.equal(ex.tram_core_power_section_flywheel_target_grid(0), 700);
+  assert.ok(ex.tram_core_power_section_grid(0) > 420);
+  assert.equal(ex.tram_core_power_target(1, 0, 0, 1, 1, 2, 12), 12, "the grid carries up to the raised threshold");
+});
+
 function signalStep(ex, now, tram = -1, signal = -1, waiting = 0, invalid = 0) {
   assert.equal(ex.tram_core_signal_step(0, now, tram, signal, waiting, invalid, 1, 3, 1, 8), 1);
 }

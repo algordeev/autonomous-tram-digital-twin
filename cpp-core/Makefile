@@ -1,5 +1,8 @@
 CXX ?= c++
-CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -Wpedantic
+# -ffp-contract=off: WebAssembly has no fused multiply-add, so the native build
+# must not fuse a*b+c either, or the native/WASM equivalence test drifts on
+# compilers and CPUs that contract by default (seen with GCC on Ubuntu 26.04).
+CXXFLAGS ?= -std=c++17 -O2 -ffp-contract=off -Wall -Wextra -Wpedantic
 BUILD_DIR := build
 INCLUDES := -Iinclude
 CORE_SOURCE := src/operational_core.cpp

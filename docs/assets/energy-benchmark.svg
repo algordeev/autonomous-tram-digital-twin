@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 460" width="1000" height="460" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
 <title id="title">Energy and peak-power benchmark</title>
-<desc id="desc">İzmir reactive: grid-energy saving 22.0%, peak-power reduction 12.2%; İzmir predictive: grid-energy saving 21.8%, peak-power reduction 14.5%; Nizhny 2+21 reactive: grid-energy saving 23.1%, peak-power reduction 9.7%; Nizhny 2+21 predictive: grid-energy saving 23.1%, peak-power reduction 8.7%; Nizhny Route 2 reactive: grid-energy saving 23.9%, peak-power reduction 36.2%; Nizhny Route 2 predictive: grid-energy saving 23.8%, peak-power reduction 28.5%</desc>
+<desc id="desc">İzmir reactive: grid-energy saving 22.0%, peak-power reduction 12.2%; İzmir predictive: grid-energy saving 22.0%, peak-power reduction 12.2%; Nizhny 2+21 reactive: grid-energy saving 23.1%, peak-power reduction 9.7%; Nizhny 2+21 predictive: grid-energy saving 23.1%, peak-power reduction 9.7%; Nizhny Route 2 reactive: grid-energy saving 23.9%, peak-power reduction 36.2%; Nizhny Route 2 predictive: grid-energy saving 23.9%, peak-power reduction 36.2%</desc>
 <rect width="1000" height="460" fill="#fcfcfb"/>
 <line x1="64" x2="976" y1="384.0" y2="384.0" stroke="#9a998f" stroke-width="1"/>
 <text x="54" y="384.0" dy="0.32em" text-anchor="end" font-size="12" fill="#5f5e58">0%</text>
@@ -23,10 +23,10 @@
 <text x="163.0" y="280.4" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">12.2%</text>
 <text x="140.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">İzmir</text>
 <text x="140.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">reactive</text>
-<path d="M247.0 384.0V213.8Q247.0 209.8 251.0 209.8H287.0Q291.0 209.8 291.0 213.8V384.0Z" fill="#2a78d6"/>
-<text x="269.0" y="203.8" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">21.8%</text>
-<path d="M293.0 384.0V272.2Q293.0 268.2 297.0 268.2H333.0Q337.0 268.2 337.0 272.2V384.0Z" fill="#eb6834"/>
-<text x="315.0" y="262.2" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">14.5%</text>
+<path d="M247.0 384.0V212.0Q247.0 208.0 251.0 208.0H287.0Q291.0 208.0 291.0 212.0V384.0Z" fill="#2a78d6"/>
+<text x="269.0" y="202.0" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">22.0%</text>
+<path d="M293.0 384.0V290.4Q293.0 286.4 297.0 286.4H333.0Q337.0 286.4 337.0 290.4V384.0Z" fill="#eb6834"/>
+<text x="315.0" y="280.4" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">12.2%</text>
 <text x="292.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">İzmir</text>
 <text x="292.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">predictive</text>
 <path d="M399.0 384.0V203.0Q399.0 199.0 403.0 199.0H439.0Q443.0 199.0 443.0 203.0V384.0Z" fill="#2a78d6"/>
@@ -35,10 +35,10 @@
 <text x="467.0" y="300.8" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">9.7%</text>
 <text x="444.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">Nizhny 2+21</text>
 <text x="444.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">reactive</text>
-<path d="M551.0 384.0V203.3Q551.0 199.3 555.0 199.3H591.0Q595.0 199.3 595.0 203.3V384.0Z" fill="#2a78d6"/>
-<text x="573.0" y="193.3" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">23.1%</text>
-<path d="M597.0 384.0V318.3Q597.0 314.3 601.0 314.3H637.0Q641.0 314.3 641.0 318.3V384.0Z" fill="#eb6834"/>
-<text x="619.0" y="308.3" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">8.7%</text>
+<path d="M551.0 384.0V203.0Q551.0 199.0 555.0 199.0H591.0Q595.0 199.0 595.0 203.0V384.0Z" fill="#2a78d6"/>
+<text x="573.0" y="193.0" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">23.1%</text>
+<path d="M597.0 384.0V310.8Q597.0 306.8 601.0 306.8H637.0Q641.0 306.8 641.0 310.8V384.0Z" fill="#eb6834"/>
+<text x="619.0" y="300.8" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">9.7%</text>
 <text x="596.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">Nizhny 2+21</text>
 <text x="596.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">predictive</text>
 <path d="M703.0 384.0V196.9Q703.0 192.9 707.0 192.9H743.0Q747.0 192.9 747.0 196.9V384.0Z" fill="#2a78d6"/>
@@ -47,10 +47,10 @@
 <text x="771.0" y="88.7" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">36.2%</text>
 <text x="748.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">Nizhny Route 2</text>
 <text x="748.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">reactive</text>
-<path d="M855.0 384.0V198.0Q855.0 194.0 859.0 194.0H895.0Q899.0 194.0 899.0 198.0V384.0Z" fill="#2a78d6"/>
-<text x="877.0" y="188.0" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">23.8%</text>
-<path d="M901.0 384.0V160.4Q901.0 156.4 905.0 156.4H941.0Q945.0 156.4 945.0 160.4V384.0Z" fill="#eb6834"/>
-<text x="923.0" y="150.4" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">28.5%</text>
+<path d="M855.0 384.0V196.9Q855.0 192.9 859.0 192.9H895.0Q899.0 192.9 899.0 196.9V384.0Z" fill="#2a78d6"/>
+<text x="877.0" y="186.9" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">23.9%</text>
+<path d="M901.0 384.0V98.7Q901.0 94.7 905.0 94.7H941.0Q945.0 94.7 945.0 98.7V384.0Z" fill="#eb6834"/>
+<text x="923.0" y="88.7" text-anchor="middle" font-size="11" font-weight="600" fill="#1f1e1c">36.2%</text>
 <text x="900.0" y="406" text-anchor="middle" font-size="12" fill="#1f1e1c">Nizhny Route 2</text>
 <text x="900.0" y="422" text-anchor="middle" font-size="12" fill="#5f5e58">predictive</text>
 <text x="64" y="448" font-size="11" fill="#5f5e58">Default fleets from 08:00 · 10 min warm-up, 60 min measured · grid energy corrected for flywheel charge · npm run benchmark:energy</text>

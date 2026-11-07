@@ -29,13 +29,20 @@ The report schema is versioned as `schemaVersion: 1` and contains:
 - event counts;
 - periodic samples.
 
+Taking a snapshot is not free of side effects: it brings every stop's
+passenger queue up to date, and the queue integrates arrivals with the rate of
+its previous update, so extra snapshots change later boarding and therefore the
+run. A `--sample-seconds` run is deterministic but not identical to an
+unsampled one. The energy comparison samples its window through a
+side-effect-free path instead (`getServiceSample`, `getNetworkGridPowerKw`).
+
 ## Energy comparison
 
 `runEnergyComparison` executes three identical service cases:
 
 1. no wayside storage;
 2. reactive flywheel storage;
-3. predictive SOC and peak dispatch.
+3. predictive: the same flywheel dispatch plus peak-limiting traction guidance.
 
 Each case uses the network's configured fleet (its fleet groups, start
 positions and directions), runs a warm-up, and is measured over a following
@@ -60,6 +67,13 @@ energy saving = (reference - strategy) / reference · 100%
 peak reduction = (reference peak - strategy peak) / reference peak · 100%
 ```
 
+The comparison report is versioned as `schemaVersion: 2`. Version 2 adds the
+core runtime, the run settings (fixed step, storage and efficiency scale) and,
+per strategy, the energy-balance terms (vehicle demand, accepted regeneration,
+flywheel charge, discharge and ΔE), headway CV, time-mean on-time share and
+wait, left-behind passengers and an optional grid-power series. The earlier,
+unversioned report is version 1; its fields are unchanged.
+
 ## Current reproducible benchmark
 
 ![Energy and peak-power benchmark](assets/energy-benchmark.svg)
@@ -72,18 +86,25 @@ Each network's default fleet, service from 08:00, a 10-minute warm-up and a
 | Scenario and controller | Grid-energy saving | Peak-power reduction | Flywheel charge, start → end | Notes |
 | --- | ---: | ---: | ---: | --- |
 | İzmir, 14 trams, reactive | 22.0% | 12.2% | 7.7 → 7.8 kWh | Flywheel only, no traction guidance |
-| İzmir, 14 trams, predictive | 21.8% | 14.5% | 7.7 → 7.8 kWh | 166 interventions |
+| İzmir, 14 trams, predictive | 22.0% | 12.2% | 7.7 → 7.8 kWh | 0 interventions |
 | Nizhny 2+21, 10 trams, reactive | 23.1% | 9.7% | 15.2 → 16.3 kWh | Flywheel only, no traction guidance |
-| Nizhny 2+21, 10 trams, predictive | 23.1% | 8.7% | 15.2 → 16.3 kWh | 89 interventions |
+| Nizhny 2+21, 10 trams, predictive | 23.1% | 9.7% | 15.2 → 16.3 kWh | 0 interventions |
 | Nizhny Route 2, 10 trams, reactive | 23.9% | 36.2% | 15.4 → 15.5 kWh | Flywheel only, no traction guidance |
-| Nizhny Route 2, 10 trams, predictive | 23.8% | 28.5% | 16.1 → 15.9 kWh | 127 interventions |
+| Nizhny Route 2, 10 trams, predictive | 23.9% | 36.2% | 15.4 → 15.5 kWh | 0 interventions |
 
 These are simulator outputs, not measured savings for either real operator.
+Sensitivity sweeps around this baseline (time of day, fleet size, storage size,
+flywheel efficiency), the credibility checks and the figures are in
+[RESULTS.md](RESULTS.md).
 
-The predictive controller does not improve on reactive flywheels: energy
-savings are equal within 0.2 points, it cuts the İzmir peak slightly more and
-the Nizhny peaks less (on Route 2, 28.5% against 36.2%). Its traction guidance
-should not be presented as a benefit until it beats the reactive case.
+The predictive controller does not improve on reactive flywheels; its results
+are identical. Both strategies run the same SOC and forecast dispatch, and the
+only difference, a traction-guidance rule that limits accelerating trams above
+the section's grid setpoint, never fires while the flywheels hold the grid at
+that setpoint. Earlier versions of this table showed predictive differences
+(for example 14.5% peak reduction on İzmir, 28.5% on Route 2). They were
+artefacts of two errors in that threshold, fixed in `f2e75e0`. The traction
+guidance should not be presented as a benefit.
 
 Earlier figures (10.6% and 24.4% for İzmir, for example) are not comparable and
 were withdrawn. They covered ten minutes from a cold start, so the start-up

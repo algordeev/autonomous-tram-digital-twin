@@ -236,7 +236,13 @@ test("real traction-power evidence is exposed without overstating Izmir location
   );
 });
 
-test("energy-optimal dispatch reduces the measured network peak", async () => {
+// This used to assert that network-optimal guidance lowers the cold-start
+// peak. That only held because the guidance throttled trams while the
+// flywheels already held each section at its grid target (a floating-point
+// tie) and because the 420 kW cap undid the depleted-flywheel threshold. With
+// both fixed, the guidance stays out of the way whenever storage covers the
+// demand, so it must not throttle trams or change the peak here.
+test("energy-optimal guidance does not throttle trams the flywheels already cover", async () => {
   await initializeCppRuntimeFromBytes(wasmBytes);
   const run = (strategy) => {
     const engine = new SimulationEngine("nizhny-routes-2-21", 10);
@@ -248,8 +254,8 @@ test("energy-optimal dispatch reduces the measured network peak", async () => {
   const baseline = run("baseline");
   const optimized = run("network-optimal");
   assert.equal(baseline.interventions, 0);
-  assert.ok(optimized.interventions > 0);
-  assert.ok(optimized.peakGridPowerKw < baseline.peakGridPowerKw);
+  assert.equal(optimized.interventions, 0);
+  assert.ok(optimized.peakGridPowerKw <= baseline.peakGridPowerKw);
   resetCppRuntimeForTests();
 });
 

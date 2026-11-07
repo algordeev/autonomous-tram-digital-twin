@@ -6,7 +6,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_program(NODE_EXECUTABLE node REQUIRED)
 add_library(tram_core src/operational_core.cpp)
 target_include_directories(tram_core PUBLIC include)
-target_compile_options(tram_core PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(tram_core PRIVATE -ffp-contract=off -Wall -Wextra -Wpedantic)
 add_executable(operational_core_test tests/operational_core_test.cpp)
 target_link_libraries(operational_core_test PRIVATE tram_core)
 # Keep assertions enabled in Release builds too.

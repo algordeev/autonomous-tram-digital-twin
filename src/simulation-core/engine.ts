@@ -1505,8 +1505,68 @@ const circumradius = (a: Point, b: Point, c: Point) => {
   return cross > 1e-8 ? (ab * bc * ac) / (2 * cross) : Number.POSITIVE_INFINITY;
 };
 
+/**
+ * Study settings for headless experiments. They change only what is
+ * configured (control timestep, installed storage), never how it is modelled.
+ */
+export interface EngineStudyOptions {
+  /** Fixed simulation step in seconds; 0.05 s when omitted. */
+  fixedStepSeconds?: number;
+  /** Multiplies every flywheel bank's power and energy rating; 0 removes the banks. */
+  storageScale?: number;
+  /** Multiplies flywheel charge and discharge efficiency; the result must stay ≤ 1. */
+  etaScale?: number;
+}
+
+export const DEFAULT_FIXED_STEP_SECONDS = 0.05;
+
+/** Copy of a scenario with its wayside storage rescaled for a sensitivity study. */
+export function scaleScenarioStorage(
+  scenario: ScenarioDefinition,
+  storageScale = 1,
+  etaScale = 1,
+): ScenarioDefinition {
+  if (!(storageScale >= 0) || !(etaScale > 0)) {
+    throw new Error("storageScale must be ≥ 0 and etaScale > 0");
+  }
+  const system = scenario.tractionPowerSystem;
+  if (!system || (storageScale === 1 && etaScale === 1)) return scenario;
+  return {
+    ...scenario,
+    tractionPowerSystem: {
+      ...system,
+      sections: system.sections.map((section) => {
+        if (!section.flywheel) return section;
+        if (storageScale === 0) {
+          const { flywheel: _removed, ...rest } = section;
+          return rest;
+        }
+        const chargeEfficiency = section.flywheel.chargeEfficiency * etaScale;
+        const dischargeEfficiency = section.flywheel.dischargeEfficiency * etaScale;
+        if (chargeEfficiency > 1 || dischargeEfficiency > 1) {
+          throw new Error(
+            `etaScale ${etaScale} gives a flywheel efficiency above 1 on ${section.id}`,
+          );
+        }
+        return {
+          ...section,
+          flywheel: {
+            ...section.flywheel,
+            // The module count is an integer in the core, so scale each
+            // module's rating instead: same as storageScale × modules.
+            modulePowerKw: section.flywheel.modulePowerKw * storageScale,
+            moduleEnergyKWh: section.flywheel.moduleEnergyKWh * storageScale,
+            chargeEfficiency,
+            dischargeEfficiency,
+          },
+        };
+      }),
+    },
+  };
+}
+
 export class SimulationEngine {
-  private readonly fixedStepClock = new FixedStepClock(0.05, 20);
+  private fixedStepClock: FixedStepClock;
   private scenarioDefinition: ScenarioDefinition;
   private segments = new Map<string, SegmentRuntime>();
   // Lookup tables over `segments` and the scenario, rebuilt with them on reset.
@@ -1549,7 +1609,7 @@ export class SimulationEngine {
   /** Measured terminal intervals grouped by the active timetable window and route. */
   private terminalHeadwayStatsByRouteWindow = new Map<
     string,
-    { total: number; sumSeconds: number }
+    { total: number; sumSeconds: number; sumSquaredSeconds: number }
   >();
   private departureStatsByRoute = new Map<
     string,
@@ -1587,9 +1647,22 @@ export class SimulationEngine {
   /** Network grid-power peak since resetGridPeakWindow(), for measured windows. */
   private windowPeakGridPowerKw = 0;
 
-  constructor(scenarioId = "nizhny-routes-2-21", tramCount?: number) {
-    this.scenarioDefinition =
-      SCENARIOS.find((item) => item.id === scenarioId) ?? SCENARIOS[0];
+  constructor(
+    scenarioId = "nizhny-routes-2-21",
+    tramCount?: number,
+    study: EngineStudyOptions = {},
+  ) {
+    const stepSeconds = study.fixedStepSeconds ?? DEFAULT_FIXED_STEP_SECONDS;
+    // Keep room for one 0.5 s headless batch (or a 0.1 s frame at 5×) per call.
+    this.fixedStepClock = new FixedStepClock(
+      stepSeconds,
+      Math.max(20, Math.ceil(0.5 / stepSeconds) + 1),
+    );
+    this.scenarioDefinition = scaleScenarioStorage(
+      SCENARIOS.find((item) => item.id === scenarioId) ?? SCENARIOS[0],
+      study.storageScale,
+      study.etaScale,
+    );
     this.tramCount = clamp(
       Math.round(tramCount ?? this.scenarioDefinition.defaultTramCount ?? 2),
       1,
@@ -1601,6 +1674,53 @@ export class SimulationEngine {
 
   get scenario() {
     return this.scenarioDefinition;
+  }
+
+  get fixedStepSeconds() {
+    return this.fixedStepClock.stepSeconds;
+  }
+
+  /**
+   * Cumulative measured terminal departure intervals per timetable window and
+   * route ("windowId:routeId"), for headway regularity in headless studies.
+   */
+  getTerminalHeadwayStats() {
+    return Object.fromEntries(
+      [...this.terminalHeadwayStatsByRouteWindow].map(([key, stats]) => [key, { ...stats }]),
+    );
+  }
+
+  /**
+   * On-time share and route wait without side effects. getSnapshot() brings
+   * every stop queue up to date, which changes later boarding (and so the
+   * run), so a measured window must be sampled through this instead.
+   * The on-time share is the snapshot's; the wait is the mean over routes of
+   * the busiest stop's Little's-Law estimate, projected to now.
+   */
+  getServiceSample() {
+    const passengerTrams = this.trams.filter((tram) => tram.serviceState === "in-service");
+    const onTimePercent = passengerTrams.length > 0
+      ? (passengerTrams.filter((tram) => tram.delaySeconds <= LATE_TOLERANCE_SECONDS).length /
+          passengerTrams.length) * 100
+      : 100;
+    const routes = this.scenarioDefinition.routes;
+    const waits = routes.map((route) =>
+      this.stationReadersForRoute(route.id).reduce((worst, reader) => {
+        const tracker = this.stopDemand.get(reader.id);
+        return tracker ? Math.max(worst, tracker.projectedAverageWaitSeconds(this.simulationTime)) : worst;
+      }, 0),
+    );
+    return {
+      onTimePercent,
+      averageWaitSeconds: waits.length > 0 ? waits.reduce((sum, value) => sum + value, 0) / waits.length : 0,
+    };
+  }
+
+  /** Passengers left waiting by full trams since the last reset, all stops. */
+  getPassengersLeftBehind() {
+    let total = 0;
+    for (const tracker of this.stopDemand.values()) total += tracker.totalOverflowed;
+    return total;
   }
 
   get selectedTram() {
@@ -2692,9 +2812,12 @@ export class SimulationEngine {
       const stats = this.terminalHeadwayStatsByRouteWindow.get(statsKey) ?? {
         total: 0,
         sumSeconds: 0,
+        sumSquaredSeconds: 0,
       };
+      const intervalSeconds = Math.max(0, this.simulationTime - previousDepartureAt);
       stats.total += 1;
-      stats.sumSeconds += Math.max(0, this.simulationTime - previousDepartureAt);
+      stats.sumSeconds += intervalSeconds;
+      stats.sumSquaredSeconds += intervalSeconds * intervalSeconds;
       this.terminalHeadwayStatsByRouteWindow.set(statsKey, stats);
     }
     this.lastTerminalDepartureAtByPoint.set(departureKey, this.simulationTime);
@@ -3588,6 +3711,13 @@ export class SimulationEngine {
 
   getWindowPeakGridPowerKw() {
     return this.windowPeakGridPowerKw;
+  }
+
+  /** Network grid power of the last settled step, summed over sections. */
+  getNetworkGridPowerKw() {
+    let total = 0;
+    for (const section of this.powerSectionRuntime.values()) total += section.gridPowerKw;
+    return total;
   }
 
   toggleSwitch(switchId?: string) {

@@ -109,6 +109,23 @@ counts and periodic samples. Programmatic experiments can use
 `runHeadlessSimulation` and `runEnergyComparison` from
 `src/simulation-core/headless.ts`.
 
+## Preliminary results
+
+![Energy saving and peak reduction by network](docs/assets/results/fig1_savings_by_network.png)
+
+Against a no-storage reference on the same service, reactive wayside flywheels
+cut grid energy per vehicle-km by 22.0% on İzmir and 23.1–23.9% on the Nizhny
+Novgorod networks. Across time of day and fleet size the İzmir saving stays in
+21.2–25.1%, while the peak reduction ranges from 0% to 19.9%. The current
+predictive controller gives the same results as reactive flywheels: its
+traction guidance does not act while the flywheels are installed. These are
+comparative simulator results, not calibrated measurements. The sweeps,
+sanity checks and figures are in [docs/RESULTS.md](docs/RESULTS.md):
+
+```bash
+npm run benchmark:sweeps && npm run benchmark:sanity
+```
+
 ## Architecture
 
 ```text
@@ -150,6 +167,7 @@ docs/                   Architecture, models, assumptions and research documents
 - [Vehicle and energy models](docs/ENERGY_MODEL.md)
 - [Data provenance and assumptions](docs/DATA_AND_ASSUMPTIONS.md)
 - [Experiments and metrics](docs/EXPERIMENTS.md)
+- [Preliminary results and sensitivity study](docs/RESULTS.md)
 - [Hardware integration path](docs/HARDWARE_INTEGRATION.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Russian documentation](docs/ru/README.md)
