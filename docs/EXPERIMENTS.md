@@ -65,13 +65,17 @@ grid* = grid supply - ΔE / η_charge    (ΔE < 0)
 grid Wh/vkm = grid* Wh / simulated vehicle distance km
 energy saving = (reference - strategy) / reference · 100%
 peak reduction = (reference peak - strategy peak) / reference peak · 100%
+15-min peak = max over t of (grid supply(t) - grid supply(t - 15 min)) / 0.25 h,
+              for intervals inside the window (metered, read every 0.5 s)
 ```
 
 The comparison report is versioned as `schemaVersion: 2`. Version 2 adds the
 core runtime, the run settings (fixed step, storage and efficiency scale) and,
 per strategy, the energy-balance terms (vehicle demand, accepted regeneration,
 flywheel charge, discharge and ΔE), headway CV, time-mean on-time share and
-wait, left-behind passengers and an optional grid-power series. The earlier,
+wait, left-behind passengers, an optional grid-power series and the max 15 min
+rolling-average grid power (`peakRollingAverageKw`, `rollingPeakReductionPercent`,
+null for windows shorter than 15 min). The earlier,
 unversioned report is version 1; its fields are unchanged.
 
 ## Current reproducible benchmark

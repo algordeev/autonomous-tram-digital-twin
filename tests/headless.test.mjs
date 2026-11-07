@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   initializeCppRuntimeFromBytes,
+  maxRollingAverageKw,
   runEnergyComparison,
   runHeadlessSimulation,
   scaleScenarioStorage,
@@ -148,4 +149,32 @@ test("sampling the measured window does not change the energy comparison", async
     assert.equal(sampled.rows[index].distanceKm, row.distanceKm);
   });
   assert.equal(sampled.rows[0].gridPowerSeriesKw.length, 240);
+  // A 4 min window is shorter than the 15 min rolling average.
+  assert.equal(sampled.rows[0].peakRollingAverageKw, null);
+  assert.equal(sampled.rows[1].rollingPeakReductionPercent, null);
+});
+
+test("the rolling-average peak is the highest mean power over any interval of the window", () => {
+  // 0.5 s readings of cumulative energy: 360 kW for 10 s, then 720 kW for 10 s.
+  const trace = [0];
+  for (let index = 1; index <= 40; index += 1) {
+    trace.push(trace[index - 1] + ((index <= 20 ? 360 : 720) * 0.5) / 3600);
+  }
+  assert.ok(Math.abs(maxRollingAverageKw(trace, 0.5, 10) - 720) < 1e-9);
+  assert.ok(Math.abs(maxRollingAverageKw(trace, 0.5, 20) - 540) < 1e-9);
+  assert.equal(maxRollingAverageKw(trace, 0.5, 30), null);
+});
+
+test("over exactly 15 min the rolling peak is the window's mean grid power", async () => {
+  await initializeCppRuntimeFromBytes(await readFile(new URL("../public/wasm/tram-core.wasm", import.meta.url)));
+  const report = runEnergyComparison({
+    scenarioId: "izmir-konak", tramCount: 6, startServiceMinute: 480, warmUpSeconds: 60, durationSeconds: 900,
+    strategies: ["baseline"],
+  });
+  assert.equal(report.rollingPeakWindowSeconds, 900);
+  for (const row of report.rows) {
+    assert.ok(Math.abs(row.peakRollingAverageKw - row.gridSupplyKWh / 0.25) < 1e-6);
+    assert.ok(row.peakRollingAverageKw <= row.peakGridPowerKw);
+  }
+  assert.equal(report.rows[0].rollingPeakReductionPercent, 0);
 });

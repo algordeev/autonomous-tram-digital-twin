@@ -87,6 +87,7 @@ const compare = (variant) => base.report.rows.map((row, index) => {
   const other = variant.report.rows[index];
   const whChange = relative(other.gridWhPerVehicleKm, row.gridWhPerVehicleKm);
   const peakChange = relative(other.peakGridPowerKw, row.peakGridPowerKw);
+  const rollingPeakChange = relative(other.peakRollingAverageKw, row.peakRollingAverageKw);
   return {
     strategy: LABELS[row.strategy],
     baseWhPerVkm: row.gridWhPerVehicleKm,
@@ -100,6 +101,13 @@ const compare = (variant) => base.report.rows.map((row, index) => {
     basePeakReductionPercent: row.peakReductionPercent,
     variantPeakReductionPercent: other.peakReductionPercent,
     pass: pass(whChange) && pass(peakChange),
+    // Max 15 min rolling-average grid power: reported next to the single-step peak, own verdict.
+    baseRollingPeakKw: row.peakRollingAverageKw,
+    variantRollingPeakKw: other.peakRollingAverageKw,
+    rollingPeakChangePercent: rollingPeakChange,
+    baseRollingPeakReductionPercent: row.rollingPeakReductionPercent,
+    variantRollingPeakReductionPercent: other.rollingPeakReductionPercent,
+    rollingPeakPass: pass(rollingPeakChange),
   };
 });
 const timestep = compare(fineStep);
@@ -141,6 +149,12 @@ const md = [
     "| Strategy | Wh/vkm | Change | Peak kW | Change | Saving | Peak reduction | Result |",
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ...rows.map((row) => `| ${row.strategy} | ${f(row.baseWhPerVkm, 1)} → ${f(row.variantWhPerVkm, 1)} | ${f(row.whPerVkmChangePercent)}% | ${f(row.basePeakKw, 1)} → ${f(row.variantPeakKw, 1)} | ${f(row.peakChangePercent)}% | ${f(row.baseSavingPercent, 1)}% → ${f(row.variantSavingPercent, 1)}% | ${f(row.basePeakReductionPercent, 1)}% → ${f(row.variantPeakReductionPercent, 1)}% | ${verdict(row.pass)} |`),
+    "",
+    "Max 15 min rolling-average grid power:",
+    "",
+    "| Strategy | 15-min peak kW | Change | 15-min peak reduction | Result |",
+    "| --- | ---: | ---: | ---: | --- |",
+    ...rows.map((row) => `| ${row.strategy} | ${f(row.baseRollingPeakKw, 1)} → ${f(row.variantRollingPeakKw, 1)} | ${f(row.rollingPeakChangePercent)}% | ${f(row.baseRollingPeakReductionPercent, 1)}% → ${f(row.variantRollingPeakReductionPercent, 1)}% | ${verdict(row.rollingPeakPass)} |`),
     "",
   ]),
   "### 4. Grid energy per vehicle-km against published values",

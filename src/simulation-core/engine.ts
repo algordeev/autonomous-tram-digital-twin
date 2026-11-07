@@ -3720,6 +3720,13 @@ export class SimulationEngine {
     return total;
   }
 
+  /** Cumulative network grid supply (metered, integrated at every fixed step), kWh. Read-only. */
+  getNetworkGridSupplyKWh() {
+    let totalWh = 0;
+    for (const section of this.powerSectionRuntime.values()) totalWh += section.gridSupplyWh;
+    return totalWh / 1000;
+  }
+
   toggleSwitch(switchId?: string) {
     const definition =
       this.scenarioDefinition.switches.find((item) => item.id === switchId) ??
