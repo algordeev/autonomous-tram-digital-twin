@@ -84,10 +84,10 @@ def at_baseline(df: pd.DataFrame, except_for: str | None = None) -> pd.DataFrame
 
 def fig1_savings_by_network(df: pd.DataFrame, out_dir: Path) -> None:
     base = at_baseline(df)
-    strategies = ["reactive", "predictive"]
+    strategies = ["reactive"]  # the rule-based predictive variant equals reactive (caption footnote)
     metrics = [("energy_saving_pct", "Grid-energy saving (%)"), ("peak_reduction_pct", "Peak grid-power reduction (%)")]
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.0), sharey=True)
-    width = 0.36
+    width = 0.5
     for ax, (column, ylabel) in zip(axes, metrics):
         for offset, strategy in enumerate(strategies):
             style = STYLE[strategy]
@@ -96,7 +96,7 @@ def fig1_savings_by_network(df: pd.DataFrame, out_dir: Path) -> None:
                 row = base[(base["scenario"] == scenario) & (base["strategy"] == strategy)]
                 if row.empty:
                     continue
-                xs.append(index + (offset - 0.5) * (width + 0.02))
+                xs.append(index + (offset - (len(strategies) - 1) / 2) * (width + 0.02))
                 ys.append(float(row[column].iloc[0]))
             bars = ax.bar(
                 xs, ys, width, color=style["color"], hatch=style["hatch"], edgecolor="white",
@@ -115,7 +115,6 @@ def fig1_savings_by_network(df: pd.DataFrame, out_dir: Path) -> None:
         style_axes(ax)
     top = max(at_baseline(df)[["energy_saving_pct", "peak_reduction_pct"]].astype(float).max()) * 1.15
     axes[0].set_ylim(0, top)
-    axes[0].legend(frameon=False, fontsize=8.5, loc="upper left")
     fig.tight_layout()
     save(fig, out_dir, "fig1_savings_by_network")
 
@@ -162,7 +161,7 @@ def fig3_sensitivity_fleet(df: pd.DataFrame, out_dir: Path) -> None:
     fleet = fleet[(fleet["scenario"] == "izmir-konak") & (fleet["tram_count_requested"].astype(str) != "default")].copy()
     fleet["tram_count"] = fleet["tram_count"].astype(int)
     fig, ax = plt.subplots(figsize=(5.4, 3.2))
-    for strategy in ("reactive", "predictive"):
+    for strategy in ("reactive",):
         style = STYLE[strategy]
         rows = fleet[fleet["strategy"] == strategy].sort_values("tram_count")
         ax.plot(rows["tram_count"], rows["energy_saving_pct"].astype(float), color=style["color"],
@@ -178,34 +177,44 @@ def fig3_sensitivity_fleet(df: pd.DataFrame, out_dir: Path) -> None:
     ax.set_xlabel("Trams in service (upper) and mean terminal headway (lower)", fontsize=9, color=INK)
     ax.set_ylabel("Grid-energy saving (%)", fontsize=9, color=INK)
     style_axes(ax)
-    ax.legend(frameon=False, fontsize=8.5)
     fig.tight_layout()
     save(fig, out_dir, "fig3_sensitivity_fleet")
 
 
-def fig4_energy_vs_punctuality(df: pd.DataFrame, out_dir: Path) -> None:
-    """Storage cases only: the no-storage reference is 0% saving by definition,
-    and the reactive points share its on-time share exactly (stated in the caption)."""
-    fig, ax = plt.subplots(figsize=(5.4, 3.4))
-    for strategy in ("reactive", "predictive"):
-        style = STYLE[strategy]
-        rows = df[df["strategy"] == strategy]
-        hollow = strategy == "predictive"
-        ax.scatter(rows["on_time_pct"].astype(float), rows["energy_saving_pct"].astype(float),
-                   s=48 if hollow else 22, marker=style["marker"],
-                   facecolor="none" if hollow else style["color"], edgecolor=style["color"],
-                   linewidth=1.2 if hollow else 0, label=style["label"], zorder=4 if hollow else 3)
-    small = df[(df["strategy"] == "reactive") & (df["on_time_pct"].astype(float) < 70)]
-    for _, row in small.iterrows():
-        ax.annotate(f"{int(row['tram_count'])} trams", (float(row["on_time_pct"]), float(row["energy_saving_pct"])),
-                    xytext=(6, -10), textcoords="offset points", fontsize=8, color=INK_SECONDARY)
-    ax.set_xlabel("Trams within ±60 s of their interval, time mean (%)", fontsize=9, color=INK)
-    ax.set_ylabel("Grid-energy saving (%)", fontsize=9, color=INK)
+def fig4_storage_size(df: pd.DataFrame, out_dir: Path) -> None:
+    """Reactive energy saving and peak reduction against İzmir storage size.
+
+    Both metrics are percentages against the same no-storage reference, so
+    they share one axis.
+    """
+    sizes = at_baseline(df, except_for="storage_scale")
+    rows = sizes[(sizes["scenario"] == "izmir-konak") & (sizes["strategy"] == "reactive")].copy()
+    rows["storage_scale"] = rows["storage_scale"].astype(float)
+    rows = rows.sort_values("storage_scale")
+    metrics = [
+        ("energy_saving_pct", "Grid-energy saving", "#2a78d6", "o", "-", (0, 7)),
+        ("peak_reduction_pct", "Peak grid-power reduction", "#eb6834", "s", "--", (0, -13)),
+    ]
+    fig, ax = plt.subplots(figsize=(5.4, 3.2))
+    for column, label, color, marker, linestyle, offset in metrics:
+        values = rows[column].astype(float)
+        ax.plot(rows["storage_scale"], values, color=color, marker=marker, markersize=6,
+                linestyle=linestyle, linewidth=1.6, label=label)
+        for x, value in zip(rows["storage_scale"], values):
+            if x == 0:
+                continue
+            ax.annotate(f"{value:.1f}", (x, value), xytext=offset, textcoords="offset points",
+                        ha="center", va="center", fontsize=8, color=INK)
+    ax.set_xticks(rows["storage_scale"].tolist())
+    ax.set_xticklabels([f"{x:g}×" for x in rows["storage_scale"]], fontsize=8.5)
+    ax.set_xlim(-0.08, rows["storage_scale"].max() + 0.08)
+    ax.set_ylim(0, rows["energy_saving_pct"].astype(float).max() * 1.2)
+    ax.set_xlabel("Flywheel storage, multiple of the configured banks", fontsize=9, color=INK)
+    ax.set_ylabel("Change relative to no storage (%)", fontsize=9, color=INK)
     style_axes(ax)
-    ax.xaxis.grid(True, color=GRID, linewidth=0.8)
-    ax.legend(frameon=False, fontsize=8.5, loc="lower left")
+    ax.legend(frameon=False, fontsize=8.5, loc="upper left")
     fig.tight_layout()
-    save(fig, out_dir, "fig4_energy_vs_punctuality")
+    save(fig, out_dir, "fig4_storage_size")
 
 
 def main() -> None:
@@ -222,7 +231,7 @@ def main() -> None:
     fig1_savings_by_network(df, args.out)
     fig2_izmir_grid_power(pd.read_csv(args.series), df, args.out)
     fig3_sensitivity_fleet(df, args.out)
-    fig4_energy_vs_punctuality(df, args.out)
+    fig4_storage_size(df, args.out)
 
 
 if __name__ == "__main__":
