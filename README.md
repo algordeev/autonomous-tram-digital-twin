@@ -116,7 +116,9 @@ counts and periodic samples. Programmatic experiments can use
 Against a no-storage reference on the same service, reactive wayside flywheels
 cut grid energy per vehicle-km by 22.0% on İzmir and 23.1–23.9% on the Nizhny
 Novgorod networks. Across time of day and fleet size the İzmir saving stays in
-21.2–25.1%, while the peak reduction ranges from 0% to 19.9%. The current
+21.2–25.1%, while the instantaneous peak reduction ranges from 0% to 19.9%.
+Averaged over 15 minutes (a common billed-demand interval), the İzmir peak
+falls by 22.6%. The current
 predictive controller gives the same results as reactive flywheels: its
 traction guidance does not act while the flywheels are installed. These are
 comparative simulator results, not calibrated measurements. The sweeps,
