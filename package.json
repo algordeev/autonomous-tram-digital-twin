@@ -34,6 +34,9 @@
     "test:all": "npm run verify:wasm && npm run verify:repo && npm run check && npm test && npm run test:cpp && npm run test:simulation && npm run test:izmir",
     "simulate:headless": "node scripts/run-headless.mjs",
     "benchmark:energy": "node scripts/run-energy-benchmark.mjs",
+    "benchmark:case": "node scripts/run-energy-case.mjs",
+    "benchmark:sweeps": "node scripts/run-sweeps.mjs",
+    "benchmark:sanity": "node scripts/run-sanity-checks.mjs",
     "build:wasm": "node cpp-core/scripts/compile-portable-wasm.mjs",
     "verify:wasm": "node cpp-core/scripts/compile-portable-wasm.mjs --check"
   },
