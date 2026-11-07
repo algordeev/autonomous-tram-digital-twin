@@ -245,12 +245,17 @@ double tram_core_power_target(int i, int section, int manual_mode,
   // flywheel raises it (the grid must carry more), but a well-charged one
   // lowers its own discharge target, not this threshold: at a 0 kW target the
   // flywheel is meant to feed accelerating trams, not hold them back.
+  // The 420 kW cap applies to the no-storage threshold only; capping after the
+  // raise used to undo it.
   double soft = s.max_power * .24;
-  if (s.flywheel_modules > 0 && s.flywheel_target_grid_kw > soft)
-    soft = s.flywheel_target_grid_kw;
   if (soft > 420)
     soft = 420;
-  if (s.grid_power < soft)
+  if (s.flywheel_modules > 0 && s.flywheel_target_grid_kw > soft)
+    soft = s.flywheel_target_grid_kw;
+  // A discharging flywheel holds the grid exactly at its target, which equals
+  // this threshold; only demand it cannot cover pushes the grid above it. The
+  // margin keeps that tie from throttling trams on floating-point rounding.
+  if (s.grid_power <= soft + 1.0)
     return target;
   double limited = speed + .75;
   if (limited > target)
