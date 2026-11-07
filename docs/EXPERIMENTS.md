@@ -29,6 +29,13 @@ The report schema is versioned as `schemaVersion: 1` and contains:
 - event counts;
 - periodic samples.
 
+Taking a snapshot is not free of side effects: it brings every stop's
+passenger queue up to date, and the queue integrates arrivals with the rate of
+its previous update, so extra snapshots change later boarding and therefore the
+run. A `--sample-seconds` run is deterministic but not identical to an
+unsampled one. The energy comparison samples its window through a
+side-effect-free path instead (`getServiceSample`, `getNetworkGridPowerKw`).
+
 ## Energy comparison
 
 `runEnergyComparison` executes three identical service cases:
@@ -60,6 +67,13 @@ energy saving = (reference - strategy) / reference · 100%
 peak reduction = (reference peak - strategy peak) / reference peak · 100%
 ```
 
+The comparison report is versioned as `schemaVersion: 2`. Version 2 adds the
+core runtime, the run settings (fixed step, storage and efficiency scale) and,
+per strategy, the energy-balance terms (vehicle demand, accepted regeneration,
+flywheel charge, discharge and ΔE), headway CV, time-mean on-time share and
+wait, left-behind passengers and an optional grid-power series. The earlier,
+unversioned report is version 1; its fields are unchanged.
+
 ## Current reproducible benchmark
 
 ![Energy and peak-power benchmark](assets/energy-benchmark.svg)
@@ -79,6 +93,9 @@ Each network's default fleet, service from 08:00, a 10-minute warm-up and a
 | Nizhny Route 2, 10 trams, predictive | 23.8% | 28.5% | 16.1 → 15.9 kWh | 127 interventions |
 
 These are simulator outputs, not measured savings for either real operator.
+Sensitivity sweeps around this baseline (time of day, fleet size, storage size,
+flywheel efficiency), the credibility checks and the figures are in
+[RESULTS.md](RESULTS.md).
 
 The predictive controller does not improve on reactive flywheels: energy
 savings are equal within 0.2 points, it cuts the İzmir peak slightly more and
