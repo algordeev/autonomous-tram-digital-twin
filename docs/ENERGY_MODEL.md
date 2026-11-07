@@ -137,9 +137,16 @@ lower the target grid threshold and create capacity in advance.
 
 - `no-storage`: traction sections and direct reuse remain, but flywheel storage
   is disabled;
-- `baseline`: reactive flywheel charge and discharge without vehicle guidance;
-- `network-optimal`: predictive SOC/peak logic may soften acceleration when a
-  grid peak is not served by local regeneration.
+- `baseline`: flywheel charge and discharge with the SOC bands and forecast
+  above, without vehicle guidance;
+- `network-optimal`: the same flywheel dispatch, plus traction guidance that
+  softens acceleration when a section's grid draw exceeds its setpoint and is
+  not served by local regeneration. While a flywheel can still discharge it
+  holds the grid at that setpoint, so the guidance acts mainly without storage
+  or with depleted banks.
+
+The SOC and forecast dispatch therefore runs in both storage strategies; they
+differ only by the traction guidance.
 
 Signals, obstacles, safe distance, doors and stop authority always override
 energy guidance.

@@ -8,7 +8,7 @@ are not measured savings for either operator (see [Limitations](#limitations)).
 ## How to reproduce
 
 ```bash
-git checkout results/sensitivity-sweeps   # results.csv rows record git_commit 1aeb765 (same models)
+git checkout fix/predictive-guidance     # results.csv rows record git_commit f2e75e0
 npm ci                        # Node ≥ 22.13 (results produced with Node v24.19.0)
 npm run benchmark:sweeps      # outputs/sweeps/results.csv, ~10 min on 8 cores, resumable
 npm run benchmark:sanity      # outputs/sweeps/sanity.json and sanity.md, ~4 min
@@ -51,16 +51,19 @@ measured window, configured storage, 50 ms step. This reproduces the
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | İzmir Konak, 14 | none | 1348.7 | — | 1509.7 | — | 89.4% | 0 |
 | İzmir Konak, 14 | reactive | 1051.9 | 22.0% | 1325.5 | 12.2% | 89.4% | 0 |
-| İzmir Konak, 14 | predictive | 1054.9 | 21.8% | 1291.1 | 14.5% | 89.4% | 166 |
+| İzmir Konak, 14 | predictive | 1051.9 | 22.0% | 1325.5 | 12.2% | 89.4% | 0 |
 | Nizhny Route 2, 10 | none | 1353.2 | — | 1487.2 | — | 91.2% | 0 |
 | Nizhny Route 2, 10 | reactive | 1029.9 | 23.9% | 949.3 | 36.2% | 91.2% | 0 |
-| Nizhny Route 2, 10 | predictive | 1031.8 | 23.8% | 1064.1 | 28.5% | 95.3% | 127 |
+| Nizhny Route 2, 10 | predictive | 1029.9 | 23.9% | 949.3 | 36.2% | 91.2% | 0 |
 | Nizhny Routes 2+21, 10 | none | 1507.2 | — | 1229.2 | — | 90.0% | 0 |
 | Nizhny Routes 2+21, 10 | reactive | 1158.8 | 23.1% | 1110.5 | 9.7% | 90.0% | 0 |
-| Nizhny Routes 2+21, 10 | predictive | 1159.2 | 23.1% | 1122.2 | 8.7% | 90.2% | 89 |
+| Nizhny Routes 2+21, 10 | predictive | 1158.8 | 23.1% | 1110.5 | 9.7% | 90.0% | 0 |
 
 On-time is the time mean of the share of in-service trams within ±60 s of
 their interval (`onTimePercent`), sampled every 60 s without disturbing the run.
+The predictive rows are identical to the reactive ones: its traction guidance
+never intervenes in the baseline windows (see
+[Predictive against reactive](#sensitivity)).
 
 ## Sensitivity
 
@@ -86,17 +89,19 @@ One factor at a time around the baseline; 25 distinct cases × 3 strategies.
 - **Efficiency** (İzmir, η scale 0.9, 0.95, 1.0 of the nominal 0.95 per
   direction, i.e. η = 0.855, 0.9025, 0.95). Reactive saving is 18.7%, 20.3% and
   22.0%; the peak reduction does not change.
-- **Predictive against reactive.** In all 25 cases the predictive controller
-  saves less grid energy than reactive (by 0.0 to 0.5 points). Its peak
-  reduction is higher in 17 cases and lower in 8, by −10.6 to +8.5 points, with
-  no consistent pattern by network or time; differences of a few points are
-  within the peak's sensitivity to fleet phasing (sanity check 3b). With no
-  storage installed its
-  traction guidance alone cuts the İzmir peak by 5.5% at no energy saving.
-- **Service.** Reactive storage does not change any service metric: trajectories,
-  vehicle-km, on-time share and waits are identical to the no-storage run in
-  every case. The predictive controller shifts the on-time share by −1.4 to
-  +4.2 points.
+- **Predictive against reactive.** The predictive strategy is the reactive
+  flywheel logic plus one traction-guidance rule: when a section draws more
+  than its grid setpoint, accelerating trams are limited. With storage
+  installed the flywheels already hold each section at that setpoint, so the
+  rule almost never acts. In 24 of the 25 cases it intervenes 0 to 6 times per
+  hour and the result equals reactive within 0.003 points of energy saving and
+  0.05 points of peak reduction. Only with no storage installed does it act
+  (165 interventions): it cuts the İzmir peak by 5.4% at an energy cost of
+  0.04%, with no change in on-time share. The predictive strategy therefore
+  provides no benefit over reactive flywheels.
+- **Service.** Neither storage strategy changes any service metric:
+  trajectories, vehicle-km, on-time share and waits are identical to the
+  no-storage run in every case.
 
 ## Sanity checks
 
@@ -108,7 +113,7 @@ One factor at a time around the baseline; 25 distinct cases × 3 strategies.
 | 1. Energy balance: grid + accepted regen = vehicle demand + flywheel losses + ΔE | pass | Residual ≤ 4.4·10⁻¹² kWh (≤ 9·10⁻¹³ %) for all three strategies |
 | 2. Timestep 50 ms → 25 ms | pass | Wh/vkm ≤ 0.12%, peak ≤ 0.86%; saving 22.0% → 21.9% (reactive) |
 | 3a. Warm-up 10 → 20 min (window moves to 08:20–09:20) | **fail** | Wh/vkm +1.5 to +2.1%; peak unchanged; saving 22.0% → 22.4% |
-| 3b. Warm-up 10 → 20 min, same 08:10–09:10 window | **fail** | Wh/vkm +0.41 to +0.77% (within target), but peak +12 to +17% (no storage 1509.7 → 1694.5 kW); peak reduction 12.2% → 11.1% (reactive), 14.5% → 11.2% (predictive) |
+| 3b. Warm-up 10 → 20 min, same 08:10–09:10 window | **fail** | Wh/vkm +0.41 to +0.77% (within target), but peak +12 to +17% (no storage 1509.7 → 1694.5 kW); peak reduction 12.2% → 11.1% (reactive and predictive) |
 
 What these mean:
 
@@ -121,11 +126,9 @@ What these mean:
    0.8%. The **peak is not**: it is the maximum of a single instant, and starting
    the fleet 10 minutes earlier changes how trams are phased when they
    accelerate together. In this one comparison the absolute peak moved by
-   12–17% and the peak reduction by 1.1 (reactive) and 3.3 (predictive)
-   points. The baseline difference between predictive (14.5%) and reactive
-   (12.2%) on İzmir disappears (11.2% against 11.1%), so peak figures on this
-   page are indicative, and peak differences of a few points between
-   strategies are not significant.
+   12–17% and the peak reduction by 1.1 points, so peak figures on this page
+   are indicative, and peak differences of a few points between strategies or
+   cases are not significant.
 
 Grid energy per vehicle-km against published values (column to be completed
 from the literature):
@@ -134,7 +137,7 @@ from the literature):
 | --- | --- | ---: | --- |
 | İzmir Konak | none | 1348.7 | |
 | İzmir Konak | reactive | 1051.9 | |
-| İzmir Konak | predictive | 1054.9 | |
+| İzmir Konak | predictive | 1051.9 | |
 
 ## Figures
 
@@ -145,7 +148,8 @@ available as SVG next to the PNG.
 
 **Figure 1.** Grid-energy saving (left) and peak grid-power reduction (right)
 of the reactive and predictive strategies against no storage, baseline case on
-each network.
+each network. The two strategies give identical results because the
+predictive traction guidance never intervenes in these runs.
 
 ![İzmir network grid power with and without flywheels](assets/results/fig2_izmir_grid_power.png)
 
@@ -163,9 +167,9 @@ the fleet, sets the headway.
 ![Energy saving against punctuality for all sweep cases](assets/results/fig4_energy_vs_punctuality.png)
 
 **Figure 4.** Grid-energy saving against the time-mean on-time share for every
-sweep case with storage; reactive points have exactly the on-time share of
-their no-storage reference, and the two points at 0% are the case with no
-storage installed.
+sweep case; both strategies have exactly the on-time share of their
+no-storage reference, so every predictive marker sits on its reactive point.
+The point at 0% is the case with no storage installed.
 
 ## Limitations
 
@@ -180,9 +184,15 @@ storage installed.
   voltage sag and no DC load flow. Regenerated energy is shared within a
   section without losses or voltage limits, which favours both direct reuse and
   storage.
-- **The predictive controller is not a benefit.** It never saves more energy
-  than reactive flywheels, and its peak effect is inconsistent in sign. It
-  should not be presented as an improvement.
+- **The predictive controller is not a benefit.** Its traction guidance has
+  no measurable effect while flywheels are installed, and its SOC and forecast
+  dispatch also runs in the reactive strategy, so the two strategies differ
+  only by that guidance rule. Earlier versions of this page reported
+  predictive differences of up to ±10 points in peak reduction. They came from
+  two errors in the guidance threshold, fixed in `f2e75e0`: the rule
+  throttled trams while a flywheel was holding the grid exactly at the
+  threshold (a floating-point tie), and a cap undid the raised threshold for
+  depleted flywheels.
 - **Peaks are single-instant maxima** and depend on fleet phasing (sanity
   check 3b).
 - **Service metrics are model metrics.** Terminal holding makes the İzmir
@@ -202,8 +212,9 @@ hatlarında %23,1–23,9 azaltmış; tepe gücü sırasıyla %12,2 ve %9,7–36,
 düşürmüştür. Tek faktörlü duyarlılık analizinde İzmir'deki tasarruf günün
 saatine ve filo büyüklüğüne göre %21,2–25,1 aralığında kalmış, tepe güç
 azaltımı ise %0–19,9 arasında değişerek depolama kapasitesinden çok sabit eşikli
-dağıtım kuralıyla sınırlanmıştır. Mevcut öngörülü denetleyici reaktif kontrole
-göre enerji kazancı sağlamamıştır. Sonuçlar karşılaştırmalı olup işletme
+dağıtım kuralıyla sınırlanmıştır. Mevcut kural tabanlı öngörülü çekiş
+yönlendirmesi volanlar devredeyken ölçülebilir bir etki göstermemiş, reaktif
+kontrole göre ek enerji veya tepe güç kazancı sağlamamıştır. Sonuçlar karşılaştırmalı olup işletme
 ölçümleriyle kalibre edilmemiştir. Bu bulgular, dakikliği düşürmeden tepe gücü
 ve enerjiyi birlikte iyileştiren NSGA-II/III tabanlı çok amaçlı öngörülü bir
 denetleyiciye ve bunun Donanım-Döngüde (HIL) doğrulanmasına yönelik araştırma
