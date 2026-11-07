@@ -108,7 +108,8 @@ def fig1_savings_by_network(df: pd.DataFrame, out_dir: Path) -> None:
                     xytext=(0, 2), textcoords="offset points", ha="center", va="bottom", fontsize=8, color=INK,
                 )
         ax.set_xticks(range(len(NETWORKS)))
-        ax.set_xticklabels([label for _, label in NETWORKS], fontsize=8.5)
+        ax.set_xticklabels([label.replace("Nizhny ", "Nizhny\n").replace("İzmir ", "İzmir\n") for _, label in NETWORKS], fontsize=8.5)
+        ax.tick_params(labelleft=True)
         ax.set_ylabel(ylabel, fontsize=9, color=INK)
         ax.axhline(0, color=INK_SECONDARY, linewidth=0.8)
         style_axes(ax)
@@ -119,24 +120,39 @@ def fig1_savings_by_network(df: pd.DataFrame, out_dir: Path) -> None:
     save(fig, out_dir, "fig1_savings_by_network")
 
 
-def fig2_izmir_grid_power(series: pd.DataFrame, out_dir: Path) -> None:
-    fig, ax = plt.subplots(figsize=(7.2, 3.0))
+def fig2_izmir_grid_power(series: pd.DataFrame, df: pd.DataFrame, out_dir: Path) -> None:
+    """Full window (a) and a zoom around the no-storage peak (b).
+
+    The series is sampled every 1 s, so it can miss the true window peak,
+    which the core records at every 50 ms step; the horizontal lines and
+    labels use those recorded peaks from results.csv.
+    """
+    base = at_baseline(df)
+    base = base[base["scenario"] == "izmir-konak"]
+    peaks = {strategy: float(base[base["strategy"] == strategy]["peak_kw"].iloc[0]) for strategy in ("none", "reactive")}
     minutes = series["t_s"] / 60.0
-    for strategy, column in (("none", "none_kw"), ("reactive", "reactive_kw")):
-        style = STYLE[strategy]
-        values = series[column]
-        ax.plot(minutes, values, color=style["color"], linewidth=0.7, linestyle="-",
-                alpha=0.9 if strategy == "reactive" else 0.75, label=style["label"], zorder=3 if strategy == "reactive" else 2)
-        peak = values.max()
-        ax.axhline(peak, color=style["color"], linewidth=1.0, linestyle=style["linestyle"] if strategy == "none" else "--")
-        ax.annotate(f"peak {peak:.0f} kW", (minutes.iloc[-1], peak), xytext=(4, 0), textcoords="offset points",
-                    va="center", fontsize=8, color=INK)
-    ax.set_xlim(0, minutes.iloc[-1])
-    ax.set_ylim(bottom=0)
-    ax.set_xlabel("Time into measured window (min)", fontsize=9, color=INK)
-    ax.set_ylabel("Network grid power (kW)", fontsize=9, color=INK)
-    style_axes(ax)
-    ax.legend(frameon=False, fontsize=8.5, loc="upper left", ncol=2)
+    peak_minute = float(minutes[series["none_kw"].idxmax()])
+    zoom = (max(0.0, peak_minute - 2.5), min(float(minutes.iloc[-1]), peak_minute + 2.5))
+
+    fig, axes = plt.subplots(2, 1, figsize=(7.2, 4.8), gridspec_kw={"height_ratios": [1, 1.15]})
+    for panel, (ax, lim, width) in enumerate(zip(axes, [(0.0, float(minutes.iloc[-1])), zoom], [0.5, 1.3])):
+        for strategy, column in (("none", "none_kw"), ("reactive", "reactive_kw")):
+            style = STYLE[strategy]
+            ax.plot(minutes, series[column], color=style["color"], linewidth=width,
+                    label=style["label"], zorder=3 if strategy == "reactive" else 2)
+            ax.axhline(peaks[strategy], color=style["color"], linewidth=1.0,
+                       linestyle=":" if strategy == "none" else "--", zorder=4)
+            if panel == 1:
+                ax.annotate(f"window peak {peaks[strategy]:.0f} kW", (lim[1], peaks[strategy]), xytext=(4, 0),
+                            textcoords="offset points", va="center", fontsize=8, color=INK)
+        ax.set_xlim(*lim)
+        ax.set_ylim(0, max(peaks.values()) * 1.16)
+        ax.set_ylabel("Grid power (kW)", fontsize=9, color=INK)
+        ax.text(0.005, 0.97, "(a)" if panel == 0 else "(b)", transform=ax.transAxes, va="top", fontsize=9, color=INK)
+        style_axes(ax)
+    axes[0].axvspan(*zoom, color=GRID, alpha=0.6, zorder=1, linewidth=0)
+    axes[1].set_xlabel("Time into measured window (min)", fontsize=9, color=INK)
+    axes[0].legend(frameon=False, fontsize=8.5, loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2)
     fig.tight_layout()
     save(fig, out_dir, "fig2_izmir_grid_power")
 
@@ -168,19 +184,26 @@ def fig3_sensitivity_fleet(df: pd.DataFrame, out_dir: Path) -> None:
 
 
 def fig4_energy_vs_punctuality(df: pd.DataFrame, out_dir: Path) -> None:
+    """Storage cases only: the no-storage reference is 0% saving by definition,
+    and the reactive points share its on-time share exactly (stated in the caption)."""
     fig, ax = plt.subplots(figsize=(5.4, 3.4))
-    for strategy in ("none", "reactive", "predictive"):
+    for strategy in ("reactive", "predictive"):
         style = STYLE[strategy]
         rows = df[df["strategy"] == strategy]
-        ax.scatter(rows["on_time_pct"].astype(float), rows["energy_saving_pct"].astype(float), s=30,
-                   marker=style["marker"], facecolor=style["color"] if strategy != "none" else "white",
-                   edgecolor=style["color"] if strategy == "none" else "white", linewidth=0.8,
-                   label=style["label"], zorder=3)
+        hollow = strategy == "predictive"
+        ax.scatter(rows["on_time_pct"].astype(float), rows["energy_saving_pct"].astype(float),
+                   s=48 if hollow else 22, marker=style["marker"],
+                   facecolor="none" if hollow else style["color"], edgecolor=style["color"],
+                   linewidth=1.2 if hollow else 0, label=style["label"], zorder=4 if hollow else 3)
+    small = df[(df["strategy"] == "reactive") & (df["on_time_pct"].astype(float) < 70)]
+    for _, row in small.iterrows():
+        ax.annotate(f"{int(row['tram_count'])} trams", (float(row["on_time_pct"]), float(row["energy_saving_pct"])),
+                    xytext=(6, -10), textcoords="offset points", fontsize=8, color=INK_SECONDARY)
     ax.set_xlabel("Trams within ±60 s of their interval, time mean (%)", fontsize=9, color=INK)
     ax.set_ylabel("Grid-energy saving (%)", fontsize=9, color=INK)
     style_axes(ax)
     ax.xaxis.grid(True, color=GRID, linewidth=0.8)
-    ax.legend(frameon=False, fontsize=8.5, loc="center left")
+    ax.legend(frameon=False, fontsize=8.5, loc="lower left")
     fig.tight_layout()
     save(fig, out_dir, "fig4_energy_vs_punctuality")
 
@@ -197,7 +220,7 @@ def main() -> None:
     if (df["core_runtime"] != "cpp-wasm").any():
         raise SystemExit("results.csv contains rows that did not run on the cpp-wasm core")
     fig1_savings_by_network(df, args.out)
-    fig2_izmir_grid_power(pd.read_csv(args.series), args.out)
+    fig2_izmir_grid_power(pd.read_csv(args.series), df, args.out)
     fig3_sensitivity_fleet(df, args.out)
     fig4_energy_vs_punctuality(df, args.out)
 

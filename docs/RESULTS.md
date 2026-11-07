@@ -138,19 +138,34 @@ from the literature):
 
 ## Figures
 
-Generate with `python3 scripts/plot_results.py`; files are written to
-`docs/assets/results/` as PNG (300 dpi) and SVG.
+Regenerate with `python3 scripts/plot_results.py`; each figure is also
+available as SVG next to the PNG.
 
-1. `fig1_savings_by_network` — Grid-energy saving and peak grid-power reduction
-   of the reactive and predictive strategies against no storage, baseline case
-   on each network.
-2. `fig2_izmir_grid_power` — Network grid power over the 60 min measured window
-   on İzmir at 08:10–09:10, with and without reactive flywheels (1 s samples;
-   horizontal lines mark each run's peak).
-3. `fig3_sensitivity_fleet` — Grid-energy saving against İzmir fleet size, with
-   the measured mean terminal headway under each fleet size.
-4. `fig4_energy_vs_punctuality` — Grid-energy saving against the time-mean
-   on-time share for every sweep case and strategy.
+![Grid-energy saving and peak reduction by network](assets/results/fig1_savings_by_network.png)
+
+**Figure 1.** Grid-energy saving (left) and peak grid-power reduction (right)
+of the reactive and predictive strategies against no storage, baseline case on
+each network.
+
+![İzmir network grid power with and without flywheels](assets/results/fig2_izmir_grid_power.png)
+
+**Figure 2.** İzmir network grid power over the 08:10–09:10 measured window
+(a) and a 5 min zoom around the no-storage peak (b), with and without reactive
+flywheels; curves are 1 s samples, horizontal lines are each run's window peak
+recorded at the 50 ms step.
+
+![Energy saving against İzmir fleet size](assets/results/fig3_sensitivity_fleet.png)
+
+**Figure 3.** Grid-energy saving against İzmir fleet size, with the measured
+mean terminal headway under each fleet size; above 12 trams the timetable, not
+the fleet, sets the headway.
+
+![Energy saving against punctuality for all sweep cases](assets/results/fig4_energy_vs_punctuality.png)
+
+**Figure 4.** Grid-energy saving against the time-mean on-time share for every
+sweep case with storage; reactive points have exactly the on-time share of
+their no-storage reference, and the two points at 0% are the case with no
+storage installed.
 
 ## Limitations
 

@@ -111,7 +111,7 @@ counts and periodic samples. Programmatic experiments can use
 
 ## Preliminary results
 
-![Energy saving and peak reduction by network](docs/assets/energy-benchmark.svg)
+![Energy saving and peak reduction by network](docs/assets/results/fig1_savings_by_network.png)
 
 Against a no-storage reference on the same service, reactive wayside flywheels
 cut grid energy per vehicle-km by 22.0% on İzmir and 23.1–23.9% on the Nizhny
@@ -119,8 +119,7 @@ Novgorod networks. Across time of day and fleet size the İzmir saving stays in
 21.2–25.1%, while the peak reduction ranges from 0% to 19.9%. The predictive
 controller does not save more energy than reactive flywheels. These are
 comparative simulator results, not calibrated measurements. The sweeps,
-sanity checks and figures (`docs/assets/results/fig1_savings_by_network.png`
-once generated) are in [docs/RESULTS.md](docs/RESULTS.md):
+sanity checks and figures are in [docs/RESULTS.md](docs/RESULTS.md):
 
 ```bash
 npm run benchmark:sweeps && npm run benchmark:sanity
