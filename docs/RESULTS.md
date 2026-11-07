@@ -8,7 +8,7 @@ are not measured savings for either operator (see [Limitations](#limitations)).
 ## How to reproduce
 
 ```bash
-git checkout fix/predictive-guidance     # results.csv rows record git_commit f2e75e0
+git checkout main             # results.csv rows record git_commit f2e75e0 (same models)
 npm ci                        # Node ≥ 22.13 (results produced with Node v24.19.0)
 npm run benchmark:sweeps      # outputs/sweeps/results.csv, ~10 min on 8 cores, resumable
 npm run benchmark:sanity      # outputs/sweeps/sanity.json and sanity.md, ~4 min
@@ -147,9 +147,7 @@ available as SVG next to the PNG.
 ![Grid-energy saving and peak reduction by network](assets/results/fig1_savings_by_network.png)
 
 **Figure 1.** Grid-energy saving (left) and peak grid-power reduction (right)
-of the reactive and predictive strategies against no storage, baseline case on
-each network. The two strategies give identical results because the
-predictive traction guidance never intervenes in these runs.
+of reactive flywheels against no storage, baseline case on each network.¹
 
 ![İzmir network grid power with and without flywheels](assets/results/fig2_izmir_grid_power.png)
 
@@ -162,14 +160,18 @@ recorded at the 50 ms step.
 
 **Figure 3.** Grid-energy saving against İzmir fleet size, with the measured
 mean terminal headway under each fleet size; above 12 trams the timetable, not
-the fleet, sets the headway.
+the fleet, sets the headway.¹
 
-![Energy saving against punctuality for all sweep cases](assets/results/fig4_energy_vs_punctuality.png)
+![Energy saving and peak reduction against İzmir storage size](assets/results/fig4_storage_size.png)
 
-**Figure 4.** Grid-energy saving against the time-mean on-time share for every
-sweep case; both strategies have exactly the on-time share of their
-no-storage reference, so every predictive marker sits on its reactive point.
-The point at 0% is the case with no storage installed.
+**Figure 4.** Reactive grid-energy saving and peak grid-power reduction on
+İzmir against flywheel storage size, as a multiple of the configured banks
+(power and energy scaled together). Energy saving keeps rising with storage,
+while peak reduction stays at 12.2% from 0.5× to 1.5×: the fixed per-section
+discharge setpoint, not the stored energy, limits the peak.¹
+
+¹ The rule-based predictive variant equals reactive in these cases (see
+[Sensitivity](#sensitivity)), so it is not drawn.
 
 ## Limitations
 
@@ -211,11 +213,14 @@ referansa göre araç-km başına şebeke enerjisini İzmir'de %22,0, Nijniy
 hatlarında %23,1–23,9 azaltmış; tepe gücü sırasıyla %12,2 ve %9,7–36,2
 düşürmüştür. Tek faktörlü duyarlılık analizinde İzmir'deki tasarruf günün
 saatine ve filo büyüklüğüne göre %21,2–25,1 aralığında kalmış, tepe güç
-azaltımı ise %0–19,9 arasında değişerek depolama kapasitesinden çok sabit eşikli
-dağıtım kuralıyla sınırlanmıştır. Mevcut kural tabanlı öngörülü çekiş
-yönlendirmesi volanlar devredeyken ölçülebilir bir etki göstermemiş, reaktif
-kontrole göre ek enerji veya tepe güç kazancı sağlamamıştır. Sonuçlar karşılaştırmalı olup işletme
-ölçümleriyle kalibre edilmemiştir. Bu bulgular, dakikliği düşürmeden tepe gücü
+azaltımı ise %0–19,9 arasında değişmiştir. Depolama kapasitesi 0,5–1,5 kat
+aralığında değiştirildiğinde enerji tasarrufu %15,0'dan %25,1'e yükselirken
+tepe güç azaltımı %12,2'de sabit kalmıştır; tepe gücü depolama kapasitesi
+değil, sabit eşikli dağıtım kuralı sınırlamaktadır. Mevcut kural tabanlı
+öngörülü çekiş yönlendirmesi volanlar devredeyken ölçülebilir bir etki
+göstermemiş, reaktif kontrole göre ek enerji veya tepe güç kazancı
+sağlamamıştır. Sonuçlar karşılaştırmalı olup işletme ölçümleriyle kalibre
+edilmemiştir. Bu bulgular, dakikliği düşürmeden tepe gücü
 ve enerjiyi birlikte iyileştiren NSGA-II/III tabanlı çok amaçlı öngörülü bir
 denetleyiciye ve bunun Donanım-Döngüde (HIL) doğrulanmasına yönelik araştırma
 boşluğunu ortaya koymaktadır.
