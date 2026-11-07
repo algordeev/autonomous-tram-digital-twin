@@ -168,6 +168,17 @@ export class StopDemandTracker {
     this.lastVisitOverflow = overflow;
   }
 
+  /**
+   * The Little's-Law wait as of `nowSeconds`, without updating the queue.
+   * advance() integrates with the rate of its previous call, so extra calls
+   * change the queue; headless studies use this to observe without doing so.
+   */
+  projectedAverageWaitSeconds(nowSeconds: number): number {
+    if (this.currentRatePerSecond <= 1e-6 || this.lastUpdateSeconds === null) return 0;
+    const elapsed = Math.max(0, nowSeconds - this.lastUpdateSeconds);
+    return (this.waitingPassengers + this.currentRatePerSecond * elapsed) / this.currentRatePerSecond;
+  }
+
   /** Little's Law: average wait ≈ queue length / arrival rate. */
   estimateAverageWaitSeconds(): number {
     if (this.currentRatePerSecond <= 1e-6) return 0;

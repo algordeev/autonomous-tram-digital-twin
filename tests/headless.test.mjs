@@ -7,6 +7,8 @@ import {
   initializeCppRuntimeFromBytes,
   runEnergyComparison,
   runHeadlessSimulation,
+  scaleScenarioStorage,
+  SCENARIOS,
   SimulationEngine,
 } from "../src/simulation-core/index.ts";
 
@@ -116,4 +118,34 @@ test("the energy comparison measures a window after warm-up and credits stored f
     assert.ok(row.distanceKm > 0 && row.distanceKm < 6 * (120 / 3600) * 70);
     assert.ok(row.peakGridPowerKw > 0);
   }
+});
+
+test("storage scaling rescales flywheel ratings without touching the shared scenario", () => {
+  const izmir = SCENARIOS.find((item) => item.id === "izmir-konak");
+  const original = izmir.tractionPowerSystem.sections.find((section) => section.flywheel).flywheel;
+  const half = scaleScenarioStorage(izmir, 0.5, 0.9);
+  const scaled = half.tractionPowerSystem.sections.find((section) => section.flywheel).flywheel;
+  assert.equal(scaled.modules, original.modules);
+  assert.ok(Math.abs(scaled.moduleEnergyKWh - original.moduleEnergyKWh * 0.5) < 1e-12);
+  assert.ok(Math.abs(scaled.chargeEfficiency - original.chargeEfficiency * 0.9) < 1e-12);
+  assert.equal(izmir.tractionPowerSystem.sections.find((section) => section.flywheel).flywheel, original);
+  assert.ok(scaleScenarioStorage(izmir, 0).tractionPowerSystem.sections.every((section) => !section.flywheel));
+  assert.equal(scaleScenarioStorage(izmir, 1, 1), izmir);
+  assert.throws(() => scaleScenarioStorage(izmir, 1, 1.1), /above 1/);
+  assert.equal(new SimulationEngine("izmir-konak", undefined, { fixedStepSeconds: 0.025 }).fixedStepSeconds, 0.025);
+});
+
+test("sampling the measured window does not change the energy comparison", async () => {
+  await initializeCppRuntimeFromBytes(await readFile(new URL("../public/wasm/tram-core.wasm", import.meta.url)));
+  const options = { scenarioId: "izmir-konak", tramCount: 6, startServiceMinute: 480, warmUpSeconds: 60, durationSeconds: 240 };
+  const plain = runEnergyComparison({ ...options, serviceSampleSeconds: 3600 });
+  const sampled = runEnergyComparison({ ...options, serviceSampleSeconds: 5, gridPowerSampleSeconds: 1 });
+  assert.equal(sampled.schemaVersion, 2);
+  assert.equal(sampled.coreRuntime, "cpp-wasm");
+  plain.rows.forEach((row, index) => {
+    assert.equal(sampled.rows[index].socCorrectedGridKWh, row.socCorrectedGridKWh);
+    assert.equal(sampled.rows[index].peakGridPowerKw, row.peakGridPowerKw);
+    assert.equal(sampled.rows[index].distanceKm, row.distanceKm);
+  });
+  assert.equal(sampled.rows[0].gridPowerSeriesKw.length, 240);
 });
