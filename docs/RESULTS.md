@@ -47,19 +47,23 @@ Each network's default fleet, service from 08:00, 10 min warm-up, 60 min
 measured window, configured storage, 50 ms step. This reproduces the
 [EXPERIMENTS.md](EXPERIMENTS.md#current-reproducible-benchmark) table exactly.
 
-| Network, fleet | Strategy | Grid Wh/vkm | Energy saving | Peak kW | Peak reduction | On-time | Interventions |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| İzmir Konak, 14 | none | 1348.7 | — | 1509.7 | — | 89.4% | 0 |
-| İzmir Konak, 14 | reactive | 1051.9 | 22.0% | 1325.5 | 12.2% | 89.4% | 0 |
-| İzmir Konak, 14 | predictive | 1051.9 | 22.0% | 1325.5 | 12.2% | 89.4% | 0 |
-| Nizhny Route 2, 10 | none | 1353.2 | — | 1487.2 | — | 91.2% | 0 |
-| Nizhny Route 2, 10 | reactive | 1029.9 | 23.9% | 949.3 | 36.2% | 91.2% | 0 |
-| Nizhny Route 2, 10 | predictive | 1029.9 | 23.9% | 949.3 | 36.2% | 91.2% | 0 |
-| Nizhny Routes 2+21, 10 | none | 1507.2 | — | 1229.2 | — | 90.0% | 0 |
-| Nizhny Routes 2+21, 10 | reactive | 1158.8 | 23.1% | 1110.5 | 9.7% | 90.0% | 0 |
-| Nizhny Routes 2+21, 10 | predictive | 1158.8 | 23.1% | 1110.5 | 9.7% | 90.0% | 0 |
+| Network, fleet | Strategy | Grid Wh/vkm | Energy saving | Peak kW | Peak reduction | 15-min peak kW | 15-min peak reduction | On-time | Interventions |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| İzmir Konak, 14 | none | 1348.7 | — | 1509.7 | — | 440.4 | — | 89.4% | 0 |
+| İzmir Konak, 14 | reactive | 1051.9 | 22.0% | 1325.5 | 12.2% | 341.0 | 22.6% | 89.4% | 0 |
+| İzmir Konak, 14 | predictive | 1051.9 | 22.0% | 1325.5 | 12.2% | 341.0 | 22.6% | 89.4% | 0 |
+| Nizhny Route 2, 10 | none | 1353.2 | — | 1487.2 | — | 367.5 | — | 91.2% | 0 |
+| Nizhny Route 2, 10 | reactive | 1029.9 | 23.9% | 949.3 | 36.2% | 277.7 | 24.5% | 91.2% | 0 |
+| Nizhny Route 2, 10 | predictive | 1029.9 | 23.9% | 949.3 | 36.2% | 277.7 | 24.5% | 91.2% | 0 |
+| Nizhny Routes 2+21, 10 | none | 1507.2 | — | 1229.2 | — | 407.6 | — | 90.0% | 0 |
+| Nizhny Routes 2+21, 10 | reactive | 1158.8 | 23.1% | 1110.5 | 9.7% | 309.1 | 24.2% | 90.0% | 0 |
+| Nizhny Routes 2+21, 10 | predictive | 1158.8 | 23.1% | 1110.5 | 9.7% | 309.1 | 24.2% | 90.0% | 0 |
 
-On-time is the time mean of the share of in-service trams within ±60 s of
+Peak kW is the highest network grid power at any single 50 ms step of the
+window. 15-min peak kW is the highest mean network grid power over any 15 min
+interval inside the window, from the core's per-step grid-energy integral
+(metered supply, no ΔE correction); 15 min is a common averaging interval
+for billed demand. On-time is the time mean of the share of in-service trams within ±60 s of
 their interval (`onTimePercent`), sampled every 60 s without disturbing the run.
 The predictive rows are identical to the reactive ones: its traction guidance
 never intervenes in the baseline windows (see
@@ -89,6 +93,15 @@ One factor at a time around the baseline; 25 distinct cases × 3 strategies.
 - **Efficiency** (İzmir, η scale 0.9, 0.95, 1.0 of the nominal 0.95 per
   direction, i.e. η = 0.855, 0.9025, 0.95). Reactive saving is 18.7%, 20.3% and
   22.0%; the peak reduction does not change.
+- **15-min rolling-average peak.** Averaged over 15 minutes, the reactive
+  peak reduction follows the energy saving rather than the single-step peak:
+  17.2–24.8% across time of day and fleet size on all three networks, and
+  15.0%, 22.6% and 25.9% at 0.5×, 1.0× and 1.5× storage. Over 15 minutes the
+  flywheels lower grid draw by reusing braking energy, and a bank of
+  0.5 kWh modules is far too small to shift demand between intervals. The flat
+  12.2% under storage size therefore applies to the single-step peak only: it
+  shows that the dispatch setpoint limits how far short demand spikes are
+  shaved, not that storage has no effect on averaged demand.
 - **Predictive against reactive.** The predictive strategy is the reactive
   flywheel logic plus one traction-guidance rule: when a section draws more
   than its grid setpoint, accelerating trams are limited. With storage
@@ -97,7 +110,8 @@ One factor at a time around the baseline; 25 distinct cases × 3 strategies.
   hour and the result equals reactive within 0.003 points of energy saving and
   0.05 points of peak reduction. Only with no storage installed does it act
   (165 interventions): it cuts the İzmir peak by 5.4% at an energy cost of
-  0.04%, with no change in on-time share. The predictive strategy therefore
+  0.04%, with no change in on-time share; its 15-min peak is 0.2% higher than
+  without guidance, so it moves demand in time rather than removing it. The predictive strategy therefore
   provides no benefit over reactive flywheels.
 - **Service.** Neither storage strategy changes any service metric:
   trajectories, vehicle-km, on-time share and waits are identical to the
@@ -111,9 +125,10 @@ One factor at a time around the baseline; 25 distinct cases × 3 strategies.
 | Check | Result | Detail |
 | --- | --- | --- |
 | 1. Energy balance: grid + accepted regen = vehicle demand + flywheel losses + ΔE | pass | Residual ≤ 4.4·10⁻¹² kWh (≤ 9·10⁻¹³ %) for all three strategies |
-| 2. Timestep 50 ms → 25 ms | pass | Wh/vkm ≤ 0.12%, peak ≤ 0.86%; saving 22.0% → 21.9% (reactive) |
-| 3a. Warm-up 10 → 20 min (window moves to 08:20–09:20) | **fail** | Wh/vkm +1.5 to +2.1%; peak unchanged; saving 22.0% → 22.4% |
-| 3b. Warm-up 10 → 20 min, same 08:10–09:10 window | **fail** | Wh/vkm +0.41 to +0.77% (within target), but peak +12 to +17% (no storage 1509.7 → 1694.5 kW); peak reduction 12.2% → 11.1% (reactive and predictive) |
+| 2. Timestep 50 ms → 25 ms | pass | Wh/vkm ≤ 0.12%, peak ≤ 0.86%, 15-min peak ≤ 0.17%; saving 22.0% → 21.9% (reactive) |
+| 3a. Warm-up 10 → 20 min (window moves to 08:20–09:20) | **fail** | Wh/vkm +1.5 to +2.1%; peak and 15-min peak unchanged; saving 22.0% → 22.4% |
+| 3b. Warm-up 10 → 20 min, same 08:10–09:10 window | **fail** | Wh/vkm +0.64 to +0.77% (within target), but peak +12.2 to +13.7% (no storage 1509.7 → 1694.5 kW); peak reduction 12.2% → 11.1% (reactive and predictive) |
+| 3b. Same comparison, 15-min peak | **fail** | 15-min peak +3.0 to +4.5% (no storage 440.4 → 453.5 kW, reactive 341.0 → 356.3 kW); 15-min peak reduction 22.6% → 21.4% |
 
 What these mean:
 
@@ -126,9 +141,11 @@ What these mean:
    0.8%. The **peak is not**: it is the maximum of a single instant, and starting
    the fleet 10 minutes earlier changes how trams are phased when they
    accelerate together. In this one comparison the absolute peak moved by
-   12–17% and the peak reduction by 1.1 points, so peak figures on this page
+   12–14% and the peak reduction by 1.1 points, so peak figures on this page
    are indicative, and peak differences of a few points between strategies or
-   cases are not significant.
+   cases are not significant. The 15-min peak is about three times less
+   sensitive (3.0–4.5%) but still misses the 1% target, and its reduction moves
+   by 1.2 points, so it is the more robust peak metric, not a converged one.
 
 Grid energy per vehicle-km against published values (column to be completed
 from the literature):
@@ -167,8 +184,10 @@ the fleet, sets the headway.¹
 **Figure 4.** Reactive grid-energy saving and peak grid-power reduction on
 İzmir against flywheel storage size, as a multiple of the configured banks
 (power and energy scaled together). Energy saving keeps rising with storage,
-while peak reduction stays at 12.2% from 0.5× to 1.5×: the fixed per-section
-discharge setpoint, not the stored energy, limits the peak.¹
+while the single-step peak reduction stays at 12.2% from 0.5× to 1.5×: the
+fixed per-section discharge setpoint, not the stored energy, limits how far
+short demand spikes are shaved. The 15-min rolling-average peak reduction
+(15.0%, 22.6%, 25.9%) is not drawn; it follows the energy saving.¹
 
 ¹ The rule-based predictive variant equals reactive in these cases (see
 [Sensitivity](#sensitivity)), so it is not drawn.
@@ -215,8 +234,8 @@ düşürmüştür. Tek faktörlü duyarlılık analizinde İzmir'deki tasarruf g
 saatine ve filo büyüklüğüne göre %21,2–25,1 aralığında kalmış, tepe güç
 azaltımı ise %0–19,9 arasında değişmiştir. Depolama kapasitesi 0,5–1,5 kat
 aralığında değiştirildiğinde enerji tasarrufu %15,0'dan %25,1'e yükselirken
-tepe güç azaltımı %12,2'de sabit kalmıştır; tepe gücü depolama kapasitesi
-değil, sabit eşikli dağıtım kuralı sınırlamaktadır. Mevcut kural tabanlı
+anlık tepe güç azaltımı %12,2'de sabit kalmıştır; anlık tepe gücü depolama
+kapasitesi değil, sabit eşikli dağıtım kuralı sınırlamaktadır. Mevcut kural tabanlı
 öngörülü çekiş yönlendirmesi volanlar devredeyken ölçülebilir bir etki
 göstermemiş, reaktif kontrole göre ek enerji veya tepe güç kazancı
 sağlamamıştır. Sonuçlar karşılaştırmalı olup işletme ölçümleriyle kalibre
