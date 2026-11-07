@@ -82,39 +82,43 @@ def at_baseline(df: pd.DataFrame, except_for: str | None = None) -> pd.DataFrame
     return df[mask]
 
 
+# Reactive-flywheel metrics, each against the no-storage reference. Colour follows the
+# metric in every figure; hatch and marker repeat the distinction for greyscale.
+METRICS = [
+    {"column": "energy_saving_pct", "label": "Grid-energy saving", "color": "#2a78d6", "hatch": "", "marker": "o", "linestyle": "-"},
+    {"column": "peak_15min_reduction_pct", "label": "15-min peak reduction", "color": "#1baf7a", "hatch": "\\\\\\\\", "marker": "D", "linestyle": "-."},
+    {"column": "peak_reduction_pct", "label": "Instantaneous peak reduction", "color": "#eb6834", "hatch": "////", "marker": "s", "linestyle": "--"},
+]
+
+
 def fig1_savings_by_network(df: pd.DataFrame, out_dir: Path) -> None:
+    """Reactive only: the rule-based predictive variant equals it (caption footnote)."""
     base = at_baseline(df)
-    strategies = ["reactive"]  # the rule-based predictive variant equals reactive (caption footnote)
-    metrics = [("energy_saving_pct", "Grid-energy saving (%)"), ("peak_reduction_pct", "Peak grid-power reduction (%)")]
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.0), sharey=True)
-    width = 0.5
-    for ax, (column, ylabel) in zip(axes, metrics):
-        for offset, strategy in enumerate(strategies):
-            style = STYLE[strategy]
-            xs, ys = [], []
-            for index, (scenario, _) in enumerate(NETWORKS):
-                row = base[(base["scenario"] == scenario) & (base["strategy"] == strategy)]
-                if row.empty:
-                    continue
-                xs.append(index + (offset - (len(strategies) - 1) / 2) * (width + 0.02))
-                ys.append(float(row[column].iloc[0]))
-            bars = ax.bar(
-                xs, ys, width, color=style["color"], hatch=style["hatch"], edgecolor="white",
-                linewidth=0.6, label=style["label"],
-            )
-            for bar, value in zip(bars, ys):
-                ax.annotate(
-                    f"{value:.1f}", (bar.get_x() + bar.get_width() / 2, max(value, 0)),
-                    xytext=(0, 2), textcoords="offset points", ha="center", va="bottom", fontsize=8, color=INK,
-                )
-        ax.set_xticks(range(len(NETWORKS)))
-        ax.set_xticklabels([label.replace("Nizhny ", "Nizhny\n").replace("İzmir ", "İzmir\n") for _, label in NETWORKS], fontsize=8.5)
-        ax.tick_params(labelleft=True)
-        ax.set_ylabel(ylabel, fontsize=9, color=INK)
-        ax.axhline(0, color=INK_SECONDARY, linewidth=0.8)
-        style_axes(ax)
-    top = max(at_baseline(df)[["energy_saving_pct", "peak_reduction_pct"]].astype(float).max()) * 1.15
-    axes[0].set_ylim(0, top)
+    base = base[base["strategy"] == "reactive"]
+    fig, ax = plt.subplots(figsize=(7.2, 3.3))
+    width = 0.26
+    gap = 0.02
+    for offset, metric in enumerate(METRICS):
+        xs, ys = [], []
+        for index, (scenario, _) in enumerate(NETWORKS):
+            row = base[base["scenario"] == scenario]
+            if row.empty:
+                continue
+            xs.append(index + (offset - (len(METRICS) - 1) / 2) * (width + gap))
+            ys.append(float(row[metric["column"]].iloc[0]))
+        bars = ax.bar(xs, ys, width, color=metric["color"], hatch=metric["hatch"], edgecolor="white",
+                      linewidth=0.6, label=metric["label"])
+        for bar, value in zip(bars, ys):
+            ax.annotate(f"{value:.1f}", (bar.get_x() + bar.get_width() / 2, max(value, 0)),
+                        xytext=(0, 2), textcoords="offset points", ha="center", va="bottom", fontsize=8, color=INK)
+    ax.set_xticks(range(len(NETWORKS)))
+    ax.set_xticklabels([label for _, label in NETWORKS], fontsize=8.5)
+    ax.set_ylabel("Change relative to no storage (%)", fontsize=9, color=INK)
+    ax.axhline(0, color=INK_SECONDARY, linewidth=0.8)
+    top = max(base[[m["column"] for m in METRICS]].astype(float).max()) * 1.3
+    ax.set_ylim(0, top)
+    style_axes(ax)
+    ax.legend(frameon=False, fontsize=8.5, loc="upper left", ncol=3)
     fig.tight_layout()
     save(fig, out_dir, "fig1_savings_by_network")
 
@@ -182,33 +186,33 @@ def fig3_sensitivity_fleet(df: pd.DataFrame, out_dir: Path) -> None:
 
 
 def fig4_storage_size(df: pd.DataFrame, out_dir: Path) -> None:
-    """Reactive energy saving and peak reduction against İzmir storage size.
-
-    Both metrics are percentages against the same no-storage reference, so
-    they share one axis.
-    """
+    """Reactive metrics against İzmir storage size; all are percentages against
+    the same no-storage reference, so they share one axis."""
     sizes = at_baseline(df, except_for="storage_scale")
     rows = sizes[(sizes["scenario"] == "izmir-konak") & (sizes["strategy"] == "reactive")].copy()
     rows["storage_scale"] = rows["storage_scale"].astype(float)
     rows = rows.sort_values("storage_scale")
-    metrics = [
-        ("energy_saving_pct", "Grid-energy saving", "#2a78d6", "o", "-", (0, 7)),
-        ("peak_reduction_pct", "Peak grid-power reduction", "#eb6834", "s", "--", (0, -13)),
-    ]
-    fig, ax = plt.subplots(figsize=(5.4, 3.2))
-    for column, label, color, marker, linestyle, offset in metrics:
-        values = rows[column].astype(float)
-        ax.plot(rows["storage_scale"], values, color=color, marker=marker, markersize=6,
-                linestyle=linestyle, linewidth=1.6, label=label)
-        for x, value in zip(rows["storage_scale"], values):
+    # Label offsets: the 15-min line runs just above energy, so its labels go above
+    # and energy's go below-right; instantaneous labels sit below its line.
+    offsets = {"energy_saving_pct": (12, -11), "peak_15min_reduction_pct": (-6, 10), "peak_reduction_pct": (0, -13)}
+    fig, ax = plt.subplots(figsize=(5.6, 3.4))
+    for metric in METRICS:
+        values = rows[metric["column"]].astype(float)
+        ax.plot(rows["storage_scale"], values, color=metric["color"], marker=metric["marker"], markersize=6,
+                linestyle=metric["linestyle"], linewidth=1.6, label=metric["label"])
+        rolling = rows["peak_15min_reduction_pct"].astype(float)
+        for x, value, rolling_value in zip(rows["storage_scale"], values, rolling):
             if x == 0:
                 continue
-            ax.annotate(f"{value:.1f}", (x, value), xytext=offset, textcoords="offset points",
+            # Where energy and 15-min coincide at label precision, one label serves both.
+            if metric["column"] == "energy_saving_pct" and f"{value:.1f}" == f"{rolling_value:.1f}":
+                continue
+            ax.annotate(f"{value:.1f}", (x, value), xytext=offsets[metric["column"]], textcoords="offset points",
                         ha="center", va="center", fontsize=8, color=INK)
     ax.set_xticks(rows["storage_scale"].tolist())
     ax.set_xticklabels([f"{x:g}×" for x in rows["storage_scale"]], fontsize=8.5)
-    ax.set_xlim(-0.08, rows["storage_scale"].max() + 0.08)
-    ax.set_ylim(0, rows["energy_saving_pct"].astype(float).max() * 1.2)
+    ax.set_xlim(-0.08, rows["storage_scale"].max() + 0.12)
+    ax.set_ylim(0, rows[[m["column"] for m in METRICS]].astype(float).max().max() * 1.25)
     ax.set_xlabel("Flywheel storage, multiple of the configured banks", fontsize=9, color=INK)
     ax.set_ylabel("Change relative to no storage (%)", fontsize=9, color=INK)
     style_axes(ax)
