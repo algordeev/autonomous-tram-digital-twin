@@ -23,7 +23,7 @@ export const CSV_COLUMNS = [
   "scenario", "strategy", "tram_count", "tram_count_requested", "start_minute", "warmup_min",
   "window_min", "storage_scale", "eta_scale", "eta_effective", "timestep_ms", "core_runtime",
   "vehicle_km", "grid_wh_metered", "grid_wh_corrected", "grid_wh_per_vkm", "energy_saving_pct",
-  "peak_kw", "peak_reduction_pct", "regen_recovered_wh", "flywheel_start_kwh", "flywheel_end_kwh",
+  "peak_kw", "peak_reduction_pct", "peak_15min_kw", "peak_15min_reduction_pct", "regen_recovered_wh", "flywheel_start_kwh", "flywheel_end_kwh",
   "headway_cv", "mean_headway_s", "departure_adherence", "on_time_pct", "avg_wait_s",
   "left_behind", "interventions", "runtime_s", "git_commit",
 ];
@@ -161,6 +161,8 @@ export function runCase(input) {
       energy_saving_pct: round(row.energySavingPercent, 3),
       peak_kw: round(row.peakGridPowerKw, 1),
       peak_reduction_pct: round(row.peakReductionPercent, 3),
+      peak_15min_kw: row.peakRollingAverageKw === null ? "" : round(row.peakRollingAverageKw, 1),
+      peak_15min_reduction_pct: row.rollingPeakReductionPercent === null ? "" : round(row.rollingPeakReductionPercent, 3),
       regen_recovered_wh: round(row.acceptedRegenerationKWh * 1000, 1),
       flywheel_start_kwh: round(row.flywheelStartKWh, 3),
       flywheel_end_kwh: round(row.flywheelEndKWh, 3),
@@ -191,8 +193,11 @@ const csvCell = (value) => {
 export async function appendCsv(path, rows) {
   await mkdir(dirname(path), { recursive: true });
   let text = "";
-  if (!existsSync(path) || (await readFile(path, "utf8")).trim() === "") {
+  const existing = existsSync(path) ? (await readFile(path, "utf8")).trim() : "";
+  if (existing === "") {
     text += `${CSV_COLUMNS.join(",")}\n`;
+  } else if (existing.split("\n", 1)[0] !== CSV_COLUMNS.join(",")) {
+    throw new Error(`${path} was written with different columns; move it aside and rerun`);
   }
   for (const row of rows) text += `${CSV_COLUMNS.map((column) => csvCell(row[column])).join(",")}\n`;
   await appendFile(path, text, "utf8");

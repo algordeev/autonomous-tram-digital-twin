@@ -75,8 +75,10 @@ function createHeadlessEngine(options: {
 }
 
 /** Advances by exactly `seconds` of simulated time in deterministic batches. */
+const HEADLESS_BATCH_SECONDS = 0.5;
+
 function advanceHeadless(engine: SimulationEngine, seconds: number, onBatch?: (elapsed: number) => void) {
-  const fixedBatchSeconds = 0.5;
+  const fixedBatchSeconds = HEADLESS_BATCH_SECONDS;
   let elapsedSeconds = 0;
   while (elapsedSeconds + 1e-9 < seconds) {
     const simulatedBatch = Math.min(fixedBatchSeconds, seconds - elapsedSeconds);
@@ -167,6 +169,14 @@ export interface EnergyComparisonRow {
   gridWhPerVehicleKm: number;
   energySavingPercent: number;
   peakReductionPercent: number;
+  /**
+   * Highest mean network grid power over any 15 min interval inside the
+   * measured window (metered supply, from the core's per-step energy
+   * integral); null when the window is shorter than 15 min.
+   */
+  peakRollingAverageKw: number | null;
+  /** Reduction of `peakRollingAverageKw` against the no-storage reference. */
+  rollingPeakReductionPercent: number | null;
   // --- Added in schemaVersion 2: reporting only, the computations above are unchanged.
   /** Electrical demand of all trams (traction after drivetrain losses + auxiliaries). */
   vehicleDemandKWh: number;
@@ -215,6 +225,8 @@ export interface EnergyComparisonReport {
   /** Sampling period of the service-metric means and the grid-power series. */
   serviceSampleSeconds: number;
   gridPowerSampleSeconds: number | null;
+  /** Averaging interval of `peakRollingAverageKw` (900 s). */
+  rollingPeakWindowSeconds: number;
   tramCount: number;
   fleetGroups: Record<string, number> | null;
   rows: EnergyComparisonRow[];
@@ -225,6 +237,22 @@ const STRATEGY_LABELS: Record<EnergyComparisonStrategy, string> = {
   baseline: "Flywheel · reactive",
   "network-optimal": "Predictive SOC + peak dispatch",
 };
+
+const ROLLING_PEAK_WINDOW_SECONDS = 900;
+
+/**
+ * Highest mean power over any `windowSeconds` interval, from cumulative energy
+ * read at evenly spaced instants (`stepSeconds` apart, first reading at t = 0).
+ */
+export function maxRollingAverageKw(cumulativeKWh: number[], stepSeconds: number, windowSeconds: number) {
+  const lag = Math.round(windowSeconds / stepSeconds);
+  if (lag <= 0 || cumulativeKWh.length <= lag) return null;
+  let best = Number.NEGATIVE_INFINITY;
+  for (let index = lag; index < cumulativeKWh.length; index += 1) {
+    best = Math.max(best, cumulativeKWh[index] - cumulativeKWh[index - lag]);
+  }
+  return best / (windowSeconds / 3600);
+}
 
 /** Pooled CV over the timetable-window/route groups, from cumulative stat deltas. */
 function headwayVariation(
@@ -308,9 +336,12 @@ export function runEnergyComparison(options: {
     const onTimeSamples: number[] = [];
     const waitSamples: number[] = [];
     const gridPowerSeriesKw: number[] = [];
+    // Cumulative grid supply at every 0.5 s batch boundary, for the rolling peak.
+    const gridSupplyTrace: number[] = [engine.getNetworkGridSupplyKWh()];
     let nextServiceSampleAt = serviceSampleSeconds;
     let nextPowerSampleAt = gridPowerSampleSeconds ?? Number.POSITIVE_INFINITY;
     advanceHeadless(engine, durationSeconds, (elapsed) => {
+      gridSupplyTrace.push(engine.getNetworkGridSupplyKWh());
       if (elapsed + 1e-9 >= nextPowerSampleAt) {
         gridPowerSeriesKw.push(engine.getNetworkGridPowerKw());
         nextPowerSampleAt += gridPowerSampleSeconds!;
@@ -360,6 +391,7 @@ export function runEnergyComparison(options: {
       flywheelStartKWh: powerBefore.flywheelStoredKWh,
       flywheelEndKWh: power.flywheelStoredKWh,
       peakGridPowerKw: engine.getWindowPeakGridPowerKw(),
+      peakRollingAverageKw: maxRollingAverageKw(gridSupplyTrace, HEADLESS_BATCH_SECONDS, ROLLING_PEAK_WINDOW_SECONDS),
       rejectedRegenerationKWh: delta("rejectedGeneratorKWh"),
       localReuseKWh: delta("localReuseKWh"),
       flywheelLossesKWh: delta("flywheelLossesKWh"),
@@ -405,6 +437,7 @@ export function runEnergyComparison(options: {
     flywheelDischargeEfficiency: efficiency?.dischargeEfficiency ?? null,
     serviceSampleSeconds,
     gridPowerSampleSeconds,
+    rollingPeakWindowSeconds: ROLLING_PEAK_WINDOW_SECONDS,
     tramCount,
     fleetGroups,
     rows: raw.map((row) => ({
@@ -415,6 +448,9 @@ export function runEnergyComparison(options: {
         referenceGridWhPerKm,
       ),
       peakReductionPercent: percentReduction(row.peakGridPowerKw, reference.peakGridPowerKw),
+      rollingPeakReductionPercent: row.peakRollingAverageKw !== null && reference.peakRollingAverageKw !== null
+        ? percentReduction(row.peakRollingAverageKw, reference.peakRollingAverageKw)
+        : null,
     })),
   };
 }
