@@ -31,7 +31,13 @@ test("browser adapter cannot re-import a grant or force manual green over its oc
   assert.equal(controller.phase, "tram-green");
   assert.equal(controller.activeSignalId, "SG-OSH-A");
   assert.equal(controller.activeTramEntered, true);
-  engine.simulationTime += 26;
+  // The 206 m zone gets more than the 25 s minimum clearance timeout.
+  const clearanceTimeout = engine.crossingClearanceTimeout(controller);
+  assert.ok(clearanceTimeout > 25);
+  engine.simulationTime += clearanceTimeout - 1;
+  engine.updateTraffic();
+  assert.equal(controller.phase, "tram-green");
+  engine.simulationTime += 2;
   engine.updateTraffic();
   assert.equal(controller.phase, "fault");
   assert.equal(controller.activeTramId, tram.id);
@@ -422,4 +428,137 @@ test("a turnout speed limit holds until the rear has left the turnout", () => {
     );
     if (!divert) assert.ok(guidance.targetSpeedMps > limitMps - 0.5, `${restrictionId}: no tighter limit than the turnout's own`);
   }
+});
+
+test("a crossing whose entry was lost releases once the owner's odometer proves it clear", () => {
+  const engine = new SimulationEngine("nizhny-routes-2-21");
+  engine.setAutoDispatch(false);
+  const controller = engine.trafficControllers.get("J-OSH");
+  const signal = engine.scenario.signals.find((item) => item.id === "SG-OSH-A");
+  const segment = engine.segments.get(signal.segmentId);
+  const tram = engine.trams.find((item) => item.segmentId === signal.segmentId);
+  controller.queue.push({ tramId: tram.id, signalId: signal.id, requestedAt: 0 });
+  engine.updateTraffic();
+  engine.simulationTime = controller.phaseUntil;
+  engine.updateTraffic();
+  assert.equal(controller.phase, "tram-green");
+
+  // Every detector observation is lost while the tram passes the crossing.
+  const deliver = engine.observeTraffic.bind(engine);
+  let outage = true;
+  engine.observeTraffic = (...args) => { if (!outage) deliver(...args); };
+  tram.distanceMeters = 1000;
+  tram.progress = signal.at + .001;
+  engine.markSignalPassage(tram, signal.at - .001, tram.progress);
+  engine.updateTraffic();
+  assert.equal(controller.activeTramEntered, false, "the core never saw the entry");
+
+  // The tram drives on to the next segment before the outage ends.
+  const rearClearDistance = 1000 + (signal.clearAt - tram.progress) * segment.lengthMeters + 15;
+  tram.segmentId = [...engine.segments.values()].find((item) => item.from === segment.to).id;
+  tram.progress = .01;
+  tram.distanceMeters = rearClearDistance - 1;
+  engine.simulationTime += 10;
+  engine.updateTraffic();
+  assert.equal(controller.phase, "tram-green");
+  outage = false;
+  // Entry is re-reported, but the rear is not yet clear: the grant holds.
+  engine.updateTraffic();
+  assert.equal(controller.activeTramEntered, true);
+  assert.equal(controller.activeTramCleared, false);
+  assert.equal(controller.phase, "tram-green");
+  tram.distanceMeters = rearClearDistance + .1;
+  engine.updateTraffic();
+  assert.equal(controller.activeTramCleared, true);
+  engine.simulationTime = controller.phaseUntil + 1;
+  engine.updateTraffic();
+  assert.equal(controller.phase, "amber-to-road");
+  engine.simulationTime += controller.clearanceSeconds;
+  engine.updateTraffic();
+  assert.equal(controller.phase, "road-green");
+  assert.equal(controller.ownerPassage, undefined);
+});
+
+test("an approach lock for a tram that never comes lapses; a committed owner keeps it", () => {
+  const engine = new SimulationEngine("nizhny-routes-2-21");
+  engine.setAutoDispatch(false);
+  const definition = engine.scenario.switches.find((item) => item.id === "SW-21-CHP");
+  const runtime = engine.switchStates.get(definition.id);
+  const [phantom, waiting] = engine.trams;
+  // A phantom reader report locks the points for a tram far from them.
+  runtime.queue.push({ tramId: phantom.id, desired: "branch", requestedAt: 0 });
+  engine.applyNextSwitchRequest(runtime, definition);
+  assert.equal(runtime.lockedBy, phantom.id);
+  assert.equal(engine.switchOwnerCommitted(definition, runtime, phantom), false);
+  runtime.queue.push({ tramId: waiting.id, desired: "main", requestedAt: 1 });
+  engine.releaseClearedSwitches();
+  engine.simulationTime += 59;
+  engine.releaseClearedSwitches();
+  assert.equal(runtime.lockedBy, phantom.id);
+  assert.equal(engine.toggleSwitch(definition.id), false, "the lock still interlocks the points");
+  engine.simulationTime += 2;
+  engine.releaseClearedSwitches();
+  assert.equal(runtime.lockedBy, waiting.id, "the queued tram is served");
+  assert.equal(runtime.state, "main");
+
+  // An owner standing just before the points never loses its lock.
+  const incoming = [...engine.segments.values()].find((segment) => segment.to === definition.nodeId);
+  waiting.segmentId = incoming.id;
+  waiting.progress = 1 - 5 / incoming.lengthMeters;
+  waiting.speedMps = 0;
+  assert.equal(engine.switchOwnerCommitted(definition, runtime, waiting), true);
+  for (let step = 0; step < 4; step += 1) {
+    engine.simulationTime += 60;
+    engine.releaseClearedSwitches();
+  }
+  assert.equal(runtime.lockedBy, waiting.id);
+});
+
+test("a tram keeps the crossing clear while the terminal beyond it is full", () => {
+  const engine = new SimulationEngine("izmir-konak", 3);
+  engine.setAutoDispatch(false);
+  const signal = engine.scenario.signals.find((item) => item.id === "SIG-UCKUYULAR-O");
+  const controller = engine.trafficForSignal(signal.id);
+  const [first, second, tram] = engine.trams;
+  for (const [index, berthed] of [first, second].entries()) {
+    Object.assign(berthed, {
+      segmentId: "IZK-O18", progress: .88, speedMps: 0, stationPhase: "dwell",
+      pendingStationReaderId: "IZK-RO18", terminalBerth: index + 1,
+    });
+  }
+  Object.assign(tram, { segmentId: "IZK-O18", progress: .5, speedMps: 0 });
+  controller.queue.push({ tramId: tram.id, signalId: signal.id, requestedAt: 0 });
+
+  let block = engine.findBlockingCondition(tram, engine.nearestTramAhead(tram));
+  assert.equal(block.key, `keep-clear:${signal.id}`);
+  assert.match(block.status, /Fahrettin Altay full/);
+  assert.ok(!controller.queue.some((request) => request.tramId === tram.id), "no grant is requested");
+
+  // A platform frees: the stop line becomes an ordinary red and it asks again.
+  Object.assign(second, { stationPhase: "none", pendingStationReaderId: null, terminalBerth: 0, segmentId: "IZK-I01", progress: .5 });
+  block = engine.findBlockingCondition(tram, engine.nearestTramAhead(tram));
+  assert.equal(block.key, `signal:${signal.id}`);
+  assert.ok(controller.queue.some((request) => request.tramId === tram.id));
+
+  // Granted, then the terminal fills again before it enters: it yields the
+  // grant after the grant timeout instead of holding the road red.
+  engine.updateTraffic();
+  engine.simulationTime = controller.phaseUntil;
+  engine.updateTraffic();
+  assert.equal(controller.phase, "tram-green");
+  Object.assign(second, { segmentId: "IZK-O18", progress: .88, stationPhase: "dwell", pendingStationReaderId: "IZK-RO18", terminalBerth: 2 });
+  const grantedAt = controller.activeGrantedAt;
+  let releasedAt = null;
+  for (let step = 0; step < 40 && releasedAt === null; step += 1) {
+    engine.simulationTime += 1;
+    assert.equal(engine.findBlockingCondition(tram, engine.nearestTramAhead(tram)).key, `keep-clear:${signal.id}`);
+    engine.updateTraffic();
+    if (controller.phase === "amber-to-road") releasedAt = engine.simulationTime;
+  }
+  assert.ok(releasedAt !== null && releasedAt - grantedAt >= 25, `released ${releasedAt - grantedAt} s after the grant`);
+  assert.ok(!controller.queue.some((request) => request.tramId === tram.id), "a yielding tram is not requeued");
+  engine.simulationTime += controller.clearanceSeconds;
+  engine.updateTraffic();
+  assert.equal(controller.phase, "road-green");
+  assert.equal(controller.activeTramId, null);
 });

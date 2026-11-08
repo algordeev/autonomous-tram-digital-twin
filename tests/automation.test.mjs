@@ -86,6 +86,27 @@ test("points moving while their owner holds the lock are detected", () => {
   assert.ok(oracle.counts.pointsMovedWhileLocked > 0);
 });
 
+test("an approach lock may lapse only while its owner can still stop short of the points", () => {
+  for (const [metersBefore, speed, expectViolation] of [[10, 8, true], [400, 8, false]]) {
+    const engine = nizhny();
+    const oracle = new SafetyOracle(engine);
+    const definition = engine.scenario.switches.find((item) => item.id === "SW-21-CHP");
+    const runtime = engine.switchStates.get(definition.id);
+    const incoming = [...engine.segments.values()].find((segment) => segment.to === definition.nodeId && segment.lengthMeters > 400);
+    const owner = engine.trams[0];
+    place(owner, incoming.id, 1 - metersBefore / incoming.lengthMeters);
+    owner.speedMps = speed;
+    assert.ok(Math.abs(engine.forwardDistanceToPosition(owner, incoming.id, 1) - metersBefore) < 1e-6);
+    runtime.lockedBy = owner.id;
+    delete runtime.releaseAtDistance;
+    oracle.check();
+    runtime.lockedBy = null;
+    runtime.state = runtime.state === "main" ? "branch" : "main";
+    oracle.check();
+    assert.equal(oracle.counts.pointsMovedWhileLocked > 0, expectViolation, `${metersBefore} m before the points at ${speed} m/s`);
+  }
+});
+
 test("an entered grant exposed to a road phase is detected", () => {
   const engine = nizhny();
   const oracle = new SafetyOracle(engine);

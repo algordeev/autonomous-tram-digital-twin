@@ -53,6 +53,9 @@ static AuthoritySignal authority_signals[MAX_SIGNALS]{};
 static int authority_signal_count = 0;
 struct AuthoritySwitch {
   int initialized, state, locked_by;
+  // When the current lock was first seen by tram_core_switch_expire; -1 until
+  // then, so a lock re-taken between two expiry checks starts a fresh age.
+  double locked_at;
 };
 static AuthoritySwitch authority_switches[MAX_SIGNALS]{};
 static int authority_switch_count = 0;
@@ -467,13 +470,14 @@ int tram_core_switch_begin(int count) {
   for (int i = 0; i < MAX_SIGNALS; i++) {
     authority_switches[i] = {};
     authority_switches[i].locked_by = -1;
+    authority_switches[i].locked_at = -1;
   }
   return 1;
 }
 int tram_core_switch_sync(int i, int state_value, int locked_by) {
   if (i < 0 || i >= authority_switch_count || authority_switches[i].initialized)
     return 0;
-  authority_switches[i] = {1, state_value ? 1 : 0, locked_by};
+  authority_switches[i] = {1, state_value ? 1 : 0, locked_by, -1};
   return 1;
 }
 int tram_core_switch_toggle(int i, int cooperative) {
@@ -498,6 +502,7 @@ int tram_core_switch_request(int i, int desired, int tram, int cooperative) {
   if (s.locked_by < 0) {
     s.state = desired ? 1 : 0;
     s.locked_by = tram;
+    s.locked_at = -1;
     return 1;
   }
   return 0;
@@ -506,8 +511,34 @@ int tram_core_switch_release(int i, int tram) {
   if (i < 0 || i >= authority_switch_count)
     return 0;
   AuthoritySwitch &s = authority_switches[i];
-  if (s.locked_by == tram)
+  if (s.locked_by == tram) {
     s.locked_by = -1;
+    s.locked_at = -1;
+  }
+  return 1;
+}
+// An approach lock taken for a tram that never comes (a phantom reader
+// report, or a request it then abandons) would otherwise hold the points
+// forever. It lapses only after `timeout` seconds and only while the engine
+// reports the owner uncommitted: not over or past the points, and not within
+// braking distance of them. The owner cannot then traverse unlocked points,
+// because passage itself requests the lock at the points and stops if refused.
+int tram_core_switch_expire(int i, double now, int owner_committed,
+                            double timeout) {
+  if (i < 0 || i >= authority_switch_count || !__builtin_isfinite(now) ||
+      timeout <= 0)
+    return 0;
+  AuthoritySwitch &s = authority_switches[i];
+  if (!s.initialized || s.locked_by < 0)
+    return 0;
+  if (s.locked_at < 0 || owner_committed) {
+    s.locked_at = now; // The age counts uncommitted time only.
+    return 0;
+  }
+  if (now - s.locked_at < timeout)
+    return 0;
+  s.locked_by = -1;
+  s.locked_at = -1;
   return 1;
 }
 int tram_core_switch_state(int i) {
@@ -589,16 +620,21 @@ int tram_core_signal_fault(int i) {
 int tram_core_signal_step(int i, double now, int candidate_tram,
                           int candidate_signal, int still_waiting,
                           int active_invalid, double amber, double green,
-                          double clearance, double timeout) {
+                          double clearance, double timeout,
+                          double clearance_timeout) {
+  // `timeout` withdraws a grant that was never entered; `clearance_timeout`
+  // bounds how long an entered tram may take to clear the crossing, so it
+  // must cover the slowest legitimate traversal of the configured zone.
   if (i < 0 || i >= authority_signal_count || !authority_signals[i].initialized ||
       !__builtin_isfinite(now) || amber <= 0 || green <= 0 ||
-      clearance <= 0 || timeout <= 0)
+      clearance <= 0 || timeout <= 0 || clearance_timeout <= 0)
     return 0;
   AuthoritySignal &s = authority_signals[i];
   s.event = 0;
   // Time alone never proves clearance. On detector loss we latch all-red and
   // preserve the owner; only its matching clear can recover timeout fault 1.
-  if (s.entered && !s.cleared && now - s.entered_at >= timeout && !s.fault) {
+  if (s.entered && !s.cleared && now - s.entered_at >= clearance_timeout &&
+      !s.fault) {
     s.fault = 1;
     s.phase = 4;
     s.until = 0;

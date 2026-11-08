@@ -1,6 +1,6 @@
 # Control-state ownership and safety invariants
 
-## Ownership in ABI 12
+## Ownership in ABI 13
 
 `operational_core.cpp` owns live motion/energy accumulators, signal reservations,
 phases, detector flags and turnout positions/locks. `authority_sync`,
@@ -55,11 +55,14 @@ behind it on the approach envelope.
 
 ## Fault policy
 
-The browser currently passes a **25 s assumed demonstration timeout** after
-observed entry. The C API accepts the timeout as an input so other scenarios can
-choose it explicitly. A very slow or stopped tram can legitimately exceed it:
-the safe result is still a blocked zone with all-red indications, not automatic
-release. Duplicate entry observations do not restart the timer.
+`signal_step` takes two timeouts. The **grant timeout** (25 s) withdraws an
+unentered reservation under the rule below. The **clearance timeout** after an
+observed entry is set per crossing by the browser: the larger of 25 s and the
+time to cross the configured zone plus one tram length at 2.5 m/s. Several
+configured zones are 90–270 m long, and a tram approaching the stop beyond
+them cannot clear them in 25 s. A tram slower than that, or stopped, can still
+exceed it: the safe result is still a blocked zone with all-red indications,
+not automatic release. Duplicate entry observations do not restart the timer.
 
 | Phase / fault | Behaviour | Recovery |
 | --- | --- | --- |
@@ -71,6 +74,27 @@ segment. Operator commands cannot erase an occupied grant or skip its clearance
 interval. Unentered reservations may be withdrawn only when the approach is no
 longer waiting and the requesting tram is invalid; occupancy timeouts never use
 that withdrawal rule.
+
+**Lost entry.** The browser records where the owner's front passed its signal
+from the tram's odometer, whether or not the detector observation reached the
+core. After an outage it re-reports the entry, and once the odometer puts the
+rear past the clearance point, the clear. The core still requires an accepted
+entry before any clear, so only positive evidence of passage releases a grant.
+
+**Keep clear.** A tram does not enter a crossing unless its rear can pass the
+clearance point before the next place it would stop: behind a stopped or
+stopping leader, or at a full terminal's entry hold. While its exit is blocked
+it waits at the stop line and neither requests nor keeps a grant: a granted
+tram standing there counts as invalid for the withdrawal rule, so the other
+approaches are served. A tram already too close to stop before the stop line
+with the service brake is committed and enters.
+
+**Approach locks.** A turnout lock taken on approach lapses through
+`switch_expire` after 60 s during which its owner is uncommitted: not past or
+over the points, not out on their external branch, and not within braking
+distance of them on its route. Expiry never moves the points. The owner cannot
+then pass unlocked points, because passage requests the lock at the points and
+the tram stops before points another tram holds.
 
 ## Reproducible checks
 

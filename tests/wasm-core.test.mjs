@@ -50,7 +50,7 @@ test("C++ releases a terminal hold only at the target time interval",async()=>{c
 test("C++ assigns the two Izmir terminal berths and reports capacity",async()=>{const ex=await loadCore();assert.equal(ex.tram_core_terminal_berth(0),1);assert.equal(ex.tram_core_terminal_berth(1),2);assert.equal(ex.tram_core_terminal_berth(3),0);assert.equal(ex.tram_core_parallel_terminal_bypass(1,1),1);assert.equal(ex.tram_core_parallel_terminal_bypass(1,3),0);});
 test("C++ assigns unique terminal and depot departure slots",async()=>{const ex=await loadCore();const first=ex.tram_core_departure_slot(7*3600+44*60,7*3600,15*60,-1);assert.equal(first,7*3600+45*60);const second=ex.tram_core_departure_slot(7*3600+44*60,7*3600,15*60,first+15*60);assert.equal(second,8*3600);assert.equal(ex.tram_core_departure_on_time(59,60),1);assert.equal(ex.tram_core_departure_on_time(61,60),0);});
 test("C++ WASM is the stateful authority for vehicle dynamics and energy",async()=>{const ex=await loadCore();assert.equal(ex.tram_core_authority_begin(2),1);assert.equal(ex.tram_core_authority_sync(0,0,0,0,0,0,0,0,0,0,0,0),1);for(let tick=0;tick<200;tick++)assert.equal(ex.tram_core_authority_step(0,11.1,0,0,0,.05),1);assert.ok(ex.tram_core_authority_speed(0)>0);assert.ok(ex.tram_core_authority_distance(0)>0);assert.ok(ex.tram_core_authority_consumed(0)>0);assert.ok(ex.tram_core_authority_traction_energy(0)>0);ex.tram_core_authority_override_motion(0,0,0);assert.equal(ex.tram_core_authority_speed(0),0);});
-test("C++ WASM aligns a smooth stop with the platform",async()=>{const ex=await loadCore();ex.tram_core_authority_begin(1);ex.tram_core_authority_sync(0,8,0,0,0,0,0,0,0,0,0,0);ex.tram_core_station_sync(0,1,0);ex.tram_core_station_step(0,2,0,0);assert.equal(ex.tram_core_station_phase(0),1,"moving tram must remain on approach");assert.ok(ex.tram_core_station_approach_speed(80,15)>0);assert.ok(ex.tram_core_station_approach_speed(.35,15)<.01);for(let tick=0;tick<300;tick++)ex.tram_core_authority_step(0,0,0,0,0,.05);ex.tram_core_station_step(0,20,0,0);assert.equal(ex.tram_core_station_phase(0),1,"doors must stay closed before alignment");ex.tram_core_station_step(0,20,0,1);assert.equal(ex.tram_core_station_phase(0),2);assert.equal(ex.tram_core_station_event(0),1);ex.tram_core_station_step(0,32,0,1);assert.equal(ex.tram_core_station_phase(0),0);assert.equal(ex.tram_core_station_event(0),2);ex.tram_core_signal_begin(1);ex.tram_core_signal_sync(0,2,5,0,0,1,0,0,0,-1,0);ex.tram_core_signal_step(0,19,-1,-1,0,0,1,10,1,20);assert.equal(ex.tram_core_signal_phase(0),2,"green must remain latched while occupied");ex.tram_core_signal_observe(0,0,0,1,20);ex.tram_core_signal_step(0,20,-1,-1,0,0,1,10,1,20);assert.equal(ex.tram_core_signal_phase(0),3,"clearance begins only after the rear clears");});
+test("C++ WASM aligns a smooth stop with the platform",async()=>{const ex=await loadCore();ex.tram_core_authority_begin(1);ex.tram_core_authority_sync(0,8,0,0,0,0,0,0,0,0,0,0);ex.tram_core_station_sync(0,1,0);ex.tram_core_station_step(0,2,0,0);assert.equal(ex.tram_core_station_phase(0),1,"moving tram must remain on approach");assert.ok(ex.tram_core_station_approach_speed(80,15)>0);assert.ok(ex.tram_core_station_approach_speed(.35,15)<.01);for(let tick=0;tick<300;tick++)ex.tram_core_authority_step(0,0,0,0,0,.05);ex.tram_core_station_step(0,20,0,0);assert.equal(ex.tram_core_station_phase(0),1,"doors must stay closed before alignment");ex.tram_core_station_step(0,20,0,1);assert.equal(ex.tram_core_station_phase(0),2);assert.equal(ex.tram_core_station_event(0),1);ex.tram_core_station_step(0,32,0,1);assert.equal(ex.tram_core_station_phase(0),0);assert.equal(ex.tram_core_station_event(0),2);ex.tram_core_signal_begin(1);ex.tram_core_signal_sync(0,2,5,0,0,1,0,0,0,-1,0);ex.tram_core_signal_step(0,19,-1,-1,0,0,1,10,1,20,20);assert.equal(ex.tram_core_signal_phase(0),2,"green must remain latched while occupied");ex.tram_core_signal_observe(0,0,0,1,20);ex.tram_core_signal_step(0,20,-1,-1,0,0,1,10,1,20,20);assert.equal(ex.tram_core_signal_phase(0),3,"clearance begins only after the rear clears");});
 
 test("C++ speed profile and passenger mass affect authority",async()=>{const ex=await loadCore();const curve=ex.tram_core_speed_profile_target(40/3.6,30,.65,-1,0,.72);assert.ok(curve>15/3.6&&curve<17/3.6);const approach=ex.tram_core_speed_profile_target(40/3.6,30,.65,-1,80,.72);assert.ok(approach>curve&&approach<=40/3.6);ex.tram_core_authority_begin(2);for(const i of [0,1])ex.tram_core_authority_sync(i,0,0,0,0,0,0,0,0,0,0,0);for(let tick=0;tick<100;tick++){ex.tram_core_authority_step(0,11.1,0,0,0,.05);ex.tram_core_authority_step(1,11.1,0,0,110,.05);}assert.ok(ex.tram_core_authority_speed(0)>ex.tram_core_authority_speed(1),"loaded tram should accelerate more slowly under the same force limits");});
 test("C++ predictive eco-driving selects coast and braking envelopes",async()=>{const ex=await loadCore();ex.tram_core_authority_begin(1);ex.tram_core_authority_sync(0,11,0,0,0,0,0,0,0,0,0,0);const far=ex.tram_core_predictive_eco_target(0,1,11,11.1,800,0,0,40,1);assert.equal(ex.tram_core_authority_eco_mode(0),0);assert.equal(far,11.1);const coast=ex.tram_core_predictive_eco_target(0,1,11,11.1,100,0,0,40,1);assert.equal(ex.tram_core_authority_eco_mode(0),1);assert.ok(coast<11);const brake=ex.tram_core_predictive_eco_target(0,1,11,11.1,50,0,0,40,1);assert.equal(ex.tram_core_authority_eco_mode(0),2);assert.ok(brake<11);});
@@ -145,8 +145,8 @@ test("a depleted flywheel raises the peak-smoothing threshold above the 420 kW c
   assert.equal(ex.tram_core_power_target(1, 0, 0, 1, 1, 2, 12), 12, "the grid carries up to the raised threshold");
 });
 
-function signalStep(ex, now, tram = -1, signal = -1, waiting = 0, invalid = 0) {
-  assert.equal(ex.tram_core_signal_step(0, now, tram, signal, waiting, invalid, 1, 3, 1, 8), 1);
+function signalStep(ex, now, tram = -1, signal = -1, waiting = 0, invalid = 0, clearanceTimeout = 8) {
+  assert.equal(ex.tram_core_signal_step(0, now, tram, signal, waiting, invalid, 1, 3, 1, 8, clearanceTimeout), 1);
 }
 function initializeSignal(ex) {
   ex.tram_core_signal_begin(1);
@@ -240,6 +240,20 @@ test("missing and duplicate clearance detectors fail closed with bounded timeout
   ex.tram_core_signal_observe(0, 0, 0, 1, 101);
   signalStep(ex, 101); assert.equal(ex.tram_core_signal_phase(0), 3);
   assert.equal(ex.tram_core_signal_fault(0), 0);
+});
+
+test("a long crossing gets its own clearance timeout, separate from the grant timeout", async () => {
+  const ex = await loadCore(); initializeSignal(ex);
+  signalStep(ex, 0, 0, 0, 0, 0, 30); signalStep(ex, 1, -1, -1, 0, 0, 30);
+  ex.tram_core_signal_observe(0, 0, 0, 0, 2);
+  for (let now = 3; now < 32; now++) {
+    signalStep(ex, now, -1, -1, 0, 0, 30);
+    assert.equal(ex.tram_core_signal_fault(0), 0, `still traversing at ${now} s`);
+  }
+  signalStep(ex, 32, -1, -1, 0, 0, 30);
+  assert.equal(ex.tram_core_signal_fault(0), 1);
+  assert.equal(ex.tram_core_signal_phase(0), 4);
+  assert.equal(ex.tram_core_signal_step(0, 33, -1, -1, 0, 0, 1, 3, 1, 8, 0), 0, "a zero clearance timeout is rejected");
 });
 
 test("an unexpected entry latches an all-red fault that a normal owner clear cannot erase", async () => {

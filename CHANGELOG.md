@@ -5,8 +5,24 @@ Keep a Changelog; release labels use semantic version numbers.
 
 ## Unreleased
 
+### Fixed
+
+- A crossing whose entry detection was lost is released once the owner's
+  odometer shows its rear clear of the crossing, instead of staying reserved for
+  a tram that has gone.
+- A turnout approach lock for a tram that never reaches the points (a spurious
+  reader report) lapses after 60 s while its owner is not committed to the
+  points, instead of deadlocking the network.
+- Keep clear: a tram does not enter a crossing it cannot leave, and gives back
+  a grant while its exit is blocked. An İzmir tram queueing for the full
+  Fahrettin Altay terminal no longer stops inside the Üçkuyular crossing.
+- The clearance-detector timeout scales with the configured crossing zone
+  (minimum 25 s, 2.5 m/s traversal), so trams crossing the long Konak, Gazi and
+  Nizhny zones in normal service no longer latch all-red.
+
 ### Changed
 
+- C ABI 13: `switch_expire` and a separate clearance timeout for `signal_step`.
 - C ABI 12: initialization-only motion/signal/turnout sync, explicit signal
   commands and observations, locked-point interlocks and latched all-red faults.
 - Turnout release and inline reset wait for rear clearance; rejected C++ queue

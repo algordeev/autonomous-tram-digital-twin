@@ -141,7 +141,7 @@ npm run benchmark:sweeps && npm run benchmark:sanity
 React + Canvas interface
         ↕ immutable render snapshots and operator commands
 TypeScript scenario, passengers, ETA and experiment orchestration
-        ↕ C ABI 12
+        ↕ C ABI 13
 C++ / WebAssembly authority
 motion · braking · energy · signals · stops · doors · turnouts · depot
 ```

@@ -43,6 +43,8 @@ export function createEngine({ scenarioId, startMinute, terminalHolding = true, 
 export const stepEngine = (engine) => engine.stepFixed(FIXED_STEP_SECONDS);
 
 const ON_LINE = new Set(["in-service", "to-depot"]);
+// Physical service-brake limit (control_parameters.hpp, kServiceDecelerationMps2).
+const SERVICE_DECELERATION_MPS2 = 1.25;
 
 /**
  * Independent invariant checks on every step, from engine geometry rather than
@@ -54,7 +56,9 @@ const ON_LINE = new Set(["in-service", "to-depot"]);
  *  - crossing: a tram body inside a crossing while road traffic has green or amber;
  *  - exposed reservation: an entered, uncleared tram grant under a non-tram phase;
  *  - points moved while locked: a turnout changed position while its lock owner
- *    had not released it, or while a tram body straddled the turnout node.
+ *    had not released it (passed the points with its rear, left the line, or,
+ *    before reaching them, could still stop short with the service brake), or
+ *    while a tram body straddled the turnout node.
  * All-red latches are counted with their duration (time to recover).
  */
 export class SafetyOracle {
@@ -96,6 +100,19 @@ export class SafetyOracle {
     this.lockSince = new Map(this.switches.map(({ definition, runtime }) => [definition.id, { lockedBy: runtime.lockedBy, since: 0 }]));
     this.maxSwitchBlockedSeconds = 0;
     this.blockedSwitches = new Set();
+  }
+
+  /** Whether the tram can still stop before the switch node on its route. */
+  canStopBeforePoints(tram, definition) {
+    if (tram.branchOrigin?.switchId === definition.id) return false;
+    let distance = null;
+    for (const segment of this.segments.values()) {
+      if (segment.to !== definition.nodeId) continue;
+      const ahead = this.engine.forwardDistanceToPosition(tram, segment.id, 1);
+      if (ahead !== null && ahead >= 0 && (distance === null || ahead < distance)) distance = ahead;
+    }
+    if (distance === null) return true; // The points are not ahead on its route.
+    return distance >= tram.speedMps ** 2 / (2 * SERVICE_DECELERATION_MPS2) + 1;
   }
 
   switchSnapshot(runtime) {
@@ -250,8 +267,12 @@ export class SafetyOracle {
       if (runtime.state !== previous.state) {
         if (previous.lockedBy) {
           const owner = previous.owner;
+          // An approach lock may also lapse while its owner, which has not
+          // reached the points, can still stop before them with the service
+          // brake: it then needs the lock again to pass.
           const released = !owner || !ON_LINE.has(owner.serviceState) ||
-            (previous.releaseAt !== undefined && owner.distanceMeters >= previous.releaseAt);
+            (previous.releaseAt !== undefined && owner.distanceMeters >= previous.releaseAt) ||
+            (previous.releaseAt === undefined && this.canStopBeforePoints(owner, definition));
           if (!released) this.violation("pointsMovedWhileLocked", `${definition.id} moved while locked by ${previous.lockedBy}`);
         }
         for (const tram of trams) {

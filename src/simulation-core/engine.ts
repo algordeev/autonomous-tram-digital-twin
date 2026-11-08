@@ -20,6 +20,7 @@ import {
   cppSpeedProfileTarget,
   cppStationApproachSpeed,
   cppSafeMoveMeters,
+  cppExpireSwitchAuthority,
   cppReleaseSwitchAuthority,
   cppRequestSwitchAuthority,
   cppStepStationAuthority,
@@ -871,6 +872,13 @@ interface TrafficRequest {
 interface TrafficRuntime {
   rearClearDistance?: number;
   activeEnteredAt?: number;
+  /**
+   * Where the owner physically passed its signal, from the tram's own
+   * odometer. It is kept whether or not the detector observation reached the
+   * core, so a lost entry can be re-reported after the tram leaves the
+   * signal's segment instead of leaving the grant held forever.
+   */
+  ownerPassage?: { tramId: string; signalId: string; rearClearDistance: number };
   id: string;
   label: string;
   phase: TrafficPhase;
@@ -933,6 +941,14 @@ const DEPOT_TRACK_SPEED_MPS = 8;
 const DEPOT_TRANSFER_SECONDS = 12;
 const SERVICE_PLAN_RECHECK_SECONDS = 20;
 const TRAFFIC_GRANT_TIMEOUT_SECONDS = 25;
+// Clearance-detector timeout after an observed entry: at least the grant
+// timeout, and long enough for the slowest legitimate traversal of the
+// configured zone plus one tram length. Several configured zones are 90–270 m
+// long, which a tram approaching a stop cannot clear in 25 s.
+const CROSSING_MIN_TRAVERSE_SPEED_MPS = 2.5;
+// An approach lock whose owner stays uncommitted this long (not over, past,
+// or within braking distance of the points) lapses; see switchOwnerCommitted.
+const SWITCH_APPROACH_LOCK_TIMEOUT_SECONDS = 60;
 const ROAD_CAR_COLORS = ["#d7e4ea", "#f4a62a", "#62a8ff", "#ff7f8a"];
 
 // --- Passenger demand & boarding model -----------------------------------
@@ -2349,6 +2365,7 @@ export class SimulationEngine {
     this.segments = new Map(
       this.scenarioDefinition.segments.map((item) => [item.id, buildSegmentRuntime(item)]),
     );
+    this.clearanceTimeoutBySignal.clear();
     this.buildTopologyIndexes();
     this.speedRestrictions = this.buildSpeedRestrictions();
     this.speedRestrictionsBySegment = new Map();
@@ -5819,6 +5836,8 @@ export class SimulationEngine {
       return null;
     };
 
+    const previousKeepClear = this.keepClearHolds.get(tram.id)?.signalId ?? null;
+    this.keepClearHolds.delete(tram.id);
     for (const signal of this.scenarioDefinition.signals) {
       const signalDistance = distanceAhead(signal.segmentId, signal.at);
       if (signalDistance !== null) {
@@ -5827,6 +5846,28 @@ export class SimulationEngine {
           controller?.phase === "tram-green" &&
           controller.activeSignalId === signal.id &&
           (!controller.activeTramId || controller.activeTramId === tram.id);
+        // Keep clear: never enter a crossing the tram cannot leave. While its
+        // exit is blocked it stops at the stop line and neither asks for nor
+        // keeps a grant, so the other approaches (including the tram whose
+        // departure would free the exit) can still be served.
+        const exitBlockedBy = controller
+          ? this.crossingExitBlockedBy(tram, signal, signalDistance, leaderAhead, previousKeepClear === signal.id)
+          : null;
+        if (exitBlockedBy) {
+          this.keepClearHolds.set(tram.id, { signalId: signal.id, at: this.simulationTime });
+          if (controller && controller.activeTramId !== tram.id) {
+            controller.queue = controller.queue.filter((request) => request.tramId !== tram.id);
+          }
+          candidates.push({
+            key: `keep-clear:${signal.id}`,
+            kind: "signal",
+            distanceMeters: signalDistance,
+            status: `Keep clear ${signal.id} · ${exitBlockedBy}`,
+            tone: "warning",
+            event: `keeping ${signal.id} clear · ${exitBlockedBy}`,
+          });
+          continue;
+        }
         if (!permitted) {
           // A tram may be spawned, restored from an experiment, or emerge from
           // a terminal immediately after the configured detector. Never leave
@@ -5866,23 +5907,7 @@ export class SimulationEngine {
     for (const definition of this.scenarioDefinition.switches) {
       const runtime = this.switchStates.get(definition.id);
       if (!runtime?.lockedBy || runtime.lockedBy === tram.id) continue;
-      const approachDistances = [
-        { segmentId: definition.segmentId, at: definition.at },
-        ...(definition.alternateApproaches ?? []),
-      ]
-        .map((item) =>
-          item.segmentId && item.at !== undefined
-            ? distanceAhead(item.segmentId, item.at, true)
-            : null,
-        )
-        .filter((value): value is number => value !== null);
-      const node = path.find(({ segment, exitAt }) => segment.to === definition.nodeId && exitAt === 1);
-      const nodeDistance = node ? node.startMeters + node.segment.lengthMeters : null;
-      const distance = approachDistances.length > 0
-        ? Math.min(...approachDistances)
-        : nodeDistance !== null && nodeDistance >= 0 && nodeDistance <= lookaheadMeters
-          ? nodeDistance
-          : null;
+      const distance = this.switchApproachDistance(definition, path, lookaheadMeters);
       if (distance === null) continue;
       candidates.push({ key: `switch:${definition.id}`, kind: "junction", distanceMeters: distance,
         status: `${definition.id} · route-locked by ${runtime.lockedBy}`, tone: "warning",
@@ -5939,6 +5964,118 @@ export class SimulationEngine {
     }
 
     return candidates.sort((a, b) => a.distanceMeters - b.distanceMeters)[0] ?? null;
+  }
+
+  /** Trams holding at a crossing stop line because its exit is blocked. */
+  private keepClearHolds = new Map<string, { signalId: string; at: number }>();
+
+  /** Whether the tram is standing at the crossing's stop line for keep-clear. */
+  private yieldsCrossingForKeepClear(tram: TramState | undefined, signalId: string | null) {
+    if (!tram || !signalId) return false;
+    const hold = this.keepClearHolds.get(tram.id);
+    return Boolean(
+      hold &&
+      hold.signalId === signalId &&
+      this.simulationTime - hold.at <= 0.2 &&
+      tram.speedMps <= 0.1,
+    );
+  }
+
+  /**
+   * Why the tram could not clear this crossing if it entered now, or null if
+   * it can. Its rear must be able to pass the clearance point before the next
+   * place it would have to stop: behind a stopped or stopping leader, or at a
+   * full terminal's entry hold. A tram already too close to stop before the
+   * stop line with the service brake is committed and is not held.
+   */
+  private crossingExitBlockedBy(
+    tram: TramState,
+    signal: SignalDefinition,
+    signalDistance: number,
+    leaderAhead: { tram: TramState; distanceMeters: number } | null,
+    alreadyHolding = false,
+  ) {
+    const segment = this.segments.get(signal.segmentId);
+    if (!segment) return null;
+    // Committed: the service brake, after its jerk-limited build-up, can no
+    // longer stop the tram before the stop line. (The gentler approach curve
+    // is not used here: from line speed it already needs more than the stop
+    // look-ahead, so the hold would never apply.)
+    // A hold already braking for this stop line stays latched: it is
+    // stopping on the approach envelope, and releasing it in the last metres
+    // would drive it into the crossing it is keeping clear.
+    const { serviceDecelerationMps2: deceleration, maxJerkMps3: jerk } = REFERENCE_TRAM_PARAMETERS;
+    const serviceStopMeters =
+      tram.speedMps ** 2 / (2 * deceleration) + (tram.speedMps * deceleration) / (2 * jerk);
+    if (!alreadyHolding && signalDistance < serviceStopMeters) return null;
+    const frontClearAt = Math.max(signal.at, signal.clearAt ?? Math.min(0.98, signal.at + 0.18));
+    // The front position at which the rear is clear of the zone.
+    const exitNeedMeters =
+      signalDistance + (frontClearAt - signal.at) * segment.lengthMeters + TRAM_LENGTH_METERS + STOP_POINT_MARGIN_METERS;
+
+    if (leaderAhead) {
+      const leader = leaderAhead.tram;
+      const stopping = leader.stationPhase === "crawl" ? this.pendingStationPlatform(leader) : null;
+      const holding = leader.speedMps < 1 || leader.stationPhase === "dwell" || leader.terminalEntryQueueReaderId !== null;
+      if (holding || stopping) {
+        const leaderStopFront = leaderAhead.distanceMeters + (holding ? 0 : stopping!.distanceMeters);
+        if (leaderStopFront - MIN_FRONT_SEPARATION_METERS < exitNeedMeters) {
+          return `${leader.label} ahead`;
+        }
+      }
+    }
+
+    if (tram.terminalEntryQueueReaderId === null && tram.stationPhase === "none") {
+      const routeId = this.routeIdForTram(tram);
+      const path = this.pathAhead(tram, exitNeedMeters);
+      for (const reader of this.scenarioDefinition.readers) {
+        if (!this.isIzmirDualTrackTerminal(reader) || (reader.routeId && reader.routeId !== routeId)) continue;
+        const entry = path.find(({ segment: item, exitAt }) => item.id === reader.segmentId && reader.at <= exitAt + 0.000001);
+        if (!entry) continue;
+        const readerMeters = entry.startMeters + reader.at * entry.segment.lengthMeters;
+        if (readerMeters <= 0 || readerMeters >= exitNeedMeters) continue;
+        if (cppTerminalBerth(this.terminalBerthMask(reader.id, tram.id)) === 0) {
+          return `${reader.label} full`;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Distance from the front to where a tram must stop for the points, if
+   * that lies on `path` within `lookaheadMeters`; otherwise null.
+   */
+  private switchApproachDistance(
+    definition: SwitchDefinition,
+    path: ReturnType<SimulationEngine["pathAhead"]>,
+    lookaheadMeters: number,
+  ) {
+    const distanceAhead = (segmentId: string, at: number) => {
+      for (const { segment, startMeters, exitAt } of path) {
+        if (segment.id !== segmentId || at > exitAt + 0.000001) continue;
+        const distanceMeters = startMeters + at * segment.lengthMeters;
+        if (distanceMeters >= 0 && distanceMeters <= lookaheadMeters) return distanceMeters;
+      }
+      return null;
+    };
+    const approachDistances = [
+      { segmentId: definition.segmentId, at: definition.at },
+      ...(definition.alternateApproaches ?? []),
+    ]
+      .map((item) =>
+        item.segmentId && item.at !== undefined
+          ? distanceAhead(item.segmentId, item.at)
+          : null,
+      )
+      .filter((value): value is number => value !== null);
+    const node = path.find(({ segment, exitAt }) => segment.to === definition.nodeId && exitAt === 1);
+    const nodeDistance = node ? node.startMeters + node.segment.lengthMeters : null;
+    return approachDistances.length > 0
+      ? Math.min(...approachDistances)
+      : nodeDistance !== null && nodeDistance >= 0 && nodeDistance <= lookaheadMeters
+        ? nodeDistance
+        : null;
   }
 
   /** Segments ahead of the tram front in path order, with the distance to each start. */
@@ -6556,6 +6693,7 @@ export class SimulationEngine {
         continue;
       }
       if (entered && !controller.activeTramEntered) {
+        this.recordOwnerPassage(controller, tram, signal, to);
         controller.activeTramEntered = true;
         this.observeTraffic(controller, tram, signal.id, false, to);
         this.addEvent(
@@ -6728,12 +6866,17 @@ export class SimulationEngine {
 
   private updateTraffic() {
     for (const controller of this.trafficControllers.values()) {
+      this.matchingOwnerPassage(controller);
       if (controller.phase === "tram-green" || controller.phase === "fault") {
         this.reconcileActiveTrafficOccupancy(controller);
       }
-      if (this.updateTrafficWithCpp(controller)) continue;
+      if (this.updateTrafficWithCpp(controller)) {
+        // A passage belongs to one grant; drop it once that grant ends.
+        this.matchingOwnerPassage(controller);
+        continue;
+      }
       const occupied = controller.activeTramEntered && !controller.activeTramCleared;
-      if (occupied && this.simulationTime - (controller.activeEnteredAt ?? controller.activeGrantedAt) >= TRAFFIC_GRANT_TIMEOUT_SECONDS) {
+      if (occupied && this.simulationTime - (controller.activeEnteredAt ?? controller.activeGrantedAt) >= this.crossingClearanceTimeout(controller)) {
         if (controller.phase !== "fault") this.addEvent("warning", `${controller.label}: clearance detector timeout · ALL RED`);
         controller.phase = "fault";
         controller.phaseUntil = 0;
@@ -6868,18 +7011,21 @@ export class SimulationEngine {
             activeTram.progress < activeSignal.at &&
             !activeTram.manualMode,
         );
+        const ownerYielding = this.yieldsCrossingForKeepClear(activeTram, controller.activeSignalId);
         const staleBeforeEntry =
           !controller.activeTramEntered &&
           this.simulationTime - controller.activeGrantedAt >=
             TRAFFIC_GRANT_TIMEOUT_SECONDS &&
-          !stillWaitingOnApproach &&
+          (!stillWaitingOnApproach || ownerYielding) &&
           (this.isOffLine(activeTram) ||
-            (activeTram!.manualMode && activeTram!.manualCommand === "stop"));
+            (activeTram!.manualMode && activeTram!.manualCommand === "stop") ||
+            ownerYielding);
         if (staleBeforeEntry) {
           if (
             controller.activeTramId &&
             controller.activeSignalId &&
             !this.isOffLine(activeTram) &&
+            !ownerYielding &&
             !controller.queue.some(
               (request) => request.tramId === controller.activeTramId,
             )
@@ -6936,7 +7082,7 @@ export class SimulationEngine {
     const activeSignalBefore = this.scenarioDefinition.signals.find(
       (signal) => signal.id === controller.activeSignalId,
     );
-    const stillWaiting = Boolean(
+    const stillWaitingOnApproach = Boolean(
       activeTramBefore &&
         activeSignalBefore &&
         !this.isOffLine(activeTramBefore) &&
@@ -6944,9 +7090,16 @@ export class SimulationEngine {
         activeTramBefore.progress < activeSignalBefore.at &&
         !activeTramBefore.manualMode,
     );
+    // An owner standing at the stop line for keep-clear gives its grant back
+    // through the stale-grant rule rather than holding the road red.
+    const ownerYielding =
+      !controller.activeTramEntered &&
+      this.yieldsCrossingForKeepClear(activeTramBefore, controller.activeSignalId);
+    const stillWaiting = stillWaitingOnApproach && !ownerYielding;
     const activeInvalid = Boolean(
       this.isOffLine(activeTramBefore) ||
-        (activeTramBefore!.manualMode && activeTramBefore!.manualCommand === "stop"),
+        (activeTramBefore!.manualMode && activeTramBefore!.manualCommand === "stop") ||
+        ownerYielding,
     );
     const phases: TrafficPhase[] = [
       "road-green",
@@ -6995,6 +7148,7 @@ export class SimulationEngine {
         tramGreenSeconds: controller.tramGreenSeconds,
         clearanceSeconds: controller.clearanceSeconds,
         grantTimeoutSeconds: TRAFFIC_GRANT_TIMEOUT_SECONDS,
+        clearanceTimeoutSeconds: this.crossingClearanceTimeout(controller),
       },
     );
     if (!result) return false;
@@ -7033,10 +7187,12 @@ export class SimulationEngine {
         `${controller.activeSignalId} GREEN · minimum ${controller.tramGreenSeconds}s for ${controller.activeTramId}`,
       );
     } else if (result.event === 3) {
+      // A keep-clear yielder asks again once its exit is free.
       if (
         previousActiveTramId &&
         previousActiveSignalId &&
         !this.isOffLine(activeTramBefore) &&
+        !ownerYielding &&
         !controller.queue.some((request) => request.tramId === previousActiveTramId)
       ) {
         controller.queue.push({
@@ -7049,7 +7205,9 @@ export class SimulationEngine {
         "warning",
         this.isOffLine(activeTramBefore)
           ? `${controller.label}: stale tram grant released · tram left the line`
-          : `${controller.label}: stale tram grant released and requeued`,
+          : ownerYielding
+            ? `${controller.label}: stale tram grant released · ${activeTramBefore?.label ?? previousActiveTramId} keeping the crossing clear`
+            : `${controller.label}: stale tram grant released and requeued`,
       );
     } else if (result.event === 4) {
       this.addEvent(
@@ -7071,8 +7229,10 @@ export class SimulationEngine {
     const segment = signal ? this.segments.get(signal.segmentId) : null;
     if (!cleared && signal && segment && controller.activeTramId === tram.id && controller.activeSignalId === signalId) {
       controller.activeEnteredAt ??= this.simulationTime;
+      const passage = this.matchingOwnerPassage(controller);
       const frontClearAt = Math.max(signal.at, signal.clearAt ?? Math.min(.98, signal.at + .18));
-      controller.rearClearDistance = tram.distanceMeters + (frontClearAt - detectedAt) * segment.lengthMeters + TRAM_LENGTH_METERS;
+      controller.rearClearDistance = passage?.rearClearDistance ??
+        tram.distanceMeters + (frontClearAt - detectedAt) * segment.lengthMeters + TRAM_LENGTH_METERS;
     }
     const fault = cppObserveTrafficAuthority(
       this.trafficControllerIndex(controller),
@@ -7087,7 +7247,56 @@ export class SimulationEngine {
     }
   }
 
+  /**
+   * Whether a lock's owner may still drive over the points: it has passed
+   * them (rear release pending), stands over them, is out on their external
+   * branch, or is within braking distance of them on its route. Only an
+   * uncommitted owner's approach lock may lapse.
+   */
+  private switchOwnerCommitted(definition: SwitchDefinition, runtime: SwitchRuntime, owner: TramState | undefined) {
+    // Points the owner has crossed stay locked until its rear is clear, even
+    // if it then left the line (releaseOffLineClaims keeps them until stored).
+    if (runtime.releaseAtDistance !== undefined) return true;
+    if (!owner || this.isOffLine(owner)) return false;
+    if (owner.branchOrigin?.switchId === definition.id) return true;
+    const segment = this.segments.get(owner.segmentId);
+    if (segment?.from === definition.nodeId && owner.progress * segment.lengthMeters <= TRAM_LENGTH_METERS + 1) {
+      return true;
+    }
+    const lookaheadMeters = this.stopLookaheadMeters(owner);
+    return this.switchApproachDistance(definition, this.pathAhead(owner, lookaheadMeters), lookaheadMeters) !== null;
+  }
+
+  private expireStaleSwitchLocks() {
+    for (const [index, definition] of this.scenarioDefinition.switches.entries()) {
+      const runtime = this.switchStates.get(definition.id);
+      if (!runtime?.lockedBy) continue;
+      const ownerIndex = this.trams.findIndex((tram) => tram.id === runtime.lockedBy);
+      const owner = this.trams[ownerIndex];
+      const expired = cppExpireSwitchAuthority(
+        index,
+        runtime.state,
+        ownerIndex,
+        this.simulationTime,
+        this.switchOwnerCommitted(definition, runtime, owner),
+        SWITCH_APPROACH_LOCK_TIMEOUT_SECONDS,
+      );
+      if (!expired) continue;
+      const previousOwner = runtime.lockedBy;
+      runtime.state = expired.state;
+      runtime.lockedBy = expired.lockedByIndex < 0 ? null : this.trams[expired.lockedByIndex]?.id ?? null;
+      if (runtime.lockedBy) continue;
+      delete runtime.resetAfterRelease;
+      this.addEvent(
+        "warning",
+        `${definition.id}: approach lock for ${owner?.label ?? previousOwner} lapsed · owner never reached the points`,
+      );
+      this.applyNextSwitchRequest(runtime, definition);
+    }
+  }
+
   private releaseClearedSwitches() {
+    this.expireStaleSwitchLocks();
     for (const [index, definition] of this.scenarioDefinition.switches.entries()) {
       const runtime = this.switchStates.get(definition.id);
       if (!runtime || runtime.releaseAtDistance === undefined || !runtime.lockedBy) continue;
@@ -7158,19 +7367,72 @@ export class SimulationEngine {
     return !tram || tram.serviceState === "in-depot" || tram.serviceState === "depot-ingress";
   }
 
+  private clearanceTimeoutBySignal = new Map<string, number>();
+
+  /** Clearance-detector timeout for the controller's active (or longest) zone. */
+  private crossingClearanceTimeout(controller: TrafficRuntime) {
+    const signals = this.scenarioDefinition.signals.filter((signal) =>
+      controller.activeSignalId
+        ? signal.id === controller.activeSignalId
+        : (signal.controllerId ?? signal.id) === controller.id,
+    );
+    return signals.reduce((longest, signal) => {
+      let timeout = this.clearanceTimeoutBySignal.get(signal.id);
+      if (timeout === undefined) {
+        const segment = this.segments.get(signal.segmentId);
+        const frontClearAt = Math.max(signal.at, signal.clearAt ?? Math.min(0.98, signal.at + 0.18));
+        const zoneMeters = segment ? (frontClearAt - signal.at) * segment.lengthMeters : 0;
+        timeout = Math.max(
+          TRAFFIC_GRANT_TIMEOUT_SECONDS,
+          (zoneMeters + TRAM_LENGTH_METERS) / CROSSING_MIN_TRAVERSE_SPEED_MPS,
+        );
+        this.clearanceTimeoutBySignal.set(signal.id, timeout);
+      }
+      return Math.max(longest, timeout);
+    }, TRAFFIC_GRANT_TIMEOUT_SECONDS);
+  }
+
+  /** The owner's recorded passage, if it belongs to the current grant. */
+  private matchingOwnerPassage(controller: TrafficRuntime) {
+    const passage = controller.ownerPassage;
+    if (!passage) return null;
+    if (passage.tramId === controller.activeTramId && passage.signalId === controller.activeSignalId) return passage;
+    delete controller.ownerPassage;
+    return null;
+  }
+
+  private recordOwnerPassage(controller: TrafficRuntime, tram: TramState, signal: SignalDefinition, at: number) {
+    if (controller.activeTramId !== tram.id || controller.activeSignalId !== signal.id) return;
+    if (this.matchingOwnerPassage(controller)) return;
+    const segment = this.segments.get(signal.segmentId);
+    if (!segment) return;
+    const frontClearAt = Math.max(signal.at, signal.clearAt ?? Math.min(0.98, signal.at + 0.18));
+    controller.ownerPassage = {
+      tramId: tram.id,
+      signalId: signal.id,
+      rearClearDistance: tram.distanceMeters + (frontClearAt - at) * segment.lengthMeters + TRAM_LENGTH_METERS,
+    };
+  }
+
   private reconcileActiveTrafficOccupancy(controller: TrafficRuntime) {
-    if (!controller.activeTramId || !controller.activeSignalId) return;
+    if (!controller.activeTramId || !controller.activeSignalId) {
+      delete controller.ownerPassage;
+      return;
+    }
     const tram = this.trams.find((item) => item.id === controller.activeTramId);
     const signal = this.scenarioDefinition.signals.find(
       (item) => item.id === controller.activeSignalId,
     );
     if (!tram || !signal) return;
 
-    if (
-      !controller.activeTramEntered &&
-      tram.segmentId === signal.segmentId &&
-      tram.progress >= signal.at
-    ) {
+    const onSegmentPastEntry = tram.segmentId === signal.segmentId && tram.progress >= signal.at;
+    if (onSegmentPastEntry) this.recordOwnerPassage(controller, tram, signal, tram.progress);
+    // The owner's odometer keeps proving its passage after it has left the
+    // signal's segment, so an entry lost to a detector outage is re-reported
+    // every tick until the core accepts it. The core still requires that
+    // entry before any clear, so only positive evidence releases the grant.
+    const passage = this.matchingOwnerPassage(controller);
+    if (!controller.activeTramEntered && (onSegmentPastEntry || passage)) {
       controller.activeTramEntered = true;
       this.observeTraffic(controller, tram, signal.id, false);
       this.addEvent(
@@ -7188,8 +7450,9 @@ export class SimulationEngine {
     const rearClearAt = segment
       ? frontClearAt + TRAM_LENGTH_METERS / segment.lengthMeters
       : frontClearAt;
+    const rearClearDistance = passage?.rearClearDistance ?? controller.rearClearDistance;
     const fullyClear = tram.segmentId !== signal.segmentId
-      ? controller.rearClearDistance !== undefined && tram.distanceMeters >= controller.rearClearDistance
+      ? rearClearDistance !== undefined && tram.distanceMeters >= rearClearDistance
       : rearClearAt <= 1 && tram.progress >= rearClearAt;
     if (!fullyClear) return;
 

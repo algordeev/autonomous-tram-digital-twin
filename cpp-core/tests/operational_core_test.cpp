@@ -112,6 +112,31 @@ int main() {
       }
     }
   }
+  // A phantom approach lock lapses after the timeout of uncommitted time; a
+  // committed owner keeps it, and the age restarts whenever it commits.
+  {
+    assert(tram_core_switch_begin(1) == 1);
+    assert(tram_core_switch_sync(0, 0, -1) == 1);
+    assert(tram_core_switch_expire(0, 0, 0, 60) == 0); // unlocked: nothing to do
+    assert(tram_core_switch_request(0, 1, 3, 0) == 1);
+    assert(tram_core_switch_expire(0, 10, 0, 60) == 0); // first sight stamps
+    assert(tram_core_switch_expire(0, 69, 0, 60) == 0);
+    assert(tram_core_switch_expire(0, 69.5, 1, 60) == 0); // owner commits
+    assert(tram_core_switch_expire(0, 129, 0, 60) == 0);  // age restarted
+    assert(tram_core_switch_locked_by(0) == 3);
+    assert(tram_core_switch_toggle(0, 1) == 0); // still interlocked
+    assert(tram_core_switch_expire(0, 129.5, 0, 60) == 1);
+    assert(tram_core_switch_locked_by(0) == -1);
+    assert(tram_core_switch_state(0) == 1); // expiry never moves the points
+    // A lock re-taken between checks starts a fresh age.
+    assert(tram_core_switch_request(0, 0, 4, 0) == 1);
+    assert(tram_core_switch_expire(0, 500, 0, 60) == 0);
+    assert(tram_core_switch_release(0, 4) == 1);
+    assert(tram_core_switch_request(0, 0, 4, 0) == 1);
+    assert(tram_core_switch_expire(0, 559, 0, 60) == 0);
+    assert(tram_core_switch_locked_by(0) == 4);
+    assert(tram_core_switch_expire(0, 0, 0, 0) == 0); // invalid timeout
+  }
   // Native and WASM share reset semantics and reject invalid time steps.
   assert(tram_core_step(nullptr, 0) == 0);
   assert(tram_core_step(nullptr, 1.1) == 0);

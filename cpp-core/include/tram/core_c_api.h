@@ -1,12 +1,12 @@
 #pragma once
 
 // Canonical ABI shared by the native core, WASM build and test bridge.
-#define TRAM_CORE_ABI_VERSION 12
+#define TRAM_CORE_ABI_VERSION 13
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// ABI 12 is a singleton per process / WebAssembly instance. Handles are tokens,
+// ABI 13 is a singleton per process / WebAssembly instance. Handles are tokens,
 // not separately allocated simulations. Authority subsystems reset via *_begin.
 typedef void *tram_core_handle;
 int tram_core_abi_version(void);
@@ -39,6 +39,7 @@ int tram_core_switch_sync(int, int, int);
 int tram_core_switch_toggle(int, int);
 int tram_core_switch_request(int, int, int, int);
 int tram_core_switch_release(int, int);
+int tram_core_switch_expire(int, double, int, double);
 int tram_core_switch_state(int);
 int tram_core_switch_locked_by(int);
 int tram_core_signal_sync(int, int, double, int, int, int, int, double, int,
@@ -49,7 +50,7 @@ int tram_core_signal_manual(int, int, int);
 int tram_core_signal_observe(int, int, int, int, double);
 int tram_core_signal_fault(int);
 int tram_core_signal_step(int, double, int, int, int, int, double, double,
-                          double, double);
+                          double, double, double);
 int tram_core_signal_phase(int);
 double tram_core_signal_until(int);
 int tram_core_signal_active_tram(int);

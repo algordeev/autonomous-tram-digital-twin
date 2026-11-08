@@ -141,7 +141,7 @@ type CppHeadwayExports = {
   tram_core_signal_step: (
     index: number, now: number, candidateTram: number, candidateSignal: number,
     stillWaiting: number, activeInvalid: number, amber: number, green: number,
-    clearance: number, timeout: number,
+    clearance: number, timeout: number, clearanceTimeout: number,
   ) => number;
   tram_core_signal_manual: (index: number, mode: number, signal: number) => number;
   tram_core_signal_observe: (index: number, tram: number, signal: number, cleared: number, now: number) => number;
@@ -165,6 +165,7 @@ type CppHeadwayExports = {
     cooperative: number,
   ) => number;
   tram_core_switch_release: (index: number, tram: number) => number;
+  tram_core_switch_expire: (index: number, now: number, ownerCommitted: number, timeout: number) => number;
   tram_core_switch_state: (index: number) => number;
   tram_core_switch_locked_by: (index: number) => number;
   tram_core_power_begin: (sections: number, vehicles: number, strategy: number) => number;
@@ -209,6 +210,8 @@ const initializedDepotStates = new Set<number>();
 let trafficAuthorityCount = 0;
 const initializedTrafficControllers = new Set<number>();
 let switchAuthorityCount = 0;
+// Fallback mirror of the core's switch lock age, for runs without the WASM core.
+const fallbackSwitchLockAge = new Map<number, { owner: number; since: number }>();
 const initializedSwitches = new Set<number>();
 let powerSectionMaxKw: number[] = [];
 /** Flywheel banks installed per section; the "no-storage" strategy isolates them. */
@@ -399,6 +402,7 @@ export function configureCppTrafficAuthority(count: number) {
 export function configureCppSwitchAuthority(count: number) {
   switchAuthorityCount = Math.max(0, Math.min(12, Math.round(count)));
   initializedSwitches.clear();
+  fallbackSwitchLockAge.clear();
   cppExports?.tram_core_switch_begin(switchAuthorityCount);
 }
 
@@ -469,6 +473,36 @@ export function cppReleaseSwitchAuthority(
   return cppSwitchSnapshot(index);
 }
 
+/**
+ * Lapse an approach lock whose owner has stayed uncommitted for `timeout`
+ * seconds. Returns the new switch snapshot when the lock lapsed, else null.
+ */
+export function cppExpireSwitchAuthority(
+  index: number,
+  state: "main" | "branch",
+  lockedByIndex: number,
+  now: number,
+  ownerCommitted: boolean,
+  timeout: number,
+) {
+  if (!ensureCppSwitch(index, state, lockedByIndex)) {
+    const age = fallbackSwitchLockAge.get(index);
+    if (lockedByIndex < 0) {
+      fallbackSwitchLockAge.delete(index);
+      return null;
+    }
+    if (!age || age.owner !== lockedByIndex || ownerCommitted) {
+      fallbackSwitchLockAge.set(index, { owner: lockedByIndex, since: now });
+      return null;
+    }
+    if (now - age.since < timeout) return null;
+    fallbackSwitchLockAge.delete(index);
+    return { state, lockedByIndex: -1 };
+  }
+  if (!cppExports!.tram_core_switch_expire(index, now, ownerCommitted ? 1 : 0, timeout)) return null;
+  return cppSwitchSnapshot(index);
+}
+
 export function cppObserveTrafficAuthority(index: number, tram: number, signal: number, cleared: boolean, now: number) {
   if (!cppExports || !initializedTrafficControllers.has(index)) return;
   cppExports.tram_core_signal_observe(index, tram, signal, cleared ? 1 : 0, now);
@@ -506,6 +540,7 @@ export function cppStepTrafficAuthority(
     tramGreenSeconds: number;
     clearanceSeconds: number;
     grantTimeoutSeconds: number;
+    clearanceTimeoutSeconds: number;
   },
 ): CppTrafficAuthorityResult | null {
   if (!cppExports || index < 0 || index >= trafficAuthorityCount) return null;
@@ -537,6 +572,7 @@ export function cppStepTrafficAuthority(
     input.tramGreenSeconds,
     input.clearanceSeconds,
     input.grantTimeoutSeconds,
+    input.clearanceTimeoutSeconds,
   );
   return {
     phase: cppExports.tram_core_signal_phase(index),
