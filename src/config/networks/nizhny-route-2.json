@@ -1,6 +1,6 @@
 {
   "id": "nizhny-route-2",
-  "name": "Nizhny Novgorod · Tram 2",
+  "name": "Nizhny Novgorod · Route 2",
   "shortName": "Route 2 · real map",
   "description": "The real city-centre ring projected from stop coordinates, with both travel directions, five mapped turnout complexes and five independent priority-controlled street junctions.",
   "useCase": "Replay the 2021 Route 2 analysis, then stress-test headways, obstacles and signal priority with ten trams.",

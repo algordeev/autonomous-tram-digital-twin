@@ -58,12 +58,12 @@ interface TimeDistanceSample {
 
 const MAP_FOCUS_PRESETS: Record<string, MapFocusPreset[]> = {
   "nizhny-routes-2-21": [
-    { id: "krasnoselskaya", label: "Красносельская · треугольник стрелок", segmentId: "KRS-N-E", at: 0.45, zoom: 15 },
-    { id: "chyorny-prud", label: "Чёрный Пруд · стрелка и треугольник", segmentId: "N21-CHP-LOOP", at: 0.5, zoom: 8.5 },
-    { id: "park-dubki", label: "Парк Дубки · конечная", segmentId: "N21-PARK-LOOP", at: 0.5, zoom: 7 },
-    { id: "maslyakova", label: "Маслякова · остановка и перекрёсток", segmentId: "N2A14", at: 0.58, zoom: 7 },
-    { id: "sennaya", label: "Сенная · перекрёсток", segmentId: "N2A06", at: 0.88, zoom: 6 },
-    { id: "osharskaya", label: "Белинского × Ошарская", segmentId: "N2A03", at: 0.32, zoom: 6 },
+    { id: "krasnoselskaya", label: "Krasnoselskaya · switch triangle", segmentId: "KRS-N-E", at: 0.45, zoom: 15 },
+    { id: "chyorny-prud", label: "Chyorny Prud · switch and triangle", segmentId: "N21-CHP-LOOP", at: 0.5, zoom: 8.5 },
+    { id: "park-dubki", label: "Park Dubki · terminus", segmentId: "N21-PARK-LOOP", at: 0.5, zoom: 7 },
+    { id: "maslyakova", label: "Maslyakova · stop and junction", segmentId: "N2A14", at: 0.58, zoom: 7 },
+    { id: "sennaya", label: "Sennaya · junction", segmentId: "N2A06", at: 0.88, zoom: 6 },
+    { id: "osharskaya", label: "Belinskogo × Osharskaya", segmentId: "N2A03", at: 0.32, zoom: 6 },
   ],
 };
 
@@ -947,8 +947,8 @@ function drawSwitch(
         context.fillText(label, x, y + 0.5);
       });
     };
-    drawArmLabel(mainArm, "ПРЯМО", mainActive, "#25d4e8", -1);
-    drawArmLabel(branchArm, "СЪЕЗД", !mainActive, "#f4a62a", 1);
+    drawArmLabel(mainArm, "MAIN", mainActive, "#25d4e8", -1);
+    drawArmLabel(branchArm, "BRANCH", !mainActive, "#f4a62a", 1);
   }
 
   const incomingAngle = incoming
@@ -1153,7 +1153,7 @@ function drawTram(
       context.stroke();
       context.fillStyle = "#78edbe";
       context.font = "800 7px ui-monospace, SFMono-Regular, monospace";
-      context.fillText("ДВЕРИ ОТКРЫТЫ", 0, badgeY);
+      context.fillText("DOORS OPEN", 0, badgeY);
     }
   });
 }
@@ -1989,39 +1989,43 @@ function EnergyStatisticsWindow({
           </section>
         )}
 
-        <section className="elevation-profile-table" aria-labelledby="elevation-profile-title">
-          <header>
-            <div>
-              <span>MEASURED INPUT DATA</span>
-              <strong id="elevation-profile-title">Route 2 elevation sections</strong>
-            </div>
-            <small>Values reproduced from the supplied 2021 presentation</small>
-          </header>
-          <div className="elevation-profile-grid">
-            {statistics.elevationSections.map((section) => (
-              <div key={section.label}>
-                <span>{section.label}</span>
-                <b>{section.fromMeters} → {section.toMeters} m</b>
-                <i>−{section.fromMeters - section.toMeters} m</i>
-                <strong>{section.potentialKWh.toFixed(2)} kWh mgh</strong>
+        {snapshot.scenarioId.startsWith("nizhny-") && (
+          <>
+          <section className="elevation-profile-table" aria-labelledby="elevation-profile-title">
+            <header>
+              <div>
+                <span>MEASURED INPUT DATA</span>
+                <strong id="elevation-profile-title">Route 2 elevation sections</strong>
               </div>
-            ))}
-          </div>
-        </section>
+              <small>Values reproduced from the supplied 2021 presentation</small>
+            </header>
+            <div className="elevation-profile-grid">
+              {statistics.elevationSections.map((section) => (
+                <div key={section.label}>
+                  <span>{section.label}</span>
+                  <b>{section.fromMeters} → {section.toMeters} m</b>
+                  <i>−{section.fromMeters - section.toMeters} m</i>
+                  <strong>{section.potentialKWh.toFixed(2)} kWh mgh</strong>
+                </div>
+              ))}
+            </div>
+          </section>
 
-        <aside className="energy-study-note">
-          <strong>2021 Route 2 reference</strong>
-          <span>{statistics.studyMassTonnes.toFixed(1)} t · {statistics.measuredDescentMeters} m measured descent · {statistics.studyPotentialKWhPerRun.toFixed(2)} kWh theoretical mgh</span>
-          <p>
-            The original 7.84 kWh is gravitational potential, not guaranteed electrical return.
-            This twin applies 86% motor/inverter conversion. In mapped networks, electrical output is
-            first transferred to another tram in the same section, then stored in the section&apos;s VYCON flywheel bank;
-            only the remaining surplus is rejected. The Nizhny model includes 38 modules (4.75 MW / 19.79 kWh)
-            behind bidirectional 600↔750 V converters. Route 21 uses the measured
-            profile only while sharing Route 2 rails; its private section is level until surveyed.
-          </p>
-          <small>Source: {statistics.sourceLabel}</small>
-        </aside>
+          <aside className="energy-study-note">
+            <strong>2021 Route 2 reference</strong>
+            <span>{statistics.studyMassTonnes.toFixed(1)} t · {statistics.measuredDescentMeters} m measured descent · {statistics.studyPotentialKWhPerRun.toFixed(2)} kWh theoretical mgh</span>
+            <p>
+              The original 7.84 kWh is gravitational potential, not guaranteed electrical return.
+              This twin applies 86% motor/inverter conversion. In mapped networks, electrical output is
+              first transferred to another tram in the same section, then stored in the section&apos;s VYCON flywheel bank;
+              only the remaining surplus is rejected. The Nizhny model includes 38 modules (4.75 MW / 19.79 kWh)
+              behind bidirectional 600↔750 V converters. Route 21 uses the measured
+              profile only while sharing Route 2 rails; its private section is level until surveyed.
+            </p>
+            <small>Source: {statistics.sourceLabel}</small>
+          </aside>
+          </>
+        )}
       </section>
     </div>
   );
@@ -2623,15 +2627,15 @@ export default function Home() {
             </div>
             {mapFocusPresets.length > 0 && (
               <label className="map-focus-control">
-                <span>Узел карты</span>
+                <span>Map focus</span>
                 <select
                   value={activeMapFocus}
-                  aria-label="Быстрый переход к перекрёстку или конечной"
+                  aria-label="Jump to a junction or terminus"
                   onChange={(event) => focusMap(event.target.value)}
                 >
-                  <option value="network">Вся сеть</option>
+                  <option value="network">Whole network</option>
                   {activeMapFocus === "custom" && (
-                    <option value="custom">Свободный обзор</option>
+                    <option value="custom">Free view</option>
                   )}
                   {mapFocusPresets.map((preset) => (
                     <option value={preset.id} key={preset.id}>
@@ -2748,7 +2752,7 @@ export default function Home() {
                 >
                   {savedExperiments.map((experiment) => (
                     <option value={experiment.savedAt} key={experiment.savedAt}>
-                      {experiment.name} · {experiment.networkId === "nizhny-route-2" ? "Route 2" : "Routes 2 + 21"}
+                      {experiment.name} · {SCENARIOS.find((item) => item.id === experiment.networkId)?.name ?? experiment.networkId}
                     </option>
                   ))}
                 </select>

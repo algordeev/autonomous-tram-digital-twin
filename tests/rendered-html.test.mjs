@@ -11,10 +11,10 @@ test("builds standalone installable HTML without hosting metadata", async () => 
 
 test("includes readable focus targets for intersections and terminals", async () => {
   const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-  assert.match(source, /Быстрый переход к перекрёстку или конечной/);
-  assert.match(source, /Красносельская · треугольник стрелок/);
-  assert.match(source, /Чёрный Пруд · стрелка и треугольник/);
-  assert.match(source, /Парк Дубки · конечная/);
+  assert.match(source, /Jump to a junction or terminus/);
+  assert.match(source, /Krasnoselskaya · switch triangle/);
+  assert.match(source, /Chyorny Prud · switch and triangle/);
+  assert.match(source, /Park Dubki · terminus/);
 });
 
 test("the two-route scenario exposes every turnout and signal in the side panel", async () => {

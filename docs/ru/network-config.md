@@ -17,7 +17,7 @@ RFID/остановки, светофоры, стрелки, конфликтн�
 
 В правой панели `Network and routes` можно выбрать:
 
-1. `Nizhny Novgorod · Tram 2`;
+1. `Nizhny Novgorod · Route 2`;
 2. `Nizhny Novgorod · Routes 2 + 21`.
 
 Смена сети перезапускает модель с её собственным парком, остановками,

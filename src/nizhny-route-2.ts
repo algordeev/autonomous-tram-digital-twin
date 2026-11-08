@@ -654,7 +654,7 @@ const route2Substations: TractionSubstationDefinition[] = [
 
 export const NIZHNY_ROUTE_2_SCENARIO: ScenarioDefinition = {
   id: "nizhny-route-2",
-  name: "Nizhny Novgorod · Tram 2",
+  name: "Nizhny Novgorod · Route 2",
   shortName: "Route 2 · real map",
   description:
     "The real city-centre ring projected from stop coordinates, with both travel directions, five mapped turnout complexes and five independent priority-controlled street junctions.",
