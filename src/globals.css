@@ -637,7 +637,7 @@ button:disabled {
 }
 
 .scenario-note {
-  margin: 8px 0 13px;
+  margin: 6px 0 0;
   color: #7790a1;
   font-size: 10px;
   line-height: 1.5;
@@ -1698,6 +1698,11 @@ button:disabled {
   align-items: stretch;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Sits between the network dropdown and the experiment panel. */
+.simulation-rate-row {
+  margin: 12px 0;
 }
 
 .stepper {

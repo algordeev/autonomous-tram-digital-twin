@@ -1078,7 +1078,7 @@ export const SCENARIOS: ScenarioDefinition[] = [
     name: "Prototype Loop + Junction",
     shortName: "Prototype loop",
     description:
-      "A digital version of the physical 2021 layout: one loop, an RFID-controlled depot turnout, a stop reed sensor and a protected signal.",
+      "The physical 2021 prototype layout",
     useCase: "Validate the original controller before extending the network.",
     segments: [
       segment("P1", "A", "B", [{ x: 165, y: 150 }, { x: 760, y: 150 }], "North straight"),
@@ -1206,7 +1206,7 @@ export const SCENARIOS: ScenarioDefinition[] = [
     name: "Shared Corridor",
     shortName: "Shared corridor",
     description:
-      "Two directional loops share a central junction. It exposes merge conflicts, queue order and the effect of dispatch headway.",
+      "Two loops sharing one central junction",
     useCase: "Compare FIFO, timetable and line-priority arbitration.",
     segments: [
       segment(
@@ -1354,7 +1354,7 @@ export const SCENARIOS: ScenarioDefinition[] = [
     name: "Twin-loop Interchange",
     shortName: "Twin-loop interchange",
     description:
-      "An outer city loop and an inner express loop reconnect at a protected junction, creating asymmetric travel times.",
+      "Outer city loop and inner express loop · one junction",
     useCase: "Test mixed services, schedule recovery and junction priority.",
     segments: [
       segment("G1", "A", "B", [{ x: 100, y: 120 }, { x: 500, y: 120 }], "Northwest line"),

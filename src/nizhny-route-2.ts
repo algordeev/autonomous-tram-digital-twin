@@ -657,7 +657,7 @@ export const NIZHNY_ROUTE_2_SCENARIO: ScenarioDefinition = {
   name: "Nizhny Novgorod · Route 2",
   shortName: "Route 2 · real map",
   description:
-    "The real city-centre ring projected from stop coordinates, with both travel directions, five mapped turnout complexes and five independent priority-controlled street junctions.",
+    "City-centre ring · both directions · 5 turnouts · 5 signalled junctions",
   useCase:
     "Replay the 2021 Route 2 analysis, then stress-test headways, obstacles and signal priority with ten trams.",
   segments: route2PowerSegments,

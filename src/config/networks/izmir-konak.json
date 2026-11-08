@@ -2,7 +2,7 @@
   "id": "izmir-konak",
   "name": "Izmir · Konak Tram (Halkapınar — Fahrettin Altay)",
   "shortName": "Konak Tram · İzmir",
-  "description": "Real-world alignment of İzmir's T2/Konak tram line: 19 stops (Halkapınar to Fahrettin Altay) along the real official stop coordinates published by the İzmir metropolitan municipality open-data portal, with a depot at the Halkapınar terminus and traffic signals at three well-known major crossings along the corridor (Gazi Bulvarı, Konak Meydanı, Üçkuyular).",
+  "description": "19 stops · 12.8 km · Halkapınar depot · 3 signalled junctions",
   "useCase": "A real single-line urban tram corridor (as opposed to the Nizhny Novgorod scenario's shared two-route ring), for studying headway management, signal priority and depot operations on a linear line with a single terminal depot.",
   "strictRouteSequence": true,
   "segments": [

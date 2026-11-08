@@ -2777,6 +2777,23 @@ export default function Home() {
             ))}
           </select>
           <p className="scenario-note">{activeScenario.description}</p>
+          <div className="control-row control-row-stack simulation-rate-row">
+            <span className="field-label">Simulation rate</span>
+            <div className="segmented">
+              {[0.5, 1, 2, 5, 20, 30].map((rate) => (
+                <button
+                  type="button"
+                  className={snapshot.options.simulationRate === rate ? "selected" : ""}
+                  onClick={() =>
+                    mutate((engine) => engine.setSimulationRate(rate))
+                  }
+                  key={rate}
+                >
+                  {rate}×
+                </button>
+              ))}
+            </div>
+          </div>
           <section className="experiment-panel" aria-label="Save and load simulation experiments">
             <div className="experiment-heading">
               <div>
@@ -3260,24 +3277,6 @@ export default function Home() {
               >
                 +
               </button>
-            </div>
-          </div>
-
-          <div className="control-row control-row-stack">
-            <span className="field-label">Simulation rate</span>
-            <div className="segmented">
-              {[0.5, 1, 2, 5, 20, 30].map((rate) => (
-                <button
-                  type="button"
-                  className={snapshot.options.simulationRate === rate ? "selected" : ""}
-                  onClick={() =>
-                    mutate((engine) => engine.setSimulationRate(rate))
-                  }
-                  key={rate}
-                >
-                  {rate}×
-                </button>
-              ))}
             </div>
           </div>
 

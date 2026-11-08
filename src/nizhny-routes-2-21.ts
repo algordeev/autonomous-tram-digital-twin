@@ -1546,7 +1546,7 @@ export const NIZHNY_ROUTES_2_21_SCENARIO: ScenarioDefinition = {
   name: "Nizhny Novgorod · Routes 2 + 21",
   shortName: "Routes 2 + 21 · shared network",
   description:
-    "Real reference alignments for Route 2 and Route 21's established ≈11.1 km Park Dubki — Chyorny Prud corridor, including the three-turnout Krasnoselskaya triangle, the Chyorny Prud terminal connector and their shared city-centre rails.",
+    "Route 2 ring + 11.1 km Route 21 · shared city-centre rails",
   useCase:
     "Observe mixed-route ordering, turnout queues and signal arbitration where Route 21 joins and leaves the Route 2 ring. Route 21 is modelled as its established pre-reconstruction topology.",
   segments: combinedPowerSegments,
