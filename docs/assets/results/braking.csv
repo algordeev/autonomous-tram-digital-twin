@@ -1,0 +1,17 @@
+mode,load,passengers,mass_kg,initial_speed_kmh,within_line_speed_limit,stopping_distance_m,analytic_distance_m,stopping_time_s,mean_deceleration_mps2,max_deceleration_mps2,deceleration_limit_mps2,max_build_up_jerk_mps3,jerk_limit_mps3,peak_brake_force_kn,checks_pass,core_runtime,git_commit
+service,empty,0,27500,20,true,17.01,16.10,7.65,0.907,1.250,1.25,0.900,0.9,33.2,true,cpp-wasm,0a3a1cb
+service,empty,0,27500,40,true,57.77,57.00,12.10,1.069,1.250,1.25,0.900,0.9,33.2,true,cpp-wasm,0a3a1cb
+service,empty,0,27500,50,false,87.41,86.71,14.35,1.103,1.250,1.25,0.900,0.9,33.2,true,cpp-wasm,0a3a1cb
+service,empty,0,27500,70,false,165.20,164.64,18.80,1.144,1.250,1.25,0.900,0.9,33.2,true,cpp-wasm,0a3a1cb
+service,full,110,35750,20,true,17.01,16.10,7.65,0.907,1.250,1.25,0.900,0.9,43.2,true,cpp-wasm,0a3a1cb
+service,full,110,35750,40,true,57.77,57.00,12.10,1.069,1.250,1.25,0.900,0.9,43.2,true,cpp-wasm,0a3a1cb
+service,full,110,35750,50,false,87.41,86.71,14.35,1.103,1.250,1.25,0.900,0.9,43.2,true,cpp-wasm,0a3a1cb
+service,full,110,35750,70,false,165.20,164.64,18.80,1.144,1.250,1.25,0.900,0.9,43.2,true,cpp-wasm,0a3a1cb
+emergency,empty,0,27500,20,true,7.60,7.74,2.50,2.030,2.400,2.4,5.000,5,64.9,true,cpp-wasm,0a3a1cb
+emergency,empty,0,27500,40,true,28.09,28.36,4.85,2.197,2.400,2.4,5.000,5,64.9,true,cpp-wasm,0a3a1cb
+emergency,empty,0,27500,50,false,43.16,43.50,6.00,2.235,2.400,2.4,5.000,5,64.9,true,cpp-wasm,0a3a1cb
+emergency,empty,0,27500,70,false,82.94,83.41,8.30,2.279,2.400,2.4,5.000,5,64.9,true,cpp-wasm,0a3a1cb
+emergency,full,110,35750,20,true,7.60,7.74,2.50,2.030,2.400,2.4,5.000,5,84.4,true,cpp-wasm,0a3a1cb
+emergency,full,110,35750,40,true,28.09,28.36,4.85,2.197,2.400,2.4,5.000,5,84.4,true,cpp-wasm,0a3a1cb
+emergency,full,110,35750,50,false,43.16,43.50,6.00,2.235,2.400,2.4,5.000,5,84.4,true,cpp-wasm,0a3a1cb
+emergency,full,110,35750,70,false,82.94,83.41,8.30,2.279,2.400,2.4,5.000,5,84.4,true,cpp-wasm,0a3a1cb

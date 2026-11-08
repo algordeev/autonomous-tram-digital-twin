@@ -1,0 +1,15 @@
+case,hold_min,surge_passengers,mode,terminal_holding,interval_restoration,disturbance_at_s,held_tram,planned_headway_s,recovery_s,headway_cv_mean,headway_deviation_mean_s,recovered,resync_s,max_gap_s,min_headway_s,mean_wait_s,mean_wait_change_s,max_wait_s,on_time_pct,left_behind,left_behind_change,safety_violations,min_gap_m,core_runtime,git_commit
+undisturbed,,,on,true,true,4200,,276,0,0.001,0,true,0,277,275,420.3,0.0,719.8,100.0,0,0,0,22.01,cpp-wasm,0a3a1cb
+undisturbed,,,off,false,false,4200,,276,0,0.916,174,true,0,796,4,883.4,0.0,1303.2,85.7,0,0,0,22.35,cpp-wasm,0a3a1cb
+undisturbed,,,terminal-off,false,true,4200,,276,0,0.086,54,true,0,328,183,396.7,0.0,716.9,100.0,0,0,0,,cpp-wasm,0a3a1cb
+undisturbed,,,restoration-off,true,false,4200,,276,0,0.001,0,true,0,277,275,420.8,0.0,719.9,100.0,0,0,0,22.01,cpp-wasm,0a3a1cb
+hold,2,,on,true,true,4299,T05,276,2871,0.052,6,true,3561,390,172,445.0,22.2,719.8,97.6,0,0,0,22.01,cpp-wasm,0a3a1cb
+hold,2,,off,false,false,4373,T14,276,6007,1.019,190,true,,888,6,1029.2,137.1,1551.3,85.7,0,0,0,22.06,cpp-wasm,0a3a1cb
+hold,5,,on,true,true,4299,T05,276,3441,0.097,11,true,4101,587,108,474.2,51.4,719.8,96.9,0,0,0,22.01,cpp-wasm,0a3a1cb
+hold,5,,off,false,false,4373,T14,276,,1.207,216,false,,1120,1,1323.4,431.3,2052.9,85.7,19,19,0,22.26,cpp-wasm,0a3a1cb
+hold,10,,on,true,true,4299,T05,276,3591,0.198,26,true,3891,915,65,611.1,188.3,1054.7,96.0,0,0,0,22.01,cpp-wasm,0a3a1cb
+hold,10,,off,false,false,4373,T14,276,,1.417,236,false,,1460,1,1815.2,923.2,2955.2,85.7,144,144,0,22.31,cpp-wasm,0a3a1cb
+hold,5,,terminal-off,false,true,4288,T14,276,,0.320,75,false,,540,99,559.0,160.3,869.0,93.2,0,0,0,291.70,cpp-wasm,0a3a1cb
+hold,5,,restoration-off,true,false,4299,T05,276,1701,0.072,7,true,1911,589,24,463.8,40.5,719.9,99.0,0,0,0,22.01,cpp-wasm,0a3a1cb
+surge,,250,on,true,true,4200,,276,0,0.010,1,true,2340,311,246,974.2,554.0,8225.5,100.0,301,301,0,22.01,cpp-wasm,0a3a1cb
+surge,,250,off,false,false,4200,,276,0,0.900,173,true,,749,21,1276.4,393.0,8565.7,85.7,353,353,0,26.69,cpp-wasm,0a3a1cb
