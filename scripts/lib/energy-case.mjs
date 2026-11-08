@@ -49,8 +49,10 @@ export function gitCommit() {
   try {
     const cwd = new URL("../..", import.meta.url);
     const hash = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd, encoding: "utf8" }).trim();
-    // Only tracked source changes make a run irreproducible from the hash.
-    const dirty = execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], { cwd, encoding: "utf8" }).trim();
+    // Only tracked changes that can alter results make a run irreproducible from
+    // the hash; edits to docs or figures during a long run do not.
+    const dirty = execFileSync("git", ["status", "--porcelain", "--untracked-files=no", "--",
+      "src", "cpp-core", "public/wasm", "scripts", "package.json", "package-lock.json"], { cwd, encoding: "utf8" }).trim();
     commit = dirty ? `${hash}-dirty` : hash;
   } catch {
     commit = "unknown";

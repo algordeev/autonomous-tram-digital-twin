@@ -240,9 +240,11 @@ await writeCsv(`${OUTPUT_DIR}disturbance.csv`, Object.keys(rows[0]), rows);
 const series = runs.map((run) => ({
   kind: run.kind, holdMinutes: run.holdMinutes, mode: run.mode,
   disturbanceAt: run.disturbanceAt, plannedHeadwaySeconds: run.plannedHeadwaySeconds,
-  rolling: rolling(run),
+  // Rounded for the committed file only; the analysis above uses full precision.
+  rolling: rolling(run).map((item) => Object.fromEntries(Object.entries(item).map(([key, value]) =>
+    [key, typeof value === "number" ? Number(value.toFixed(key === "cv" ? 4 : 1)) : value]))),
 }));
-await writeFile(`${OUTPUT_DIR}disturbance-series.json`, `${JSON.stringify({ gitCommit: COMMIT, node: process.version, scenario: SCENARIO, stop: STOP, startMinute: START_MINUTE, onsetSeconds: ONSET_SECONDS, horizonSeconds: HORIZON_SECONDS, rollingSeconds: ROLLING_SECONDS, tolerance: TOLERANCE, series }, null, 2)}\n`, "utf8");
+await writeFile(`${OUTPUT_DIR}disturbance-series.json`, `${JSON.stringify({ gitCommit: COMMIT, node: process.version, scenario: SCENARIO, stop: STOP, startMinute: START_MINUTE, onsetSeconds: ONSET_SECONDS, horizonSeconds: HORIZON_SECONDS, rollingSeconds: ROLLING_SECONDS, tolerance: TOLERANCE, series })}\n`, "utf8");
 
 console.log(`\nWrote ${OUTPUT_DIR}disturbance.csv and disturbance-series.json`);
 for (const row of rows) {
