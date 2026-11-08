@@ -2585,9 +2585,6 @@ export default function Home() {
               </span>
               {snapshot.depots.length > 0 && <span>{tramsInDepot} in depot</span>}
               <span>{snapshot.obstacles.length} obstacles</span>
-              {activeScenario.studyBaseline && (
-                <span>{activeScenario.studyBaseline.lengthKm} km real route</span>
-              )}
               {supportsFirmwareComparison && (
                 <span>{snapshot.options.controlMode}</span>
               )}
@@ -2621,9 +2618,7 @@ export default function Home() {
               ))}
               <span className="map-station-key">
                 <i aria-hidden="true" />
-                {activeScenario.studyBaseline
-                  ? `${activeScenario.studyBaseline.mappedStopLocations} mapped stops`
-                  : "Named stops"}
+                Named stops
               </span>
             </div>
             {mapFocusPresets.length > 0 && (
@@ -2784,40 +2779,6 @@ export default function Home() {
               {experimentMessage || "Stores route choice, fleet, clock, controls, obstacles, turnouts and manual signal modes."}
             </small>
           </section>
-          {activeScenario.studyBaseline && (
-            <section className="study-baseline" aria-label="Route 2 study baseline">
-              <div className="study-heading">
-                <div>
-                  <span>Route 2</span>
-                  <strong>{activeScenario.studyBaseline.label}</strong>
-                </div>
-                <b>2</b>
-              </div>
-              <div className="study-metrics">
-                <span>
-                  <strong>{activeScenario.studyBaseline.lengthKm}</strong>
-                  km
-                </span>
-                <span>
-                  <strong>{activeScenario.studyBaseline.directionalStops}</strong>
-                  stop calls
-                </span>
-                <span>
-                  <strong>{activeScenario.studyBaseline.fleet}</strong>
-                  trams
-                </span>
-                <span>
-                  <strong>{activeScenario.studyBaseline.headwayMinutes}</strong>
-                  min
-                </span>
-              </div>
-              <small>
-                {activeScenario.studyBaseline.mappedStopLocations} unique locations ·{" "}
-                {activeScenario.studyBaseline.serviceHours} h service ·{" "}
-                {activeScenario.studyBaseline.dailyTrips} daily trips both ways
-              </small>
-            </section>
-          )}
 
           {snapshot.routeOperations.length > 0 && snapshot.depots.length > 0 && (
             <section

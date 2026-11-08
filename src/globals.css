@@ -730,94 +730,6 @@ button:disabled {
   color: #ff9a76;
 }
 
-.study-baseline {
-  margin: -2px 0 12px;
-  padding: 10px;
-  border: 1px solid rgba(255, 193, 59, 0.42);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 193, 59, 0.11), transparent 56%),
-    #0b1720;
-}
-
-.study-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.study-heading > div {
-  min-width: 0;
-}
-
-.study-heading span,
-.study-heading strong {
-  display: block;
-}
-
-.study-heading span {
-  color: #ffc13b;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.study-heading strong {
-  margin-top: 2px;
-  color: #e7eef2;
-  font-size: 11px;
-}
-
-.study-heading b {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
-  place-items: center;
-  border: 1px solid #ffc13b;
-  border-radius: 50%;
-  color: #ffc13b;
-  font: 900 15px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-  box-shadow: 0 0 12px rgba(255, 193, 59, 0.16);
-}
-
-.study-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
-  margin-top: 9px;
-}
-
-.study-metrics span {
-  min-width: 0;
-  padding: 6px 5px;
-  border: 1px solid rgba(255, 193, 59, 0.16);
-  border-radius: 5px;
-  background: rgba(5, 15, 22, 0.52);
-  color: #8198a7;
-  font-size: 7px;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.study-metrics strong {
-  display: block;
-  margin-bottom: 2px;
-  color: #ffd36c;
-  font: 800 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.study-baseline > small {
-  display: block;
-  margin-top: 8px;
-  color: #738b9a;
-  font-size: 8px;
-  line-height: 1.45;
-}
-
 .service-operations-panel {
   margin: -2px 0 12px;
   padding: 10px;
@@ -3550,10 +3462,6 @@ button:disabled {
 
   .control-grid {
     grid-template-columns: 1fr;
-  }
-
-  .study-metrics {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   .fleet-header,
