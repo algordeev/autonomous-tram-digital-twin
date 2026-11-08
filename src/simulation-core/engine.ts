@@ -5970,15 +5970,35 @@ export class SimulationEngine {
   private keepClearHolds = new Map<string, { signalId: string; at: number }>();
 
   /** Whether the tram is standing at the crossing's stop line for keep-clear. */
-  private yieldsCrossingForKeepClear(tram: TramState | undefined, signalId: string | null) {
+  private holdsForKeepClear(tram: TramState | undefined, signalId: string | null) {
     if (!tram || !signalId) return false;
     const hold = this.keepClearHolds.get(tram.id);
-    return Boolean(
-      hold &&
-      hold.signalId === signalId &&
-      this.simulationTime - hold.at <= 0.2 &&
-      tram.speedMps <= 0.1,
-    );
+    return Boolean(hold && hold.signalId === signalId && this.simulationTime - hold.at <= 0.2 && tram.speedMps <= 0.1);
+  }
+
+  /**
+   * Whether a granted tram that has not entered cannot use its grant: it is
+   * standing at the stop line for keep-clear, or another tram is between it
+   * and the stop line (it cannot pass that tram, which must wait at red).
+   */
+  private cannotUseCrossingGrant(tram: TramState | undefined, signalId: string | null) {
+    if (!tram || !signalId) return false;
+    return this.holdsForKeepClear(tram, signalId) || !this.firstInLineFor({ tramId: tram.id, signalId });
+  }
+
+  /**
+   * Whether no other tram's front lies between this tram's front and the
+   * request's stop line. Only such a tram can use a grant; one queued behind
+   * another would hold the crossing green while the tram ahead waits at red.
+   */
+  private firstInLineFor(request: { tramId: string; signalId: string }) {
+    const tram = this.trams.find((item) => item.id === request.tramId);
+    const signal = this.scenarioDefinition.signals.find((item) => item.id === request.signalId);
+    if (!tram || !signal || this.isOffLine(tram)) return true;
+    const signalDistance = this.forwardDistanceToPosition(tram, signal.segmentId, signal.at);
+    if (signalDistance === null || signalDistance < 0) return true;
+    const leader = this.nearestTramAhead(tram);
+    return !leader || leader.distanceMeters >= signalDistance - 0.01;
   }
 
   /**
@@ -6957,10 +6977,14 @@ export class SimulationEngine {
         }
         continue;
       }
-      if (controller.phase === "road-green" && controller.queue.length > 0) {
+      if (controller.phase === "road-green" && controller.queue.length > 0) this.sortTrafficQueue(controller);
+      // Only a tram with no other tram between it and the stop line can use a grant.
+      const nextIndex = controller.phase === "road-green"
+        ? controller.queue.findIndex((request) => this.firstInLineFor(request))
+        : -1;
+      if (nextIndex >= 0) {
         const contenderCount = controller.queue.length;
-        this.sortTrafficQueue(controller);
-        const next = controller.queue.shift()!;
+        const [next] = controller.queue.splice(nextIndex, 1);
         controller.activeTramId = next.tramId;
         controller.activeSignalId = next.signalId;
         controller.activeTramCleared = false;
@@ -7011,7 +7035,10 @@ export class SimulationEngine {
             activeTram.progress < activeSignal.at &&
             !activeTram.manualMode,
         );
-        const ownerYielding = this.yieldsCrossingForKeepClear(activeTram, controller.activeSignalId);
+        const ownerYielding = this.cannotUseCrossingGrant(activeTram, controller.activeSignalId);
+        // A keep-clear yielder asks again once its exit is free; a tram that
+        // was behind another keeps its request.
+        const keepClearYield = this.holdsForKeepClear(activeTram, controller.activeSignalId);
         const staleBeforeEntry =
           !controller.activeTramEntered &&
           this.simulationTime - controller.activeGrantedAt >=
@@ -7025,7 +7052,7 @@ export class SimulationEngine {
             controller.activeTramId &&
             controller.activeSignalId &&
             !this.isOffLine(activeTram) &&
-            !ownerYielding &&
+            !keepClearYield &&
             !controller.queue.some(
               (request) => request.tramId === controller.activeTramId,
             )
@@ -7075,7 +7102,9 @@ export class SimulationEngine {
       this.sortTrafficQueue(controller);
     }
     const candidate =
-      controller.phase === "road-green" ? controller.queue[0] ?? null : null;
+      controller.phase === "road-green"
+        ? controller.queue.find((request) => this.firstInLineFor(request)) ?? null
+        : null;
     const activeTramBefore = this.trams.find(
       (tram) => tram.id === controller.activeTramId,
     );
@@ -7090,11 +7119,13 @@ export class SimulationEngine {
         activeTramBefore.progress < activeSignalBefore.at &&
         !activeTramBefore.manualMode,
     );
-    // An owner standing at the stop line for keep-clear gives its grant back
-    // through the stale-grant rule rather than holding the road red.
+    // An owner that cannot use its grant (holding for keep-clear, or behind
+    // another tram) gives it back through the stale-grant rule rather than
+    // holding the road red.
     const ownerYielding =
       !controller.activeTramEntered &&
-      this.yieldsCrossingForKeepClear(activeTramBefore, controller.activeSignalId);
+      this.cannotUseCrossingGrant(activeTramBefore, controller.activeSignalId);
+    const keepClearYield = ownerYielding && this.holdsForKeepClear(activeTramBefore, controller.activeSignalId);
     const stillWaiting = stillWaitingOnApproach && !ownerYielding;
     const activeInvalid = Boolean(
       this.isOffLine(activeTramBefore) ||
@@ -7187,12 +7218,13 @@ export class SimulationEngine {
         `${controller.activeSignalId} GREEN · minimum ${controller.tramGreenSeconds}s for ${controller.activeTramId}`,
       );
     } else if (result.event === 3) {
-      // A keep-clear yielder asks again once its exit is free.
+      // A keep-clear yielder asks again once its exit is free; a tram that
+      // was behind another keeps its request.
       if (
         previousActiveTramId &&
         previousActiveSignalId &&
         !this.isOffLine(activeTramBefore) &&
-        !ownerYielding &&
+        !keepClearYield &&
         !controller.queue.some((request) => request.tramId === previousActiveTramId)
       ) {
         controller.queue.push({
@@ -7205,9 +7237,11 @@ export class SimulationEngine {
         "warning",
         this.isOffLine(activeTramBefore)
           ? `${controller.label}: stale tram grant released · tram left the line`
-          : ownerYielding
+          : keepClearYield
             ? `${controller.label}: stale tram grant released · ${activeTramBefore?.label ?? previousActiveTramId} keeping the crossing clear`
-            : `${controller.label}: stale tram grant released and requeued`,
+            : ownerYielding
+              ? `${controller.label}: stale tram grant released · ${activeTramBefore?.label ?? previousActiveTramId} behind another tram, requeued`
+              : `${controller.label}: stale tram grant released and requeued`,
       );
     } else if (result.event === 4) {
       this.addEvent(

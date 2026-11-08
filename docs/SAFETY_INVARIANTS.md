@@ -87,7 +87,11 @@ stopping leader, or at a full terminal's entry hold. While its exit is blocked
 it waits at the stop line and neither requests nor keeps a grant: a granted
 tram standing there counts as invalid for the withdrawal rule, so the other
 approaches are served. A tram already too close to stop before the stop line
-with the service brake is committed and enters.
+with the service brake is committed and enters. A grant goes only to a tram
+with no other tram between it and the stop line; a granted tram that finds one
+there gives the grant back the same way and keeps its request, so a tram queued
+behind another can never hold the crossing green while the one ahead waits at
+red.
 
 **Approach locks.** A turnout lock taken on approach lapses through
 `switch_expire` after 60 s during which its owner is uncommitted: not past or

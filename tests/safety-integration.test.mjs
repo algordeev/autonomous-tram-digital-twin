@@ -178,11 +178,13 @@ test("a tram stored after entering a crossing reports its rear clear", () => {
   const controller = engine.trafficControllers.get("J-CHP-MERGE");
   const signal = engine.scenario.signals.find((item) => item.id === "SG-CHP-R21");
   const tram = engine.trams.find((item) => item.fleetGroupId === "route-21-to-chyorny-prud");
+  // Requesting from the approach, first in line, as a detector request does.
+  tram.segmentId = signal.segmentId;
+  tram.progress = signal.at - 0.01;
   controller.queue.push({ tramId: tram.id, signalId: signal.id, requestedAt: 0 });
   engine.updateTraffic();
   engine.simulationTime = controller.phaseUntil;
   engine.updateTraffic();
-  tram.segmentId = signal.segmentId;
   tram.progress = signal.at + 0.01;
   engine.updateTraffic();
   assert.equal(controller.activeTramEntered, true);
@@ -561,4 +563,52 @@ test("a tram keeps the crossing clear while the terminal beyond it is full", () 
   engine.updateTraffic();
   assert.equal(controller.phase, "road-green");
   assert.equal(controller.activeTramId, null);
+});
+
+test("only the first tram in line is granted, and a grant blocked by a tram ahead is withdrawn", () => {
+  const engine = new SimulationEngine("izmir-konak", 3);
+  engine.setAutoDispatch(false);
+  const signal = engine.scenario.signals.find((item) => item.id === "SIG-UCKUYULAR-O");
+  const controller = engine.trafficForSignal(signal.id);
+  const [front, rear] = engine.trams;
+  Object.assign(front, { segmentId: signal.segmentId, progress: signal.at - .02, speedMps: 0 });
+  Object.assign(rear, { segmentId: signal.segmentId, progress: signal.at - .1, speedMps: 0 });
+
+  // The tram ahead lost its request (it was keeping the crossing clear); the
+  // tram behind it must not be granted a crossing it cannot reach.
+  controller.queue.push({ tramId: rear.id, signalId: signal.id, requestedAt: 0 });
+  engine.updateTraffic();
+  assert.equal(controller.phase, "road-green");
+  assert.equal(controller.activeTramId, null);
+  controller.queue.push({ tramId: front.id, signalId: signal.id, requestedAt: 1 });
+  engine.updateTraffic();
+  assert.equal(controller.activeTramId, front.id);
+  assert.ok(controller.queue.some((request) => request.tramId === rear.id), "the tram behind keeps its place");
+
+  // A grant that is already held by a tram with another tram ahead is given back.
+  const blocked = new SimulationEngine("izmir-konak", 3);
+  blocked.setAutoDispatch(false);
+  const blockedController = blocked.trafficForSignal(signal.id);
+  const [ahead, behind] = blocked.trams;
+  Object.assign(behind, { segmentId: signal.segmentId, progress: signal.at - .1, speedMps: 0 });
+  blockedController.queue.push({ tramId: behind.id, signalId: signal.id, requestedAt: 0 });
+  blocked.updateTraffic();
+  blocked.simulationTime = blockedController.phaseUntil;
+  blocked.updateTraffic();
+  assert.equal(blockedController.activeTramId, behind.id);
+  Object.assign(ahead, { segmentId: signal.segmentId, progress: signal.at - .02, speedMps: 0 });
+  const grantedAt = blockedController.activeGrantedAt;
+  while (blockedController.phase === "tram-green" && blocked.simulationTime < grantedAt + 40) {
+    blocked.simulationTime += 1;
+    blocked.updateTraffic();
+  }
+  assert.equal(blockedController.phase, "amber-to-road");
+  assert.ok(blocked.simulationTime - grantedAt >= 25);
+  assert.ok(blockedController.queue.some((request) => request.tramId === behind.id), "the tram behind keeps its request");
+  // Once the crossing is free again, the tram behind is still not granted
+  // while the tram ahead stands between it and the stop line.
+  blocked.simulationTime += blockedController.clearanceSeconds;
+  blocked.updateTraffic();
+  blocked.updateTraffic();
+  assert.notEqual(blockedController.activeTramId, behind.id);
 });
