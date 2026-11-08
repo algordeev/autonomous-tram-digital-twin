@@ -9,7 +9,6 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
-  type WheelEvent,
 } from "react";
 import {
   SCENARIOS,
@@ -2404,17 +2403,34 @@ export default function Home() {
     [handleCanvasAction],
   );
 
-  const handleWheel = useCallback(
-    (event: WheelEvent<HTMLCanvasElement>) => {
+  // React attaches onWheel as a passive listener, so preventDefault() there is
+  // ignored and a trackpad pinch (sent as ctrl+wheel) zooms the whole page.
+  // A native non-passive listener keeps wheel and pinch on the map only.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handleWheel = (event: globalThis.WheelEvent) => {
       event.preventDefault();
-      changeZoom(
-        zoomRef.current + (event.deltaY < 0 ? 0.2 : -0.2),
-        toCanvasPoint(event.clientX, event.clientY),
-      );
+      const anchor = toCanvasPoint(event.clientX, event.clientY);
+      if (event.ctrlKey) {
+        // Pinch: many small deltas, so zoom proportionally for a smooth feel.
+        changeZoom(zoomRef.current * Math.exp(-event.deltaY * 0.01), anchor);
+      } else {
+        changeZoom(zoomRef.current + (event.deltaY < 0 ? 0.2 : -0.2), anchor);
+      }
       setActiveMapFocus("custom");
-    },
-    [changeZoom, toCanvasPoint],
-  );
+    };
+    // Safari reports pinch as separate gesture events and zooms the page on them.
+    const blockPageGesture = (event: Event) => event.preventDefault();
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    canvas.addEventListener("gesturestart", blockPageGesture);
+    canvas.addEventListener("gesturechange", blockPageGesture);
+    return () => {
+      canvas.removeEventListener("wheel", handleWheel);
+      canvas.removeEventListener("gesturestart", blockPageGesture);
+      canvas.removeEventListener("gesturechange", blockPageGesture);
+    };
+  }, [changeZoom, toCanvasPoint]);
 
   const selectedTram =
     snapshot.trams.find((tram) => tram.id === engine.selectedTram) ??
@@ -2653,7 +2669,6 @@ export default function Home() {
               onPointerMove={handlePointerMove}
               onPointerUp={(event) => finishPointer(event, true)}
               onPointerCancel={(event) => finishPointer(event, false)}
-              onWheel={handleWheel}
               aria-label="Interactive two-dimensional tram network. Drag to move the map, use the wheel to zoom, or click a tram, stop, or turnout."
               tabIndex={0}
             />
