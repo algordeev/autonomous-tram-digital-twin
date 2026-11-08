@@ -1809,7 +1809,7 @@
       "routeId": "2",
       "directionShortName": "2 ↺",
       "directionLabel": "counter-clockwise",
-      "showLabel": true,
+      "showLabel": false,
       "render": true,
       "displayAt": 0.975
     },
@@ -1824,7 +1824,7 @@
       "routeId": "2",
       "directionShortName": "2 ↺",
       "directionLabel": "counter-clockwise",
-      "showLabel": true,
+      "showLabel": false,
       "render": true,
       "displayAt": 0.975
     },
@@ -1869,7 +1869,7 @@
       "routeId": "2",
       "directionShortName": "2 ↺",
       "directionLabel": "counter-clockwise",
-      "showLabel": true,
+      "showLabel": false,
       "render": true,
       "displayAt": 0.975
     },
@@ -1914,7 +1914,7 @@
       "routeId": "2",
       "directionShortName": "2 ↺",
       "directionLabel": "counter-clockwise",
-      "showLabel": true,
+      "showLabel": false,
       "render": true,
       "displayAt": 0.975
     },
@@ -1974,7 +1974,7 @@
       "routeId": "2",
       "directionShortName": "2 ↺",
       "directionLabel": "counter-clockwise",
-      "showLabel": true,
+      "showLabel": false,
       "render": true,
       "displayAt": 0.975,
       "labelDistancePx": 72
@@ -2321,7 +2321,7 @@
       "routeId": "21",
       "directionShortName": "21 →",
       "directionLabel": "to Chyorny Prud",
-      "showLabel": true,
+      "showLabel": false,
       "render": true,
       "displayAt": 0.975
     },
@@ -2381,7 +2381,7 @@
       "routeId": "21",
       "directionShortName": "21 →",
       "directionLabel": "to Chyorny Prud",
-      "showLabel": true,
+      "showLabel": false,
       "render": true,
       "displayAt": 0.975
     },
@@ -2411,7 +2411,7 @@
       "routeId": "21",
       "directionShortName": "21 →",
       "directionLabel": "to Chyorny Prud",
-      "showLabel": true,
+      "showLabel": false,
       "render": true,
       "displayAt": 0.975
     },

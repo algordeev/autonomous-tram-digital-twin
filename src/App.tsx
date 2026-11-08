@@ -172,6 +172,53 @@ function routeLengthMeters(
   }, 0);
 }
 
+function KpiTile({
+  label,
+  color,
+  meterColor,
+  value,
+  unit,
+  fill,
+  caption,
+  title,
+}: {
+  label: string;
+  color: string;
+  meterColor?: string;
+  value: string;
+  unit?: string;
+  fill: number;
+  caption: string;
+  title?: string;
+}) {
+  const percent = Math.round(Math.max(0, Math.min(1, Number.isFinite(fill) ? fill : 0)) * 100);
+  return (
+    <div
+      className="kpi-tile"
+      title={title}
+      style={{ "--kpi-color": color, "--kpi-meter": meterColor ?? color } as CSSProperties}
+    >
+      <span className="kpi-label">{label}</span>
+      <strong>
+        {value}
+        {unit && <i>{unit}</i>}
+      </strong>
+      <span className="kpi-meter" aria-hidden="true">
+        <span style={{ width: `${percent}%` }} />
+      </span>
+      <small>{caption}</small>
+    </div>
+  );
+}
+
+function energyParts(wh: number): [value: string, unit: string] {
+  return wh >= 1_000 ? [(wh / 1_000).toFixed(2), "kWh"] : [wh.toFixed(0), "Wh"];
+}
+
+function formatEnergyWh(wh: number) {
+  return energyParts(wh).join(" ");
+}
+
 function shiftClock(clock: string, deltaSeconds: number) {
   const [hours = 0, minutes = 0, seconds = 0] = clock.split(":").map(Number);
   const day = 24 * 60 * 60;
@@ -2525,7 +2572,9 @@ export default function Home() {
           <StatusLed tone={snapshot.warningCount > 0 ? "warning" : "ok"}>
             {snapshot.warningCount} warning{snapshot.warningCount === 1 ? "" : "s"}
           </StatusLed>
-          <span className="system-clock">◷ {snapshot.clock}</span>
+          <span className="system-clock" title="Simulation time · speed">
+            ◷ {snapshot.clock} <small>×{snapshot.options.simulationRate}</small>
+          </span>
         </div>
         <div className="transport-controls">
           <button
@@ -2547,26 +2596,27 @@ export default function Home() {
           <button
             className={`control-button run-button ${snapshot.running ? "active" : ""}`}
             type="button"
-            onClick={() => mutate((engine) => engine.setRunning(true))}
-            aria-label="Run simulation"
+            onClick={() => mutate((engine) => engine.setRunning(!snapshot.running))}
+            aria-label={snapshot.running ? "Pause simulation" : "Run simulation"}
           >
-            <span aria-hidden="true">▶</span> Run
+            {snapshot.running ? (
+              <>
+                <span aria-hidden="true">Ⅱ</span> Pause
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true">▶</span> Run
+              </>
+            )}
           </button>
           <button
-            className={!snapshot.running ? "control-button active" : "control-button"}
-            type="button"
-            onClick={() => mutate((engine) => engine.setRunning(false))}
-            aria-label="Pause simulation"
-          >
-            <span aria-hidden="true">Ⅱ</span> Pause
-          </button>
-          <button
-            className="control-button"
+            className="control-button icon-button"
             type="button"
             onClick={() => mutate((engine) => engine.reset())}
             aria-label="Reset simulation"
+            title="Reset simulation"
           >
-            <span aria-hidden="true">↻</span> Reset
+            <span aria-hidden="true">↻</span>
           </button>
         </div>
       </header>
@@ -3750,27 +3800,68 @@ export default function Home() {
             Speed ECO disabled · SOC and peak dispatch only
           </small>
         </article>
-        <article className="metric-card numeric-card">
-          <span className="metric-label">Minimum interval</span>
-          <strong>
-            {snapshot.metrics.headwayMeters >= 1_000
-              ? (snapshot.metrics.headwayMeters / 1_000).toFixed(1)
-              : snapshot.metrics.headwayMeters.toFixed(0)}
-          </strong>
-          <span>{snapshot.metrics.headwayMeters >= 1_000 ? "km" : "m"}</span>
-          <small>
-            {snapshot.metrics.intervalRecoveryTrams > 0
-              ? `${snapshot.metrics.intervalRecoveryTrams} tram${snapshot.metrics.intervalRecoveryTrams === 1 ? "" : "s"} restoring spacing`
-              : `Planned ${formatDistanceLabel(snapshot.metrics.targetHeadwayMeters)}`}
-          </small>
-        </article>
-        <article className="metric-card numeric-card time-card">
-          <span className="metric-label">Simulation time</span>
-          <strong>{snapshot.clock}</strong>
-          <span>hh:mm:ss</span>
-          <small>
-            ×{snapshot.options.simulationRate} · {snapshot.running ? "running" : "paused"}
-          </small>
+        <article className="metric-card kpi-card" aria-label="Network performance">
+          <KpiTile
+            label="Min interval"
+            color={snapshot.metrics.intervalRecoveryTrams > 0 ? "var(--amber)" : "var(--cyan)"}
+            value={
+              snapshot.metrics.headwayMeters >= 1_000
+                ? (snapshot.metrics.headwayMeters / 1_000).toFixed(1)
+                : snapshot.metrics.headwayMeters.toFixed(0)
+            }
+            unit={snapshot.metrics.headwayMeters >= 1_000 ? "km" : "m"}
+            fill={snapshot.metrics.headwayMeters / Math.max(1, snapshot.metrics.targetHeadwayMeters)}
+            caption={
+              snapshot.metrics.intervalRecoveryTrams > 0
+                ? `${snapshot.metrics.intervalRecoveryTrams} tram${snapshot.metrics.intervalRecoveryTrams === 1 ? "" : "s"} restoring`
+                : `Planned ${formatDistanceLabel(snapshot.metrics.targetHeadwayMeters)}`
+            }
+            title={`Shortest gap between trams · planned ${formatDistanceLabel(snapshot.metrics.targetHeadwayMeters)}`}
+          />
+          <KpiTile
+            label="Energy"
+            color="var(--amber)"
+            meterColor="var(--green)"
+            value={energyParts(snapshot.metrics.energyWh)[0]}
+            unit={energyParts(snapshot.metrics.energyWh)[1]}
+            fill={snapshot.metrics.recoveredWh / Math.max(1, snapshot.metrics.energyWh)}
+            caption={`${formatEnergyWh(snapshot.metrics.recoveredWh)} regen`}
+            title={`${snapshot.metrics.energyWh.toFixed(1)} Wh used · ${snapshot.metrics.recoveredWh.toFixed(1)} Wh recovered (green bar = recovered share)`}
+          />
+          <KpiTile
+            label="On time"
+            color={
+              snapshot.metrics.departureAdherencePercent === null
+                ? "var(--muted)"
+                : snapshot.metrics.departureAdherencePercent >= 90
+                  ? "var(--green)"
+                  : snapshot.metrics.departureAdherencePercent >= 75
+                    ? "var(--amber)"
+                    : "var(--red)"
+            }
+            value={
+              snapshot.metrics.departureAdherencePercent === null
+                ? "—"
+                : snapshot.metrics.departureAdherencePercent.toFixed(0)
+            }
+            unit={snapshot.metrics.departureAdherencePercent === null ? undefined : "%"}
+            fill={(snapshot.metrics.departureAdherencePercent ?? 0) / 100}
+            caption={
+              snapshot.metrics.departureAdherencePercent === null
+                ? "No departures yet"
+                : `${snapshot.metrics.scheduledDepartures} departures · ±${snapshot.metrics.meanDepartureDeviationSeconds?.toFixed(0) ?? "—"}s`
+            }
+            title="Timed terminal and depot departures within tolerance"
+          />
+          <KpiTile
+            label="Avg speed"
+            color="var(--violet)"
+            value={snapshot.metrics.averageSpeedKmh.toFixed(1)}
+            unit="km/h"
+            fill={snapshot.metrics.averageSpeedKmh / Math.max(1, snapshot.options.speedLimit)}
+            caption={`Limit ${snapshot.options.speedLimit} km/h`}
+            title="Current mean speed of active trams, including those dwelling at stops"
+          />
         </article>
         <article className="event-card">
           <div className="event-heading">
@@ -3789,18 +3880,6 @@ export default function Home() {
         </article>
       </section>
 
-      <footer className="diagnostic-bar">
-        <span><b>Energy</b> {snapshot.metrics.energyWh.toFixed(1)} Wh used · {snapshot.metrics.recoveredWh.toFixed(1)} Wh recovered</span>
-        <span>
-          <b>Timed departures</b>{" "}
-          {snapshot.metrics.departureAdherencePercent === null
-            ? "awaiting first terminal/depot departure"
-            : `${snapshot.metrics.departureAdherencePercent.toFixed(0)}% · ${snapshot.metrics.scheduledDepartures} recorded · ${snapshot.metrics.meanDepartureDeviationSeconds?.toFixed(0) ?? "—"}s mean deviation`}
-        </span>
-        <span>
-          <b>Laps</b> {snapshot.metrics.completedLaps}
-        </span>
-      </footer>
       {energyWindowOpen && (
         <EnergyStatisticsWindow snapshot={snapshot} onClose={() => setEnergyWindowOpen(false)} />
       )}

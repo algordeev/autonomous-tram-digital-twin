@@ -13,6 +13,7 @@
   --amber: #f4a62a;
   --green: #42d392;
   --red: #ff5c66;
+  --violet: #a78bfa;
 }
 
 * {
@@ -63,6 +64,8 @@ button:disabled {
 }
 
 .sim-shell {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   min-height: 100vh;
   padding: 8px;
@@ -75,8 +78,7 @@ button:disabled {
 .topbar,
 .network-panel,
 .control-panel,
-.telemetry-strip,
-.diagnostic-bar {
+.telemetry-strip {
   border: 1px solid var(--border);
   background: rgba(9, 18, 26, 0.96);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
@@ -232,6 +234,12 @@ button:disabled {
   color: #95a9b7;
 }
 
+.system-clock small {
+  margin-left: 5px;
+  color: #78909f;
+  font-size: 10px;
+}
+
 .transport-controls {
   display: flex;
   justify-content: flex-end;
@@ -289,17 +297,37 @@ button:disabled {
   color: #ffd28a;
 }
 
+.run-button {
+  min-width: 104px;
+}
+
 .run-button span {
   margin-right: 6px;
   color: var(--green);
+}
+
+.run-button.active span {
+  color: var(--cyan);
+}
+
+/* Doubled class so the narrow-screen ".control-button" rules don't stretch it. */
+.control-button.icon-button {
+  flex: 0 0 40px;
+  min-width: 40px;
+  width: 40px;
+  padding: 0;
+  font-size: 16px;
+  letter-spacing: 0;
 }
 
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 8px;
-  height: clamp(510px, calc(100vh - 320px), 640px);
-  min-height: 510px;
+  /* Fills whatever height the topbar and telemetry strip leave on screen. */
+  flex: 1 1 0;
+  min-height: 440px;
+  max-height: 640px;
   margin-top: 8px;
 }
 
@@ -2334,7 +2362,7 @@ button:disabled {
 
 .telemetry-strip {
   display: grid;
-  grid-template-columns: 155px 155px minmax(190px, 1fr) 145px 175px minmax(340px, 1.65fr);
+  grid-template-columns: 155px 155px minmax(190px, 1fr) minmax(300px, 340px) minmax(340px, 1.65fr);
   min-height: 180px;
   margin-top: 8px;
   overflow: hidden;
@@ -2498,12 +2526,82 @@ button:disabled {
   letter-spacing: -0.05em;
 }
 
-.time-card strong {
-  font-size: 26px;
+.kpi-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 0;
+  padding: 0;
+  text-align: left;
 }
 
-.time-card small {
-  color: var(--cyan);
+.kpi-tile {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+}
+
+.kpi-tile:nth-child(odd) {
+  border-right: 1px solid #1f3442;
+}
+
+.kpi-tile:nth-child(-n + 2) {
+  border-bottom: 1px solid #1f3442;
+}
+
+.kpi-label {
+  color: #8fa5b4;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kpi-tile strong {
+  overflow: hidden;
+  color: #dce7ed;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.kpi-tile strong i {
+  margin-left: 3px;
+  color: #6f8797;
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0;
+}
+
+.kpi-meter {
+  display: block;
+  height: 2px;
+  overflow: hidden;
+  background: #1a2d3a;
+}
+
+.kpi-meter span {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--kpi-meter) 75%, #0c1821);
+  transition: width 0.4s ease;
+}
+
+.kpi-tile small {
+  overflow: hidden;
+  color: #6f8797;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .event-card {
@@ -2557,24 +2655,6 @@ button:disabled {
   color: #a4b7c3;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.diagnostic-bar {
-  display: flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 24px;
-  margin-top: 8px;
-  padding: 7px 13px;
-  border-radius: 7px;
-  color: #78909f;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
-}
-
-.diagnostic-bar b {
-  color: #a9bdc9;
-  font-weight: 600;
 }
 
 .energy-stat-button {
@@ -3319,11 +3399,7 @@ button:disabled {
   }
 
   .telemetry-strip {
-    grid-template-columns: 145px 145px minmax(180px, 1fr) 130px minmax(320px, 1.5fr);
-  }
-
-  .telemetry-strip .time-card {
-    display: none;
+    grid-template-columns: 145px 145px minmax(160px, 1fr) minmax(240px, 280px) minmax(250px, 1.5fr);
   }
 }
 
@@ -3347,7 +3423,9 @@ button:disabled {
 
   .workspace {
     grid-template-columns: 1fr;
+    flex: none;
     height: auto;
+    max-height: none;
   }
 
   .control-panel {
@@ -3374,8 +3452,8 @@ button:disabled {
     grid-column: 1 / -1;
   }
 
-  .telemetry-strip .time-card {
-    display: flex;
+  .kpi-card {
+    grid-column: 1 / -1;
   }
 }
 
@@ -3403,7 +3481,7 @@ button:disabled {
 
   .transport-controls {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 40px;
   }
 
   .analysis-button,
@@ -3476,17 +3554,6 @@ button:disabled {
   .route-card,
   .event-card {
     grid-column: auto;
-  }
-
-  .diagnostic-bar {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .diagnostic-bar span:last-child {
-    margin-left: 0;
-    white-space: normal;
   }
 }
 

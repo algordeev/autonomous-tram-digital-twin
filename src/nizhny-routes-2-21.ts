@@ -918,7 +918,8 @@ const stationReader = (
     routeId,
     directionShortName,
     directionLabel,
-    showLabel: visible && Boolean(stop.major),
+    // Stop names stay off the map, as on Konak; the stop departure board names them.
+    showLabel: false,
     render: visible,
     displayAt: platformAt,
     labelDistancePx: stop.id === "chyorny-prud" ? 72 : undefined,
