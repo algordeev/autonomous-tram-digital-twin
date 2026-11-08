@@ -156,6 +156,11 @@ export class StopDemandTracker {
     this.lastUpdateSeconds = nowSeconds;
   }
 
+  /** Adds passengers to the queue at once (disturbance injection). */
+  addWaiting(count: number): void {
+    if (count > 0) this.waitingPassengers += count;
+  }
+
   boardable(): number {
     return Math.max(0, Math.floor(this.waitingPassengers));
   }
