@@ -1910,7 +1910,7 @@ function EnergyStatisticsWindow({
               <article className="energy-route-card" key={route.routeId}>
                 <header>
                   <div>
-                    <span>ROUTE {route.routeId}</span>
+                    <span>{route.routeId.includes("-") ? `${route.routeId.split("-").pop()!.toUpperCase()} ROUTE` : `ROUTE ${route.routeId}`}</span>
                     <strong>{route.label}</strong>
                   </div>
                   <small>{route.tramCount} trams · {route.distanceKm.toFixed(1)} km simulated</small>
@@ -3799,9 +3799,6 @@ export default function Home() {
         </span>
         <span>
           <b>Laps</b> {snapshot.metrics.completedLaps}
-        </span>
-        <span>
-          <b>Test focus</b> {activeScenario.useCase}
         </span>
       </footer>
       {energyWindowOpen && (

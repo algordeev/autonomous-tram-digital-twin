@@ -2076,7 +2076,7 @@
       "id": "DEPOT-HALKAPINAR",
       "label": "Halkapınar Tramvay Garajı",
       "shortName": "HALKAPINAR DEPOT",
-      "note": "Konak Tramvayı · east terminus & interchange with İZBAN/Metro",
+      "note": "East terminus & interchange with İZBAN/Metro",
       "kind": "depot",
       "point": {
         "x": 822.2599948817563,

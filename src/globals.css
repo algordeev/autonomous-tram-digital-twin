@@ -1917,7 +1917,7 @@ button:disabled {
 .fleet-header,
 .fleet-row {
   display: grid;
-  grid-template-columns: 20px minmax(80px, 1.2fr) 54px minmax(64px, 0.9fr) 34px;
+  grid-template-columns: 20px minmax(80px, 1.2fr) 86px minmax(64px, 0.9fr) 34px;
   align-items: center;
   gap: 6px;
 }
@@ -1987,9 +1987,16 @@ button:disabled {
 }
 
 .fleet-route {
-  display: inline-flex;
-  width: 30px;
+  display: inline-block;
+  min-width: 30px;
+  max-width: 100%;
   height: 22px;
+  padding: 0 5px;
+  overflow: hidden;
+  line-height: 20px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   align-items: center;
   justify-content: center;
   border: 1px solid color-mix(in srgb, var(--route-color) 55%, #304959);
@@ -1997,12 +2004,12 @@ button:disabled {
   background: color-mix(in srgb, var(--route-color) 10%, #0a161e);
   color: var(--route-color);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
 }
 
 .fleet-route.depot-route {
-  width: 42px;
+  min-width: 42px;
   color: var(--amber);
   font-size: 7px;
 }
@@ -2563,13 +2570,6 @@ button:disabled {
   color: #78909f;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 9px;
-}
-
-.diagnostic-bar span:last-child {
-  overflow: hidden;
-  margin-left: auto;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .diagnostic-bar b {
@@ -3466,7 +3466,7 @@ button:disabled {
 
   .fleet-header,
   .fleet-row {
-    grid-template-columns: 20px minmax(92px, 1.3fr) 55px minmax(80px, 1fr);
+    grid-template-columns: 20px minmax(92px, 1.3fr) 86px minmax(80px, 1fr);
   }
 
   .telemetry-strip {
