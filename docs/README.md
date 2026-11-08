@@ -17,7 +17,7 @@ limits of the current research model.
 | [Energy model](ENERGY_MODEL.md) | Vehicle dynamics, regeneration, traction sections and flywheels |
 | [Data and assumptions](DATA_AND_ASSUMPTIONS.md) | Provenance classes, scenario inventory and known uncertainty |
 | [Experiments](EXPERIMENTS.md) | Reproducible headless runs, metrics and benchmark interpretation |
-| [Results](RESULTS.md) | Sensitivity sweeps, credibility checks and preliminary findings |
+| [Results](RESULTS.md) | Safety fault injection, disturbance recovery, braking, energy sensitivity sweeps and preliminary findings |
 | [Hardware integration](HARDWARE_INTEGRATION.md) | Arduino and hardware-in-the-loop migration boundary |
 | [Roadmap](ROADMAP.md) | Calibration, MATLAB/Simulink and publication milestones |
 
