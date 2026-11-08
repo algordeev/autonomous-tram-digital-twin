@@ -282,8 +282,6 @@ function drawMapContext(
   if (!map) return;
 
   context.save();
-  context.fillStyle = "rgba(14, 31, 42, 0.72)";
-  context.fillRect(34, 34, WORLD_WIDTH - 68, WORLD_HEIGHT - 68);
 
   for (const line of map.lines) {
     tracePoints(context, line.points);
