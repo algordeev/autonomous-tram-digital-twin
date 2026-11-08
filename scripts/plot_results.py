@@ -15,6 +15,7 @@ line style), so the figures stay readable in greyscale.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import matplotlib
@@ -27,6 +28,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_RESULTS = ROOT / "outputs" / "sweeps" / "results.csv"
 DEFAULT_SERIES = ROOT / "outputs" / "sweeps" / "izmir-baseline-grid-power.csv"
 DEFAULT_OUT = ROOT / "docs" / "assets" / "results"
+DEFAULT_AUTOMATION = ROOT / "outputs" / "automation"
+# Regulation on/off in the automation figures; service/emergency braking in fig 7.
+ON_STYLE = {"color": "#2a78d6", "marker": "o", "linestyle": "-"}
+OFF_STYLE = {"color": "#eb6834", "marker": "s", "linestyle": "--"}
 
 NETWORKS = [
     ("izmir-konak", "İzmir Konak"),
@@ -221,11 +226,109 @@ def fig4_storage_size(df: pd.DataFrame, out_dir: Path) -> None:
     save(fig, out_dir, "fig4_storage_size")
 
 
+def fig5_disturbance_recovery(series_path: Path, out_dir: Path, hold_minutes: int = 5) -> None:
+    """Rolling mean absolute headway deviation around a hold, regulation on vs off."""
+    data = json.loads(series_path.read_text())
+    runs = {(item["kind"], item["holdMinutes"], item["mode"]): item for item in data["series"]}
+    fig, ax = plt.subplots(figsize=(6.4, 3.4))
+    for mode, style, label in (("on", ON_STYLE, "Regulation on"), ("off", OFF_STYLE, "Regulation off")):
+        disturbed = runs[("hold", hold_minutes, mode)]
+        reference = runs[("undisturbed", 0, mode)]
+        start = disturbed["disturbanceAt"]
+        for run, width, alpha, suffix, dash in ((reference, 1.0, 0.55, " (undisturbed)", ":"), (disturbed, 1.8, 1.0, f" ({hold_minutes}-min hold)", style["linestyle"])):
+            points = [item for item in run["rolling"] if item["deviation"] is not None and item["time"] >= start - 600]
+            ax.plot([(item["time"] - start) / 60 for item in points], [item["deviation"] for item in points],
+                    color=style["color"], linewidth=width, alpha=alpha, linestyle=dash, label=label + suffix)
+    ax.axvspan(0, hold_minutes, color=GRID, alpha=0.8, linewidth=0, zorder=0)
+    ax.annotate("hold", (hold_minutes / 2, 1.0), xycoords=("data", "axes fraction"), xytext=(0, -10),
+                textcoords="offset points", ha="center", fontsize=8, color=INK_SECONDARY)
+    ax.set_xlabel("Minutes after the hold starts", fontsize=9, color=INK)
+    ax.set_ylabel("Mean |headway − planned| (s),\n10-min rolling", fontsize=9, color=INK)
+    ax.set_ylim(bottom=0)
+    style_axes(ax)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+    fig.tight_layout()
+    save(fig, out_dir, "fig5_disturbance_recovery")
+
+
+def fig6_recovery_vs_size(csv_path: Path, out_dir: Path, horizon_minutes: float) -> None:
+    """Recovery time against hold length; unrecovered runs are drawn at the horizon."""
+    df = pd.read_csv(csv_path)
+    holds = df[df["case"] == "hold"].copy()
+    holds["hold_min"] = holds["hold_min"].astype(float)
+    fig, ax = plt.subplots(figsize=(5.4, 3.3))
+    for mode, style, label in (("on", ON_STYLE, "Regulation on"), ("off", OFF_STYLE, "Regulation off")):
+        rows = holds[holds["mode"] == mode].sort_values("hold_min")
+        recovered = rows["recovery_s"].notna()
+        ys = (rows["recovery_s"].fillna(horizon_minutes * 60) / 60).tolist()
+        ax.plot(rows["hold_min"], ys, color=style["color"], linestyle=style["linestyle"], linewidth=1.6, label=label)
+        for x, y, ok in zip(rows["hold_min"], ys, recovered):
+            ax.plot([x], [y], marker=style["marker"] if ok else "x", markersize=7, color=style["color"],
+                    markerfacecolor=style["color"] if ok else "none", linestyle="none")
+            # Recovered values below their marker (the re-sync line runs above); unrecovered above the horizon.
+            ax.annotate(f"{y:.0f}" if ok else "not\nrecovered", (x, y), xytext=(0, -9 if ok else 7),
+                        textcoords="offset points", ha="center", va="top" if ok else "bottom", fontsize=8, color=INK)
+        if mode == "on":
+            resync = rows["resync_s"] / 60
+            ax.plot(rows["hold_min"], resync, color=style["color"], linestyle=":", linewidth=1.2, marker="o",
+                    markersize=4, markerfacecolor="white", label="Regulation on, back on pattern (|ΔCV| ≤ 0.01)")
+            for x, y in zip(rows["hold_min"], resync):
+                ax.annotate(f"{y:.0f}", (x, y), xytext=(0, 5), textcoords="offset points", ha="center",
+                            va="bottom", fontsize=7.5, color=INK_SECONDARY)
+    ax.axhline(horizon_minutes, color=INK_SECONDARY, linewidth=0.8, linestyle=":")
+    ax.annotate(f"horizon {horizon_minutes:.0f} min", (0.5, horizon_minutes), xycoords=("axes fraction", "data"),
+                xytext=(0, -4), textcoords="offset points", ha="center", va="top", fontsize=8, color=INK_SECONDARY)
+    ax.set_xticks(sorted(holds["hold_min"].unique()))
+    ax.set_xlabel("Hold at Konak İskele (min)", fontsize=9, color=INK)
+    ax.set_ylabel("Recovery time (min)", fontsize=9, color=INK)
+    ax.set_ylim(0, horizon_minutes * 1.3)
+    style_axes(ax)
+    ax.legend(frameon=False, fontsize=7.5, loc="lower right")
+    fig.tight_layout()
+    save(fig, out_dir, "fig6_recovery_vs_size")
+
+
+def fig7_stopping_distance(csv_path: Path, out_dir: Path) -> None:
+    df = pd.read_csv(csv_path)
+    fig, ax = plt.subplots(figsize=(5.4, 3.3))
+    for mode, style, label in (("service", ON_STYLE, "Service brake (1.25 m/s²)"), ("emergency", OFF_STYLE, "Emergency brake (2.4 m/s²)")):
+        for load, fill in (("empty", True), ("full", False)):
+            rows = df[(df["mode"] == mode) & (df["load"] == load)].sort_values("initial_speed_kmh")
+            # Empty (filled) and full (open) coincide: the brakes reach the commanded
+            # deceleration at either load, so only one legend entry per brake mode.
+            ax.plot(rows["initial_speed_kmh"], rows["stopping_distance_m"], color=style["color"],
+                    linestyle=style["linestyle"], linewidth=1.6 if fill else 0, marker=style["marker"],
+                    markersize=6 if fill else 10, markerfacecolor=style["color"] if fill else "none",
+                    label=label if fill else None)
+            if fill:
+                above = mode == "service"
+                for x, y in zip(rows["initial_speed_kmh"], rows["stopping_distance_m"]):
+                    first = x == rows["initial_speed_kmh"].min()
+                    offset = ((-4, 14) if first else (-6, 8)) if above else (8, -2)
+                    ax.annotate(f"{y:.0f} m", (x, y), xytext=offset, textcoords="offset points",
+                                ha="left" if (first or not above) else "right", va="bottom" if above else "top",
+                                fontsize=8, color=INK)
+    ax.axvline(40, color=INK_SECONDARY, linewidth=0.8, linestyle=":")
+    ax.annotate("line speed limit (40 km/h)", (40, 0.98), xycoords=("data", "axes fraction"), xytext=(4, 0),
+                textcoords="offset points", va="top", fontsize=8, color=INK_SECONDARY)
+    ax.set_xlim(16, 78)
+    ax.set_xticks(sorted(df["initial_speed_kmh"].unique()))
+    ax.set_xlabel("Initial speed (km/h)", fontsize=9, color=INK)
+    ax.set_ylabel("Stopping distance (m)", fontsize=9, color=INK)
+    ax.set_ylim(0, df["stopping_distance_m"].max() * 1.2)
+    style_axes(ax)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper left", bbox_to_anchor=(0.0, 0.9))
+    fig.tight_layout()
+    save(fig, out_dir, "fig7_stopping_distance")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS)
     parser.add_argument("--series", type=Path, default=DEFAULT_SERIES)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--automation", type=Path, default=DEFAULT_AUTOMATION,
+                        help="directory with disturbance.csv, disturbance-series.json and braking.csv")
     args = parser.parse_args()
 
     plt.rcParams.update({"font.family": "DejaVu Sans", "svg.fonttype": "none", "hatch.linewidth": 0.6})
@@ -236,6 +339,18 @@ def main() -> None:
     fig2_izmir_grid_power(pd.read_csv(args.series), df, args.out)
     fig3_sensitivity_fleet(df, args.out)
     fig4_storage_size(df, args.out)
+    series = args.automation / "disturbance-series.json"
+    if series.exists():
+        horizon = json.loads(series.read_text())["horizonSeconds"] / 60
+        fig5_disturbance_recovery(series, args.out)
+        fig6_recovery_vs_size(args.automation / "disturbance.csv", args.out, horizon)
+    else:
+        print(f"skipped figures 5 and 6: {series} not found (npm run automation:disturbance)")
+    braking = args.automation / "braking.csv"
+    if braking.exists():
+        fig7_stopping_distance(braking, args.out)
+    else:
+        print(f"skipped figure 7: {braking} not found (npm run automation:braking)")
 
 
 if __name__ == "__main__":

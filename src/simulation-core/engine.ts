@@ -323,6 +323,17 @@ export interface SimulationOptions {
   controlMode: ControlMode;
   energyStrategy: EnergyStrategy;
   sensorRangeMeters: number;
+  /**
+   * Experiment switch: timetable slots and interval holds at dispatch-controlled
+   * terminals. Default true; false is for disturbance studies only.
+   */
+  terminalHolding?: boolean;
+  /**
+   * Experiment switch: en-route interval restoration (speed reduction when a
+   * tram closes on its leader). Default true. Unlike collisionAvoidance=false it
+   * leaves the 30 m safety headway and merge clearance in place.
+   */
+  intervalRestoration?: boolean;
 }
 
 export interface ExperimentDefinition {
@@ -1797,6 +1808,8 @@ export class SimulationEngine {
         ? experiment.options.energyStrategy
         : "network-optimal",
       sensorRangeMeters: clamp(numeric(experiment.options.sensorRangeMeters, 22), 5, 100),
+      terminalHolding: experiment.options.terminalHolding !== false,
+      intervalRestoration: experiment.options.intervalRestoration !== false,
     };
 
     const groups = network.fleetGroups ?? [];
@@ -2121,6 +2134,49 @@ export class SimulationEngine {
           ? "Reference case enabled · wayside flywheels disconnected"
           : "Baseline flywheel control enabled · no predictive traction coordination",
     );
+  }
+
+  /** Experiment switch, see SimulationOptions.terminalHolding. */
+  setTerminalHolding(enabled: boolean) {
+    this.options.terminalHolding = enabled;
+    if (!enabled) this.trams.forEach((tram) => { tram.terminalIntervalHold = false; });
+    this.addEvent(enabled ? "info" : "warning", `Terminal holding ${enabled ? "enabled" : "disabled"} (experiment)`);
+  }
+
+  /** Experiment switch, see SimulationOptions.intervalRestoration. */
+  setIntervalRestoration(enabled: boolean) {
+    this.options.intervalRestoration = enabled;
+    this.addEvent(enabled ? "info" : "warning", `Interval restoration ${enabled ? "enabled" : "disabled"} (experiment)`);
+  }
+
+  /**
+   * Disturbance injection: keeps a tram that is dwelling at a stop there for
+   * at least `seconds` more, through the same dwell extension terminal holding
+   * uses. Returns false unless the tram is currently dwelling.
+   */
+  holdTramAtStop(tramId: string, seconds: number) {
+    const tramIndex = this.trams.findIndex((item) => item.id === tramId);
+    const tram = this.trams[tramIndex];
+    if (!tram || tram.stationPhase !== "dwell" || !(seconds > 0)) return false;
+    tram.stationUntil = Math.max(tram.stationUntil, this.simulationTime + seconds);
+    cppExtendStationDwell(tramIndex, tram.stationUntil);
+    this.addEvent("warning", `${tram.label} held at stop for ${Math.round(seconds)} s (disturbance)`);
+    return true;
+  }
+
+  /** Disturbance injection: adds `count` waiting passengers to a stop's queue. */
+  injectPassengers(stopReaderId: string, count: number) {
+    const reader = this.scenarioDefinition.readers.find((item) => item.id === stopReaderId);
+    if (!reader || reader.kind !== "station" || !(count > 0)) return false;
+    this.peekDemand(stopReaderId).addWaiting(count);
+    this.invalidateStopBoards();
+    this.addEvent("warning", `${reader.label}: ${Math.round(count)} passengers added (surge)`);
+    return true;
+  }
+
+  /** Last departure time (simulation seconds) per "route:stop", read-only copy. */
+  getLastStopDepartures() {
+    return Object.fromEntries(this.lastStopDepartureAt);
   }
 
   selectTram(tramId: string) {
@@ -2762,7 +2818,7 @@ export class SimulationEngine {
 
     tram.terminalEntryQueueReaderId = null;
     tram.pendingStationReaderId = reader.id;
-    tram.terminalIntervalHold = true;
+    tram.terminalIntervalHold = this.options.terminalHolding !== false;
     tram.stationPhase = "crawl";
     tram.stationUntil = 0;
     invalidateCppStation(tramIndex);
@@ -2780,6 +2836,10 @@ export class SimulationEngine {
    * hold duration.
    */
   private maintainTerminalIntervalHold(tram: TramState, tramIndex: number) {
+    if (this.options.terminalHolding === false) {
+      tram.terminalIntervalHold = false;
+      return null;
+    }
     if (!tram.terminalIntervalHold || tram.stationPhase !== "dwell") return null;
     const gap = this.terminalIntervalGap(tram);
     if (!gap || !cppTerminalIntervalHold(gap.elapsedSeconds, gap.targetSeconds)) {
@@ -4908,6 +4968,7 @@ export class SimulationEngine {
   ) {
     if (
       !this.options.collisionAvoidance ||
+      this.options.intervalRestoration === false ||
       tram.manualMode ||
       tram.serviceState !== "in-service" ||
       tram.segmentId.startsWith("N2X-")
@@ -5006,7 +5067,9 @@ export class SimulationEngine {
             (reader) => reader.id === tram.pendingStationReaderId && reader.terminal,
           )
         : null;
-      const reservedTimetableSlot = terminalReader && this.isDispatchControlledTerminal(terminalReader)
+      const reservedTimetableSlot = terminalReader &&
+        this.options.terminalHolding !== false &&
+        this.isDispatchControlledTerminal(terminalReader)
         ? this.reserveScheduledDeparture(
           tram,
           terminalReader.id,
@@ -6565,7 +6628,8 @@ export class SimulationEngine {
           return;
         }
         tram.terminalEntryQueueReaderId = null;
-        tram.terminalIntervalHold = this.isDispatchControlledTerminal(reader);
+        tram.terminalIntervalHold = this.options.terminalHolding !== false &&
+          this.isDispatchControlledTerminal(reader);
         tram.terminalBerth = terminalBerth;
         tram.stationPhase = "crawl";
         tram.stationUntil = 0;

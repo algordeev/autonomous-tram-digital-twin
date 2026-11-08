@@ -113,18 +113,25 @@ counts and periodic samples. Programmatic experiments can use
 
 ![Energy saving and peak reduction by network](docs/assets/results/fig1_savings_by_network.png)
 
-Against a no-storage reference on the same service, reactive wayside flywheels
-cut grid energy per vehicle-km by 22.0% on İzmir and 23.1–23.9% on the Nizhny
-Novgorod networks. Across time of day and fleet size the İzmir saving stays in
-21.2–25.1%, while the instantaneous peak reduction ranges from 0% to 19.9%.
-Averaged over 15 minutes (a common billed-demand interval), the İzmir peak
-falls by 22.6%. The current
-predictive controller gives the same results as reactive flywheels: its
-traction guidance does not act while the flywheels are installed. These are
-comparative simulator results, not calibrated measurements. The sweeps,
-sanity checks and figures are in [docs/RESULTS.md](docs/RESULTS.md):
+Under about 9,900 seeded detector and switch faults over 172 simulated hours
+on İzmir and Nizhny Novgorod Routes 2 + 21, an independent per-step checker
+found no collision, separation, overtaking, crossing or locked-points
+violation, and headway regulation brought the İzmir service back to its
+timetable pattern within 48–60 minutes of a 2–10-minute hold. Against a
+no-storage reference on the same service, reactive wayside flywheels cut grid
+energy per vehicle-km by 22.0% on İzmir and 23.1–23.9% on the Nizhny Novgorod
+networks; across time of day and fleet size the İzmir saving stays in
+21.2–25.1%. Averaged over 15 minutes (a common billed-demand interval), the
+İzmir peak falls by 22.6%, while the instantaneous peak reduction ranges from
+0% to 19.9%. The current predictive controller gives the same results as
+reactive flywheels: its traction guidance does not act while the flywheels
+are installed. These are simulator checks and comparative results, not
+certified signalling or calibrated measurements. The fault injection,
+disturbance, braking and energy studies, their limitations and figures are in
+[docs/RESULTS.md](docs/RESULTS.md):
 
 ```bash
+npm run automation:safety && npm run automation:disturbance && npm run automation:braking
 npm run benchmark:sweeps && npm run benchmark:sanity
 ```
 
@@ -169,7 +176,7 @@ docs/                   Architecture, models, assumptions and research documents
 - [Vehicle and energy models](docs/ENERGY_MODEL.md)
 - [Data provenance and assumptions](docs/DATA_AND_ASSUMPTIONS.md)
 - [Experiments and metrics](docs/EXPERIMENTS.md)
-- [Preliminary results and sensitivity study](docs/RESULTS.md)
+- [Preliminary results: automation, safety and energy](docs/RESULTS.md)
 - [Hardware integration path](docs/HARDWARE_INTEGRATION.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Russian documentation](docs/ru/README.md)
