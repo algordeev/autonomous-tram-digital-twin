@@ -27,7 +27,7 @@
     "test:wasm": "node --test tests/wasm-core.test.mjs",
     "test:config": "node --test tests/network-config.test.mjs",
     "test:izmir": "node --test tests/izmir-scenario.test.mjs",
-    "test:safety": "node --test tests/safety-integration.test.mjs",
+    "test:safety": "node --test tests/safety-integration.test.mjs tests/automation.test.mjs",
     "test:ui": "node --test tests/rendered-html.test.mjs",
     "test:cpp": "make -C cpp-core test",
     "verify:repo": "node scripts/verify-repository.mjs",
@@ -37,6 +37,9 @@
     "benchmark:case": "node scripts/run-energy-case.mjs",
     "benchmark:sweeps": "node scripts/run-sweeps.mjs",
     "benchmark:sanity": "node scripts/run-sanity-checks.mjs",
+    "automation:safety": "node scripts/run-safety-stress.mjs",
+    "automation:disturbance": "node scripts/run-disturbance.mjs",
+    "automation:braking": "node scripts/run-braking.mjs",
     "build:wasm": "node cpp-core/scripts/compile-portable-wasm.mjs",
     "verify:wasm": "node cpp-core/scripts/compile-portable-wasm.mjs --check"
   },
