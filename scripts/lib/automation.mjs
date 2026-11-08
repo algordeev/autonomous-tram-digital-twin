@@ -92,11 +92,16 @@ export class SafetyOracle {
     this.previousSwitch = new Map(this.switches.map(({ definition, runtime }) => [definition.id, this.switchSnapshot(runtime)]));
     this.standstillSince = null;
     this.maxStandstillSeconds = 0;
-    // Liveness: a junction is blocked while trams queue at it and its phase does not change.
+    // Liveness: a junction is blocked while trams queue at it and its phase does
+    // not change. A block starts at the later of the last phase change and the
+    // moment the queue became non-empty, so an idle junction that a tram then
+    // reaches does not count its idle time as blocked.
     this.lastPhase = new Map([...engine.trafficControllers.values()].map((controller) => [controller.id, { phase: controller.phase, since: 0 }]));
     this.maxBlockedSeconds = 0;
     this.blockedJunctions = new Map();
-    // Liveness: points are blocked while trams queue for them and the lock owner does not change.
+    this.queuedSince = new Map();
+    // Liveness: points are blocked while trams queue for them and the lock owner
+    // does not change; likewise counted from the later of the two.
     this.lockSince = new Map(this.switches.map(({ definition, runtime }) => [definition.id, { lockedBy: runtime.lockedBy, since: 0 }]));
     this.maxSwitchBlockedSeconds = 0;
     this.blockedSwitches = new Set();
@@ -113,6 +118,18 @@ export class SafetyOracle {
     }
     if (distance === null) return true; // The points are not ahead on its route.
     return distance >= tram.speedMps ** 2 / (2 * SERVICE_DECELERATION_MPS2) + 1;
+  }
+
+  /** When the queue `key` became non-empty (recorded on first sight). */
+  queueStart(key, now) {
+    if (!this.queuedSince.has(key)) this.queuedSince.set(key, now);
+    return this.queuedSince.get(key);
+  }
+
+  /** Marks the queue `key` empty; a blocked time of 0. */
+  queueEnd(key) {
+    this.queuedSince.delete(key);
+    return 0;
   }
 
   switchSnapshot(runtime) {
@@ -247,7 +264,9 @@ export class SafetyOracle {
       }
       const last = this.lastPhase.get(controller.id);
       if (last.phase !== controller.phase) this.lastPhase.set(controller.id, { phase: controller.phase, since: now });
-      const blockedFor = controller.queue.length > 0 ? now - this.lastPhase.get(controller.id).since : 0;
+      const blockedFor = controller.queue.length > 0
+        ? now - Math.max(this.lastPhase.get(controller.id).since, this.queueStart(`junction:${controller.id}`, now))
+        : this.queueEnd(`junction:${controller.id}`);
       if (blockedFor > this.maxBlockedSeconds) this.maxBlockedSeconds = blockedFor;
       if (blockedFor >= 600) this.blockedJunctions.set(controller.id, blockedFor);
       else this.blockedJunctions.delete(controller.id);
@@ -285,7 +304,11 @@ export class SafetyOracle {
       this.previousSwitch.set(definition.id, this.switchSnapshot(runtime));
       const lock = this.lockSince.get(definition.id);
       if (lock.lockedBy !== runtime.lockedBy) this.lockSince.set(definition.id, { lockedBy: runtime.lockedBy, since: now });
-      const switchBlockedFor = runtime.queue.length > 0 && runtime.lockedBy ? now - this.lockSince.get(definition.id).since : 0;
+      const switchKey = `switch:${definition.id}`;
+      const switchQueuedSince = runtime.queue.length > 0 ? this.queueStart(switchKey, now) : this.queueEnd(switchKey);
+      const switchBlockedFor = runtime.queue.length > 0 && runtime.lockedBy
+        ? now - Math.max(this.lockSince.get(definition.id).since, switchQueuedSince)
+        : 0;
       this.maxSwitchBlockedSeconds = Math.max(this.maxSwitchBlockedSeconds, switchBlockedFor);
       if (switchBlockedFor >= 600) this.blockedSwitches.add(definition.id);
       else this.blockedSwitches.delete(definition.id);

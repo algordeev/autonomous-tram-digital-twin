@@ -107,6 +107,22 @@ test("an approach lock may lapse only while its owner can still stop short of th
   }
 });
 
+test("a junction's block time starts when a tram queues, not at its last phase change", () => {
+  const engine = nizhny();
+  const oracle = new SafetyOracle(engine);
+  const controller = [...engine.trafficControllers.values()][0];
+  controller.queue = [];
+  oracle.check();
+  engine.simulationTime = 400; // idle on road-green, no tram waiting
+  oracle.check();
+  controller.queue.push({ tramId: engine.trams[0].id, signalId: controller.id, requestedAt: 400 });
+  oracle.check();
+  assert.equal(oracle.maxBlockedSeconds, 0);
+  engine.simulationTime = 410;
+  oracle.check();
+  assert.equal(oracle.maxBlockedSeconds, 10);
+});
+
 test("an entered grant exposed to a road phase is detected", () => {
   const engine = nizhny();
   const oracle = new SafetyOracle(engine);
