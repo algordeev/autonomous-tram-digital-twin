@@ -550,7 +550,7 @@ saniyeye düşmüştür. Acil frenleme 2,4 m/s² sınırını aşmamış,
 depolama, araç-km başına şebeke enerjisini İzmir'de %22,0, Nijniy hatlarında
 %23,1–23,9, İzmir'de 15 dakikalık ortalama tepe talebi %22,6 azaltmış; anlık
 tepe güç azaltımı ise depolama kapasitesinden bağımsız olarak %12,4'te
-kalmıştır. Hız profillerinin (ATO) ve volan dağıtımının enerji, tepe güç ve
+kalmıştır. Hız profillerinin (ATO), aralık düzenleme parametrelerinin ve volan dağıtımının enerji, tepe güç ve
 dakiklik için tek bir NSGA-II/III problemi olarak birlikte eniyilenmesi ve
 Donanım-Döngüde (HIL) doğrulanması bu çalışmanın araştırma boşluğunu
 oluşturmaktadır. Sonuçlar simülatör denetimleridir; sertifikalı sinyalizasyon

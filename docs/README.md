@@ -18,7 +18,7 @@ limits of the current research model.
 | [Data and assumptions](DATA_AND_ASSUMPTIONS.md) | Provenance classes, scenario inventory and known uncertainty |
 | [Experiments](EXPERIMENTS.md) | Reproducible headless runs, metrics and benchmark interpretation |
 | [Results](RESULTS.md) | Safety fault injection, disturbance recovery, braking, energy sensitivity sweeps and preliminary findings |
-| [Hardware integration](HARDWARE_INTEGRATION.md) | Arduino and hardware-in-the-loop migration boundary |
+| [Hardware integration](HARDWARE_INTEGRATION.md) | Raspberry Pi + ESP32 hardware-in-the-loop plan, success criteria and operator reset |
 | [Roadmap](ROADMAP.md) | Calibration, MATLAB/Simulink and publication milestones |
 
 ## Russian engineering notes

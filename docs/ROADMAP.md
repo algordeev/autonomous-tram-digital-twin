@@ -1,55 +1,59 @@
 # Roadmap
 
-## Stage 1 Repository and reproducibility
+This roadmap follows the TÜBİTAK 2209-A project plan. Results so far are in
+[RESULTS.md](RESULTS.md).
 
-- Public repository structure and bilingual documentation;
-- dependency lockfile and continuous integration;
-- reproducible headless experiments;
-- published parameter and data-provenance register;
-- versioned release archive.
+## Done
 
-## Stage 2 Calibration
+- **Reproducible headless experiments.** Deterministic C++/WebAssembly core,
+  fixed-step headless runner, and scripted studies that record the core runtime
+  and the git commit in every result row.
+- **Safety oracle and fault injection (simulated).** An independent per-step
+  oracle checks collisions, spacing, overtaking, conflict zones, crossings,
+  exposed grants and locked points, under seeded detector and switch faults on
+  İzmir and Nizhny Novgorod Routes 2 + 21.
+- **Disturbance study.** Recovery of the İzmir line from a held tram or a
+  passenger surge, with headway regulation on, off and partly off.
+- **Energy sensitivity study.** Reactive and predictive wayside flywheels
+  against no storage, by time of day, fleet size, storage size and flywheel
+  efficiency, with sanity checks.
 
-- Record prototype speed, position, PWM, current and voltage;
-- identify resistance, traction and braking parameters;
-- calibrate stop approach and energy against measurements;
-- obtain or estimate İzmir gradient and vehicle data;
-- add uncertainty ranges to reported energy results.
+## Planned stages
 
-## Stage 3 MATLAB and Simulink reference models
+### (a) Calibration
 
-- Longitudinal vehicle reference model;
-- 600/750 V DC power-flow model with line resistance and voltage sag;
-- flywheel/converter efficiency and power-limit maps;
-- identical JSON scenario runner;
-- automated error comparison against C++/WASM output.
+- Obtain İzmir vehicle and energy data (vehicle parameters, gradients,
+  traction and auxiliary consumption) and calibrate the model against them;
+- report energy and peak results with uncertainty ranges instead of single
+  values.
 
-MATLAB remains a validation and identification environment rather than a
-mandatory runtime dependency for the web application.
+### (b) Joint multi-objective optimisation (NSGA-II/III)
 
-## Stage 4 Research experiments
+- **Decision variables:** ATO speed-profile parameters, interval-regulation
+  parameters and flywheel dispatch setpoints.
+- **Objectives:** grid energy, instantaneous and 15-min peak power, and headway
+  regularity/punctuality.
+- **Constraint:** 0 safety-oracle violations.
 
-- Passenger-energy trade-off in headway regulation;
-- predictive acceleration/braking coordination inside electrical sections;
-- robust SOC control under uncertain demand and disturbances;
-- storage sizing by section;
-- repeated experiments with statistical confidence intervals.
+### (c) Hardware in the loop
 
-## Stage 5 Hardware in the loop
+- Raspberry Pi as the edge computer (dispatch and optimiser), ESP32 boards as
+  the tram and wayside controllers; see
+  [HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md).
+- **Success criteria:**
+  - control loop shorter than 50 ms in at least 99% of steps;
+  - 0 safety-oracle violations under injected faults;
+  - an operator reset procedure with a physical reset button.
 
-- Versioned telemetry protocol;
-- Arduino/edge adapter for the shared C++ authority;
-- synchronized physical/virtual state;
-- fault injection and safety-invariant testing;
-- public demonstration dataset and reproducibility package.
+### (d) Electrical network model
 
-## Stage 6 Engineering maturity
+- DC load flow with cable and rail resistance;
+- voltage sag and its limits on regeneration and storage.
 
-- Detailed interlocking and formal safety invariants;
-- automatic scenario validation and schema generation;
-- calibrated passenger and road-traffic inputs;
-- external model comparison with SUMO/OpenTrack where useful;
-- release DOI and archived research datasets.
+### (e) Downgrade emergency braking
+
+- Emergency braking of a full tram on a downgrade, where the level-track case
+  already uses 96% of the available brake force.
 
 ## Explicitly out of scope for now
 
