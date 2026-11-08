@@ -89,10 +89,10 @@ Each network's default fleet, service from 08:00, a 10-minute warm-up and a
 
 | Scenario and controller | Grid-energy saving | Peak-power reduction | Flywheel charge, start → end | Notes |
 | --- | ---: | ---: | ---: | --- |
-| İzmir, 14 trams, reactive | 22.0% | 12.2% | 7.7 → 7.8 kWh | Flywheel only, no traction guidance |
-| İzmir, 14 trams, predictive | 22.0% | 12.2% | 7.7 → 7.8 kWh | 0 interventions |
-| Nizhny 2+21, 10 trams, reactive | 23.1% | 9.7% | 15.2 → 16.3 kWh | Flywheel only, no traction guidance |
-| Nizhny 2+21, 10 trams, predictive | 23.1% | 9.7% | 15.2 → 16.3 kWh | 0 interventions |
+| İzmir, 14 trams, reactive | 22.0% | 12.4% | 7.7 → 7.8 kWh | Flywheel only, no traction guidance |
+| İzmir, 14 trams, predictive | 22.0% | 12.4% | 7.7 → 7.8 kWh | 0 interventions |
+| Nizhny 2+21, 10 trams, reactive | 23.1% | 8.7% | 15.2 → 16.3 kWh | Flywheel only, no traction guidance |
+| Nizhny 2+21, 10 trams, predictive | 23.1% | 8.7% | 15.2 → 16.3 kWh | 0 interventions |
 | Nizhny Route 2, 10 trams, reactive | 23.9% | 36.2% | 15.4 → 15.5 kWh | Flywheel only, no traction guidance |
 | Nizhny Route 2, 10 trams, predictive | 23.9% | 36.2% | 15.4 → 15.5 kWh | 0 interventions |
 

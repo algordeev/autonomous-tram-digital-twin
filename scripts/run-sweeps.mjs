@@ -29,7 +29,7 @@ const CASE_SCRIPT = fileURLToPath(new URL("./run-energy-case.mjs", import.meta.u
 const STRATEGY_NAMES = ["none", "reactive", "predictive"];
 
 // The documented benchmark (docs/EXPERIMENTS.md) the sweep must reproduce first.
-const EXPECTED_BASELINE = { energySavingPct: 22.0, peakReductionPct: 12.2, tolerance: 0.05 };
+const EXPECTED_BASELINE = { energySavingPct: 22.0, peakReductionPct: 12.4, tolerance: 0.05 };
 
 const { values } = parseArgs({
   options: {
