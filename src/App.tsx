@@ -2685,7 +2685,7 @@ export default function Home() {
               ))}
               <span className="map-station-key">
                 <i aria-hidden="true" />
-                Named stops
+                Stops
               </span>
             </div>
             {mapFocusPresets.length > 0 && (
@@ -3250,7 +3250,6 @@ export default function Home() {
           <div className="control-row">
             <div>
               <span className="field-label">Speed limit</span>
-              <small>Calibrated PWM 55 cruise</small>
             </div>
             <div className="stepper">
               <button
