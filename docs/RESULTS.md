@@ -56,9 +56,12 @@ against a no-storage run with exactly the same other parameters, with the
 
 ## Part 1. Automation and safety
 
-The control, safety and physics logic is unchanged for these studies. They add
-an independent safety oracle, fault and disturbance injection hooks and two
-experiment switches (below), all off by default.
+These studies add an independent safety oracle, fault and disturbance
+injection hooks and two experiment switches (below), all off by default. They
+run on the control logic after the liveness fixes described
+[below](#liveness-gaps-found-and-fixed): an earlier run of the same stress test
+found three gaps that needed an operator to clear, and all numbers on this page
+come from the fixed logic (`cddcca2`).
 
 ### Safety stress test
 
@@ -73,7 +76,8 @@ warm-up, faults arrive at random (exponential spacing, mean 60 s):
 - **wrong-tram clear**: a clear observation for an occupied crossing arrives
   with another tram's identity;
 - **missing rear-clear**: clear observations of one signal are lost for
-  30–120 s, longer than the 25 s clearance timeout;
+  30–120 s, against clearance timeouts of 25–115 s that scale with each
+  crossing's configured length;
 - **foreign switch request** (Nizhny only; İzmir has no switches): a switch
   reader reports a tram that is not there, or an operator requests the points.
 
@@ -85,23 +89,32 @@ collisions (a front inside the body ahead), front-to-front spacing below the
 22 m physical minimum (0.5 m tolerance), overtaking, more than one tram in a
 junction conflict zone, a tram inside a crossing while road traffic has green
 or amber, an entered tram grant under a road phase, and points moving while
-locked or under a tram. The oracle's own tests plant each of these violations
-and check that it is counted ([automation.test.mjs](../tests/automation.test.mjs)).
+locked or under a tram. A lock that lapses before its owner reaches the points
+counts as released only if the owner could still stop short of them with the
+service brake. The oracle's own tests plant each of these violations and check
+that it is counted ([automation.test.mjs](../tests/automation.test.mjs)). It
+also times how long trams wait at a junction or at points whose phase or owner
+does not change, from the moment the first tram starts waiting.
 
 | Network, 8 seeds × 4 h | Faults injected | Safety violations | Closest spacing | All-red latches per session | Longest recovered latch | Vehicle-km per session | On-time |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| İzmir Konak | 1,820 | **0** | 21.96 m | 130–147 (fault-free 120) | 363–517 s (fault-free 366 s) | 1,055–1,080 (fault-free 1,079) | 92.2–95.7% (96.1%) |
-| Nizhny Routes 2 + 21 | 1,837 | **0** | 24.07 m | 12–34 (fault-free 89) | 87–640 s (fault-free 24 s) | 87–257 (fault-free 828) | 49.3–88.3% (97.2%) |
+| İzmir Konak | 1,820 | **0** | 21.96 m | 7–17 (fault-free 0) | 41–134 s (fault-free: none) | 1,088–1,089 (fault-free 1,088) | 93.0–96.8% (97.2%) |
+| Nizhny Routes 2 + 21 | 1,837 | **0** | 25.55 m | 15–24 (fault-free 8) | 73–155 s (fault-free 2 s) | 824–828 (fault-free 828) | 95.4–97.2% (97.2%) |
+
+Every latch recovered by itself, and no junction or points were blocked at the
+end of any session. The longest wait at a junction was 80–134 s on İzmir and
+53–140 s on Nizhny (fault-free 84 s and 51 s); the longest wait at points was
+32–60 s, the lapse time of a phantom approach lock.
 
 Each fault type alone (3 seeds × 4 h per type and network):
 
 | Fault type | İzmir Konak | Nizhny Routes 2 + 21 |
 | --- | --- | --- |
-| Duplicate entry | no effect: identical to the fault-free run | no service effect; 2–5 more latches, longest 146 s |
+| Duplicate entry | no effect: identical to the fault-free run | no effect: identical to the fault-free run |
 | Wrong-tram clear | no effect: identical to the fault-free run | no effect: identical to the fault-free run |
-| Missing rear-clear | latches 172–190 (fault-free 120), longest 400–598 s; vehicle-km −0.2 to −2.5% | latches 115–125 (fault-free 89), longest 291–405 s; vehicle-km −1.2 to −3.6% |
-| Dropped detector | stale crossing grant in 1 of 3 seeds: Üçkuyular closed for 3.5 h, vehicle-km −75% | stale crossing grant in 3 of 3 seeds (Маслякова): vehicle-km −66 to −92% |
-| Foreign switch request | not applicable | stale switch lock in 3 of 3 seeds: vehicle-km −91 to −93% |
+| Missing rear-clear | latches 37–45 (fault-free 0), longest 209–477 s; vehicle-km −0.1 to −2.4% | latches 44–57 (fault-free 8), longest 233–343 s; vehicle-km −1.2 to −3.6% |
+| Dropped detector | 1–3 latches, longest 39 s; no service effect | 1–4 more latches, longest 50 s; vehicle-km 0.0 to +0.5% |
+| Foreign switch request | not applicable | no service effect: each phantom approach lock lapses after 60 s |
 
 In all 45 sessions (about 9,900 faults over 172 faulted simulated hours plus
 two fault-free references) the oracle found **no safety violation**: no
@@ -111,33 +124,42 @@ points moved while locked. The closest front-to-front spacing was 21.57 m
 within the oracle's tolerance; bodies stayed 6.6 m apart. Duplicate entries and
 wrong-tram clears are rejected by the core outright. A missing rear-clear
 latches all-red, as specified, and the crossing reopens once the clear is
-observed.
+observed; in seed 1 on each network one such latch was still open when the
+4 h session ended. A lost entry is re-reported from the owner's odometer once
+the detector works again, so a dropped detector costs at most a short latch.
 
-The faults do expose three **liveness gaps**. They are fail-safe, since every
-affected movement stays at red, but none recovers without an operator:
+#### Liveness gaps found and fixed
+
+The first run of this stress test (`a034f20`) found three **liveness gaps**.
+They were fail-safe, since every affected movement stayed at red, but none
+recovered without an operator:
 
 1. **Stale crossing grant.** When the entry of the tram holding a crossing grant
-   is lost while it passes, the tram drives on and the crossing stays reserved
-   for it. The core withdraws an unentered reservation only when its tram is
-   off the line or manually stopped, so the crossing holds tram-green for a
-   tram that has gone, and trams on both approaches wait for the rest of the
-   session.
-2. **Stale switch lock.** A spurious switch request locks the points for a tram
-   that is not coming. The tram that needs them waits; once a second lock is
-   held by a waiting tram, the Nizhny network deadlocks. This is the main cause
-   of the Nizhny service loss in the combined runs.
+   was lost while it passed, the crossing stayed reserved for a tram that had
+   gone (dropped detector: Nizhny vehicle-km −66 to −92%, İzmir −75% in one
+   seed). The browser now records the owner's passage from its odometer and
+   re-reports the entry, and the rear clear once the odometer puts the rear past
+   the crossing. The core still requires an entry before any clear.
+2. **Stale switch lock.** A spurious switch request locked the points for a
+   tram that was not coming, and the Nizhny network deadlocked (foreign switch
+   request: vehicle-km −91 to −93%). An approach lock now lapses after 60 s
+   while its owner is not past, over or within braking distance of the points.
+   The lapse never moves the points, and passage itself needs the lock.
 3. **No keep-clear check.** Even without faults, an İzmir tram queueing for the
-   full Fahrettin Altay terminal stops with its body inside the Üçkuyular road
-   crossing. The clearance timer expires and the crossing goes all-red until the
-   terminal frees up (the 366 s fault-free latch, still open at the end of every
-   İzmir session). A crossing is granted without checking that the tram can
-   clear it.
+   full Fahrettin Altay terminal stopped inside the Üçkuyular road crossing and
+   latched it all-red until the terminal freed up. A tram now enters a crossing
+   only if it can clear it, past a stopped leader or into a terminal with a free
+   platform. While it waits at the stop line it gives back any grant, and a
+   grant goes only to the first tram in line on its approach.
 
-Mostly at the Konak and Gazi crossings, the 25 s clearance timeout also expires
-in normal service, about 30 times per hour on İzmir, usually for a second or two
-(median 1.2 s):
-trams there are inside the crossing for longer than the demonstration timeout
-assumes.
+In the same run the 25 s clearance timeout also expired about 30 times per hour
+in normal service on İzmir, mostly at Konak and Gazi, and 89 times in 4 h on
+Nizhny: several configured crossing zones are 90–270 m long, which a tram
+approaching the stop beyond them cannot clear in 25 s. The timeout now scales
+with the zone (at least 25 s, otherwise the zone plus one tram length at
+2.5 m/s). The fault-free İzmir run now has no latch at all; the fault-free
+Nizhny run has 8, each cleared within 2.3 s by a tram crossing slightly slower
+than 2.5 m/s.
 
 ### Disturbance recovery
 
@@ -170,37 +192,37 @@ Undisturbed, 17:40–19:25:
 | On | 0.001 | 0 s | 277 s | 420 s | 100% |
 | Terminal holding off | 0.086 | 54 s | 328 s | 397 s | 100% |
 | Interval restoration off | 0.001 | 0 s | 277 s | 421 s | 100% |
-| Off | 0.916 | 174 s | 796 s | 883 s | 85.7% |
+| Off | 0.912 | 174 s | 794 s | 883 s | 85.7% |
 
 Disturbed, compared with the undisturbed run of the same regulation:
 
 | Disturbance | Regulation | Recovery | Back on pattern | Longest gap | Shortest headway | Wait change | Left behind |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Hold 2 min | on | 48 min | 59 min | 390 s | 172 s | +22 s | 0 |
-| Hold 2 min | off | 100 min¹ | not reached | 888 s | 6 s | +137 s | 0 |
-| Hold 5 min | on | 57 min | 68 min | 587 s | 108 s | +51 s | 0 |
-| Hold 5 min | off | not within 105 min | not reached | 1,120 s | 1 s | +431 s | +19 |
+| Hold 2 min | off | 101 min¹ | not reached | 889 s | 0 s | +138 s | 0 |
+| Hold 5 min | on | 57 min | 68 min | 586 s | 108 s | +51 s | 0 |
+| Hold 5 min | off | not within 105 min | not reached | 1,118 s | 1 s | +430 s | +17 |
 | Hold 5 min | terminal holding off | not within 105 min | not reached | 540 s | 99 s | +160 s | 0 |
 | Hold 5 min | interval restoration off | 28 min | 32 min | 589 s | 24 s | +41 s | 0 |
-| Hold 10 min | on | 60 min | 65 min | 915 s | 65 s | +188 s | 0 |
-| Hold 10 min | off | not within 105 min | not reached | 1,460 s | 1 s | +923 s | +144 |
+| Hold 10 min | on | 60 min | 65 min | 915 s | 65 s | +189 s | 0 |
+| Hold 10 min | off | not within 105 min | not reached | 1,447 s | 1 s | +920 s | +136 |
 | 250-passenger surge | on | within band throughout | 39 min | 311 s | 246 s | +554 s | +301 |
-| 250-passenger surge | off | within band throughout | not reached | 749 s | 21 s | +393 s | +353 |
+| 250-passenger surge | off | within band throughout | not reached | 746 s | 20 s | +393 s | +353 |
 
-¹ Reached 5 min before the end of the run, against an unregulated reference
+¹ Reached 4 min before the end of the run, against an unregulated reference
 that is itself drifting; not a meaningful recovery.
 
 - **Regulation keeps the line regular.** With regulation on, the undisturbed
   line runs exactly to the planned 4.6 min headway (CV 0.001). With it off, the
-  line bunches by itself (CV 0.92, growing from 0.70 to 1.01 over the window),
-  trams leave stops as little as 4 s apart, and the busiest-stop wait is 2.1
+  line bunches by itself (CV 0.91, growing from 0.70 to 1.00 over the window),
+  trams leave stops as little as 5 s apart, and the busiest-stop wait is 2.1
   times longer.
 - **A hold is absorbed within one cycle.** With regulation on, a 2, 5 or 10 min
   hold is back within the recovery band after 48, 57 and 60 min and back on the
   exact pattern after 59–68 min, about one round trip, with no passenger left
   behind. With regulation off, the line does not recover from a 5 or 10 min
-  hold within 105 min; the gaps grow to 19 and 24 min and full trams leave 19
-  and 144 passengers behind.
+  hold within 105 min; the gaps grow to 19 and 24 min and full trams leave 17
+  and 136 passengers behind.
 - **Terminal holding does the recovery; interval restoration slows it.** With
   terminal holding off, a 5 min hold never recovers. With interval restoration
   off, it recovers in 28 min instead of 57 min, because restoration slows the
@@ -277,15 +299,15 @@ measured window, configured storage, 50 ms step. This reproduces the
 
 | Network, fleet | Strategy | Grid Wh/vkm | Energy saving | Peak kW | Peak reduction | 15-min peak kW | 15-min peak reduction | On-time | Interventions |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| İzmir Konak, 14 | none | 1348.7 | — | 1509.7 | — | 440.4 | — | 89.4% | 0 |
-| İzmir Konak, 14 | reactive | 1051.9 | 22.0% | 1325.5 | 12.2% | 341.0 | 22.6% | 89.4% | 0 |
-| İzmir Konak, 14 | predictive | 1051.9 | 22.0% | 1325.5 | 12.2% | 341.0 | 22.6% | 89.4% | 0 |
+| İzmir Konak, 14 | none | 1349.3 | — | 1500.7 | — | 440.6 | — | 89.4% | 0 |
+| İzmir Konak, 14 | reactive | 1052.5 | 22.0% | 1314.8 | 12.4% | 341.1 | 22.6% | 89.4% | 0 |
+| İzmir Konak, 14 | predictive | 1052.5 | 22.0% | 1314.8 | 12.4% | 341.1 | 22.6% | 89.4% | 0 |
 | Nizhny Route 2, 10 | none | 1353.2 | — | 1487.2 | — | 367.5 | — | 91.2% | 0 |
 | Nizhny Route 2, 10 | reactive | 1029.9 | 23.9% | 949.3 | 36.2% | 277.7 | 24.5% | 91.2% | 0 |
 | Nizhny Route 2, 10 | predictive | 1029.9 | 23.9% | 949.3 | 36.2% | 277.7 | 24.5% | 91.2% | 0 |
-| Nizhny Routes 2+21, 10 | none | 1507.2 | — | 1229.2 | — | 407.6 | — | 90.0% | 0 |
-| Nizhny Routes 2+21, 10 | reactive | 1158.8 | 23.1% | 1110.5 | 9.7% | 309.1 | 24.2% | 90.0% | 0 |
-| Nizhny Routes 2+21, 10 | predictive | 1158.8 | 23.1% | 1110.5 | 9.7% | 309.1 | 24.2% | 90.0% | 0 |
+| Nizhny Routes 2+21, 10 | none | 1507.2 | — | 1216.4 | — | 407.6 | — | 90.0% | 0 |
+| Nizhny Routes 2+21, 10 | reactive | 1158.7 | 23.1% | 1110.5 | 8.7% | 309.1 | 24.2% | 90.0% | 0 |
+| Nizhny Routes 2+21, 10 | predictive | 1158.7 | 23.1% | 1110.5 | 8.7% | 309.1 | 24.2% | 90.0% | 0 |
 
 Peak kW is the highest network grid power at any single 50 ms step of the
 window. 15-min peak kW is the highest mean network grid power over any 15 min
@@ -302,21 +324,20 @@ never intervenes in the baseline windows (see
 One factor at a time around the baseline; 25 distinct cases × 3 strategies.
 
 - **Time of day** (06:00, 08:00, 12:00, 17:00, 21:00). Reactive energy saving
-  ranges from 22.0% to 24.5% on İzmir, 23.8% to 24.3% on Nizhny Route 2 and
+  ranges from 22.0% to 24.1% on İzmir, 23.8% to 24.3% on Nizhny Route 2 and
   21.5% to 23.1% on Nizhny 2+21, while its peak reduction ranges much more
-  widely: 0.0% to 18.4%, 17.4% to 36.2% and 9.7% to 30.4%. At 12:00 on İzmir
-  the reactive flywheels do not lower the peak at all.
+  widely: 4.2% to 14.2%, 17.4% to 36.2% and 8.7% to 30.5%.
 - **Fleet size** (İzmir, 8–16 trams). Reactive saving falls from 25.1% with 8
   trams to 21.2% with 16, because more trams reuse each other's braking energy
   directly and leave less for storage; peak reduction varies non-monotonically
-  between 3.3% and 19.9%. Above 12 trams the terminal headway stays at about
+  between 3.3% and 20.5%. Above 12 trams the terminal headway stays at about
   4.6 min: the timetable, not the fleet, sets it.
 - **Storage size** (İzmir, 0, 0.5, 1.0, 1.5 × the configured banks). Reactive
-  saving rises from 0% to 15.0%, 22.0% and 25.1%, with diminishing returns.
-  Peak reduction is 12.2% at every size from 0.5 to 1.5: the reactive rule only
+  saving rises from 0% to 15.0%, 22.0% and 25.2%, with diminishing returns.
+  Peak reduction is 12.4% at every size from 0.5 to 1.5: the reactive rule only
   discharges above a fixed per-section grid setpoint (24% of substation rating,
   at most 420 kW), and at the window peak two sections sit at that setpoint with
-  their flywheels 71–87% charged. The peak is set by the dispatch rule, not by
+  their flywheels 71–79% charged. The peak is set by the dispatch rule, not by
   the stored energy.
 - **Efficiency** (İzmir, η scale 0.9, 0.95, 1.0 of the nominal 0.95 per
   direction, i.e. η = 0.855, 0.9025, 0.95). Reactive saving is 18.7%, 20.3% and
@@ -324,10 +345,10 @@ One factor at a time around the baseline; 25 distinct cases × 3 strategies.
 - **15-min rolling-average peak.** Averaged over 15 minutes, the reactive
   peak reduction follows the energy saving rather than the single-step peak:
   17.2–24.8% across time of day and fleet size on all three networks, and
-  15.0%, 22.6% and 25.9% at 0.5×, 1.0× and 1.5× storage. Over 15 minutes the
+  15.1%, 22.6% and 26.0% at 0.5×, 1.0× and 1.5× storage. Over 15 minutes the
   flywheels lower grid draw by reusing braking energy, and a bank of
   0.5 kWh modules is far too small to shift demand between intervals. The flat
-  12.2% under storage size therefore applies to the single-step peak only: it
+  12.4% under storage size therefore applies to the single-step peak only: it
   shows that the dispatch setpoint limits how far short demand spikes are
   shaved, not that storage has no effect on averaged demand.
 - **Predictive against reactive.** The predictive strategy is the reactive
@@ -335,9 +356,9 @@ One factor at a time around the baseline; 25 distinct cases × 3 strategies.
   than its grid setpoint, accelerating trams are limited. With storage
   installed the flywheels already hold each section at that setpoint, so the
   rule almost never acts. In 24 of the 25 cases it intervenes 0 to 6 times per
-  hour and the result equals reactive within 0.003 points of energy saving and
+  hour and the result equals reactive within 0.001 points of energy saving and
   0.05 points of peak reduction. Only with no storage installed does it act
-  (165 interventions): it cuts the İzmir peak by 5.4% at an energy cost of
+  (165 interventions): it cuts the İzmir peak by 4.8% at an energy cost of
   0.04%, with no change in on-time share; its 15-min peak is 0.2% higher than
   without guidance, so it moves demand in time rather than removing it. The
   predictive strategy therefore provides no benefit over reactive flywheels.
@@ -352,37 +373,40 @@ One factor at a time around the baseline; 25 distinct cases × 3 strategies.
 
 | Check | Result | Detail |
 | --- | --- | --- |
-| 1. Energy balance: grid + accepted regen = vehicle demand + flywheel losses + ΔE | pass | Residual ≤ 4.4·10⁻¹² kWh (≤ 9·10⁻¹³ %) for all three strategies |
-| 2. Timestep 50 ms → 25 ms | pass | Wh/vkm ≤ 0.12%, peak ≤ 0.86%, 15-min peak ≤ 0.17%; saving 22.0% → 21.9% (reactive) |
-| 3a. Warm-up 10 → 20 min (window moves to 08:20–09:20) | **fail** | Wh/vkm +1.5 to +2.1%; peak and 15-min peak unchanged; saving 22.0% → 22.4% |
-| 3b. Warm-up 10 → 20 min, same 08:10–09:10 window | **fail** | Wh/vkm +0.64 to +0.77% (within target), but peak +12.2 to +13.7% (no storage 1509.7 → 1694.5 kW); peak reduction 12.2% → 11.1% (reactive and predictive) |
-| 3b. Same comparison, 15-min peak | **fail** | 15-min peak +3.0 to +4.5% (no storage 440.4 → 453.5 kW, reactive 341.0 → 356.3 kW); 15-min peak reduction 22.6% → 21.4% |
+| 1. Energy balance: grid + accepted regen = vehicle demand + flywheel losses + ΔE | pass | Residual ≤ 3.2·10⁻¹² kWh (≤ 6.4·10⁻¹³ %) for all three strategies |
+| 2. Timestep 50 ms → 25 ms | **fail** (peak only) | Wh/vkm ≤ 0.11%, 15-min peak ≤ 0.17%, but peak +1.0 to +1.2% (no storage 1500.7 → 1515.9 kW); saving 22.0% → 21.9%, peak reduction 12.4% → 12.2% (reactive) |
+| 3a. Warm-up 10 → 20 min (window moves to 08:20–09:20) | **fail** | Wh/vkm +1.6 to +2.1%; peak and 15-min peak unchanged; saving 22.0% → 22.4% |
+| 3b. Warm-up 10 → 20 min, same 08:10–09:10 window | **fail** | Wh/vkm +0.58 to +0.74% (within target), but peak +12.8 to +14.6% (no storage 1500.7 → 1692.7 kW); peak reduction 12.4% → 11.0% (reactive and predictive) |
+| 3b. Same comparison, 15-min peak | **fail** | 15-min peak +2.9 to +4.4% (no storage 440.6 → 453.5 kW, reactive 341.1 → 356.2 kW); 15-min peak reduction 22.6% → 21.5% |
 
 What these mean:
 
 1. The closure is an identity of the core's bookkeeping. It shows that no
    energy is lost or created between the vehicle, section and flywheel
    counters. It does not validate the physical model.
-2. The 50 ms step is converged for these metrics.
+2. The 50 ms step is converged for energy and the 15-min peak. The
+   instantaneous peak moves by 1.0–1.2% at 25 ms, just above the 1% target
+   (0.65–0.86% before the liveness fixes): as a single-step maximum it depends
+   on exactly when trams accelerate together.
 3. Energy per vehicle-km is robust to the warm-up: in 3a the extra 2% comes from
    measuring a later hour, and with the window held fixed (3b) the change is
    0.8%. The **peak is not**: it is the maximum of a single instant, and starting
    the fleet 10 minutes earlier changes how trams are phased when they
    accelerate together. In this one comparison the absolute peak moved by
-   12–14% and the peak reduction by 1.1 points, so peak figures on this page
+   13–15% and the peak reduction by 1.4 points, so peak figures on this page
    are indicative, and peak differences of a few points between strategies or
    cases are not significant. The 15-min peak is about three times less
-   sensitive (3.0–4.5%) but still misses the 1% target, and its reduction moves
-   by 1.2 points, so it is the more robust peak metric, not a converged one.
+   sensitive (2.9–4.4%) but still misses the 1% target, and its reduction moves
+   by 1.1 points, so it is the more robust peak metric, not a converged one.
 
 Grid energy per vehicle-km against published values (column to be completed
 from the literature):
 
 | Network | Strategy | Simulated Wh/vkm | Published reference (to fill in) |
 | --- | --- | ---: | --- |
-| İzmir Konak | none | 1348.7 | |
-| İzmir Konak | reactive | 1051.9 | |
-| İzmir Konak | predictive | 1051.9 | |
+| İzmir Konak | none | 1349.3 | |
+| İzmir Konak | reactive | 1052.5 | |
+| İzmir Konak | predictive | 1052.5 | |
 
 ### Energy figures
 
@@ -394,7 +418,7 @@ Each figure is also available as SVG next to the PNG.
 grid power) and instantaneous peak reduction (highest 50 ms grid power) of
 reactive flywheels against no storage, baseline case on each network. The
 15-min peak falls about as much as energy; the instantaneous peak reduction
-varies from 9.7% to 36.2% between networks.²
+varies from 8.7% to 36.2% between networks.²
 
 ![İzmir network grid power with and without flywheels](assets/results/fig2_izmir_grid_power.png)
 
@@ -414,9 +438,9 @@ the fleet, sets the headway.²
 **Figure 4.** Reactive grid-energy saving, 15-min peak reduction and
 instantaneous peak reduction on İzmir against flywheel storage size, as a
 multiple of the configured banks (power and energy scaled together). Energy
-saving and the 15-min peak reduction rise together with storage (15.0%, 22.6%,
-25.9% for the 15-min peak), while the instantaneous peak reduction stays at
-12.2% from 0.5× to 1.5×: the fixed per-section discharge setpoint, not the
+saving and the 15-min peak reduction rise together with storage (15.1%, 22.6%,
+26.0% for the 15-min peak), while the instantaneous peak reduction stays at
+12.4% from 0.5× to 1.5×: the fixed per-section discharge setpoint, not the
 stored energy, limits how far short demand spikes are shaved.²
 
 ² The rule-based predictive variant equals reactive in these cases (see
@@ -452,9 +476,12 @@ Automation and safety:
   physics, communication delay, message loss between subsystems or safety
   integrity (SIL) analysis. Finding no violation in 172 faulted hours is
   evidence, not proof: formal verification is out of scope.
-- **The three liveness gaps are reported, not fixed.** The stale crossing grant,
-  the stale switch lock and the missing keep-clear check need changes to control
-  logic, which this study does not make.
+- **Liveness is tested, not proven.** The three gaps of the first run are fixed
+  and no session now needs an operator, but these are the fault types and
+  seeds that were run. The 60 s approach-lock lapse, the 2.5 m/s crossing
+  traversal speed and the keep-clear distances are design assumptions, and
+  several configured crossing zones (90–270 m) are much longer than a real
+  road crossing.
 - **Narrow disturbance scope.** One network (İzmir), one timetable window (the
   evening peak), one stop and one fleet size. The regulation-off reference is
   itself unstable, and the on-time share does not reflect bunching.
@@ -487,8 +514,9 @@ Energy:
   threshold (a floating-point tie), and a cap undid the raised threshold for
   depleted flywheels.
 - **Peaks depend on fleet phasing.** The instantaneous peak (highest 50 ms
-  grid power) moves by 12–14% when only the warm-up changes (sanity
-  check 3b). The 15-min peak is less sensitive (3.0–4.5%) but still above the
+  grid power) moves by 13–15% when only the warm-up changes (sanity
+  check 3b) and by 1.0–1.2% when only the timestep is halved (check 2). The
+  15-min peak is less sensitive (2.9–4.4% in check 3b) but still above the
   1% target, so both peak figures are indicative.
 - **Service metrics are model metrics.** Terminal holding makes the İzmir
   terminal headway CV close to zero by construction; Nizhny Route 2 has no
@@ -502,16 +530,17 @@ Geliştirilen deterministik dijital ikizde (C++17 çekirdek, WebAssembly) önce
 otomasyon ve güvenlik işlevleri sınanmıştır. İzmir Konak ve Nijniy Novgorod
 2+21 hatlarında, 172 saatlik arızalı oturumda yaklaşık 9.900 tohumlu dedektör
 ve makas arızası altında bağımsız bir denetleyici çarpışma, takip mesafesi,
-sollama, hemzemin geçit veya kilitli makas ihlali saptamamıştır; buna karşın
-kaçırılan giriş algılaması ve yabancı makas talebi, güvenli fakat kendiliğinden
-çözülmeyen kilitlenmelere yol açmıştır. İzmir'de bir tramvay 2–10 dakika
+sollama, hemzemin geçit veya kilitli makas ihlali saptamamıştır. İlk denemede
+kaçırılan giriş algılaması ve yabancı makas talebinin yol açtığı güvenli fakat
+kendiliğinden çözülmeyen kilitlenmeler giderilmiş; düzeltilmiş mantıkla hiçbir
+oturum operatör müdahalesi gerektirmemiştir. İzmir'de bir tramvay 2–10 dakika
 bekletildiğinde aralık düzenlemesi seferleri 48–60 dakikada yeniden düzene
 sokmuş; düzenleme kapalıyken hat kendiliğinden yığılmış ve en yoğun duraktaki
 bekleme süresi 2,1 katına çıkmıştır. Acil frenleme 2,4 m/s² sınırını aşmamış,
 40 km/sa hızdan durma mesafesi 28 m bulunmuştur. Enerji tarafında reaktif volan
 depolama, araç-km başına şebeke enerjisini İzmir'de %22,0, Nijniy hatlarında
 %23,1–23,9, İzmir'de 15 dakikalık ortalama tepe talebi %22,6 azaltmış; anlık
-tepe güç azaltımı ise depolama kapasitesinden bağımsız olarak %12,2'de
+tepe güç azaltımı ise depolama kapasitesinden bağımsız olarak %12,4'te
 kalmıştır. Hız profillerinin (ATO) ve volan dağıtımının enerji, tepe güç ve
 dakiklik için tek bir NSGA-II/III problemi olarak birlikte eniyilenmesi ve
 Donanım-Döngüde (HIL) doğrulanması bu çalışmanın araştırma boşluğunu

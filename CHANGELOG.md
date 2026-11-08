@@ -19,6 +19,12 @@ Keep a Changelog; release labels use semantic version numbers.
 - The clearance-detector timeout scales with the configured crossing zone
   (minimum 25 s, 2.5 m/s traversal), so trams crossing the long Konak, Gazi and
   Nizhny zones in normal service no longer latch all-red.
+- A crossing is granted only to the first tram in line on its approach, so a
+  tram queued behind one keeping the crossing clear cannot hold it green.
+- The safety oracle times junction and points blocks from when the first tram
+  starts waiting, not from the last phase or owner change.
+- `docs/RESULTS.md`, `docs/EXPERIMENTS.md`, the result data and figures 1–7
+  regenerated with the fixed logic (`cddcca2`).
 
 ### Changed
 
