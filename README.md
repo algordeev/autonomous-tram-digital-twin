@@ -111,19 +111,30 @@ counts and periodic samples. Programmatic experiments can use
 
 ## Preliminary results
 
-![Energy saving and peak reduction by network](docs/assets/results/fig1_savings_by_network.png)
+<p>
+  <img src="docs/assets/results/fig1_savings_by_network.png" alt="Grid-energy saving and peak reduction by network" width="49%">
+  <img src="docs/assets/results/fig5_disturbance_recovery.png" alt="Headway deviation after a 5-minute hold, regulation on and off" width="49%">
+</p>
+
+*Left: grid-energy saving and peak reduction of reactive flywheels by network
+(Figure 1). Right: headway deviation after one İzmir tram is held for 5
+minutes, with headway regulation on and off (Figure 5).*
 
 Under about 9,900 seeded detector and switch faults over 172 simulated hours
 on İzmir and Nizhny Novgorod Routes 2 + 21, an independent per-step checker
 found no collision, separation, overtaking, crossing or locked-points
-violation, and headway regulation brought the İzmir service back to its
-timetable pattern within 48–60 minutes of a 2–10-minute hold. Against a
+violation, and no session needed an operator to recover. When one İzmir tram
+is held for 2–10 minutes, headway regulation brings the line back within the
+recovery band after 48–60 minutes and back on the exact timetable pattern
+after 59–68 minutes. With regulation off, the line does not recover from a 5-
+or 10-minute hold within the 105-minute run: the gaps grow to 19 and 24
+minutes. Against a
 no-storage reference on the same service, reactive wayside flywheels cut grid
 energy per vehicle-km by 22.0% on İzmir and 23.1–23.9% on the Nizhny Novgorod
 networks; across time of day and fleet size the İzmir saving stays in
 21.2–25.1%. Averaged over 15 minutes (a common billed-demand interval), the
 İzmir peak falls by 22.6%, while the instantaneous peak reduction ranges from
-0% to 19.9%. The current predictive controller gives the same results as
+3.3% to 20.5%. The current predictive controller gives the same results as
 reactive flywheels: its traction guidance does not act while the flywheels
 are installed. These are simulator checks and comparative results, not
 certified signalling or calibrated measurements. The fault injection,

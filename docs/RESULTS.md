@@ -86,7 +86,8 @@ C++ core, so the core and its TypeScript mirror see exactly what a faulty
 detector sends. On every 50 ms step an oracle checks, from vehicle positions
 and track geometry rather than from the controllers' own bookkeeping:
 collisions (a front inside the body ahead), front-to-front spacing below the
-22 m physical minimum (0.5 m tolerance), overtaking, more than one tram in a
+22 m physical minimum (0.5 m tolerance; front to front, so one 15 m tram body
+plus 7 m between the trams), overtaking, more than one tram in a
 junction conflict zone, a tram inside a crossing while road traffic has green
 or amber, an entered tram grant under a road phase, and points moving while
 locked or under a tram. A lock that lapses before its owner reaches the points
@@ -96,10 +97,10 @@ that it is counted ([automation.test.mjs](../tests/automation.test.mjs)). It
 also times how long trams wait at a junction or at points whose phase or owner
 does not change, from the moment the first tram starts waiting.
 
-| Network, 8 seeds × 4 h | Faults injected | Safety violations | Closest spacing | All-red latches per session | Longest recovered latch | Vehicle-km per session | On-time |
+| Network, 8 seeds × 4 h | Faults injected | Safety violations | Closest spacing, front to front (gap between bodies) | All-red latches per session | Longest recovered latch | Vehicle-km per session | On-time |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| İzmir Konak | 1,820 | **0** | 21.96 m | 7–17 (fault-free 0) | 41–134 s (fault-free: none) | 1,088–1,089 (fault-free 1,088) | 93.0–96.8% (97.2%) |
-| Nizhny Routes 2 + 21 | 1,837 | **0** | 25.55 m | 15–24 (fault-free 8) | 73–155 s (fault-free 2 s) | 824–828 (fault-free 828) | 95.4–97.2% (97.2%) |
+| İzmir Konak | 1,820 | **0** | 21.96 m (6.96 m) | 7–17 (fault-free 0) | 41–134 s (fault-free: none) | 1,088–1,089 (fault-free 1,088) | 93.0–96.8% (97.2%) |
+| Nizhny Routes 2 + 21 | 1,837 | **0** | 25.55 m (10.55 m) | 15–24 (fault-free 8) | 73–155 s (fault-free 2 s) | 824–828 (fault-free 828) | 95.4–97.2% (97.2%) |
 
 Every latch recovered by itself, and no junction or points were blocked at the
 end of any session. The longest wait at a junction was 80–134 s on İzmir and
@@ -119,9 +120,10 @@ Each fault type alone (3 seeds × 4 h per type and network):
 In all 45 sessions (about 9,900 faults over 172 faulted simulated hours plus
 two fault-free references) the oracle found **no safety violation**: no
 collision, overtaking, conflict-zone or crossing violation, exposed grant or
-points moved while locked. The closest front-to-front spacing was 21.57 m
-(missing rear-clear on İzmir), 0.43 m inside the 22 m physical minimum and
-within the oracle's tolerance; bodies stayed 6.6 m apart. Duplicate entries and
+points moved while locked. The closest spacing was 21.57 m front to front
+(missing rear-clear on İzmir), so the bodies of the two 15 m trams were still
+6.6 m apart. The 22 m limit is itself a front-to-front distance (a 15 m body
+plus a 7 m gap), and 21.57 m is within the oracle's 0.5 m tolerance of it. Duplicate entries and
 wrong-tram clears are rejected by the core outright. A missing rear-clear
 latches all-red, as specified, and the crossing reopens once the clear is
 observed; in seed 1 on each network one such latch was still open when the
@@ -528,15 +530,22 @@ Energy:
 
 Geliştirilen deterministik dijital ikizde (C++17 çekirdek, WebAssembly) önce
 otomasyon ve güvenlik işlevleri sınanmıştır. İzmir Konak ve Nijniy Novgorod
-2+21 hatlarında, 172 saatlik arızalı oturumda yaklaşık 9.900 tohumlu dedektör
-ve makas arızası altında bağımsız bir denetleyici çarpışma, takip mesafesi,
+2+21 hatlarında, toplam 172 saatlik arızalı oturumlarda yaklaşık 9.900
+tekrarlanabilir rastgele dedektör ve makas arızası altında bağımsız bir
+güvenlik doğrulayıcısı çarpışma, takip mesafesi,
 sollama, hemzemin geçit veya kilitli makas ihlali saptamamıştır. İlk denemede
 kaçırılan giriş algılaması ve yabancı makas talebinin yol açtığı güvenli fakat
 kendiliğinden çözülmeyen kilitlenmeler giderilmiş; düzeltilmiş mantıkla hiçbir
 oturum operatör müdahalesi gerektirmemiştir. İzmir'de bir tramvay 2–10 dakika
-bekletildiğinde aralık düzenlemesi seferleri 48–60 dakikada yeniden düzene
-sokmuş; düzenleme kapalıyken hat kendiliğinden yığılmış ve en yoğun duraktaki
-bekleme süresi 2,1 katına çıkmıştır. Acil frenleme 2,4 m/s² sınırını aşmamış,
+bekletildiğinde, aralık düzenlemesi açıkken hat 48–60 dakikada toparlanma
+bandına dönmüş ve 59–68 dakikada planlanan sefer düzenine tam olarak
+oturmuştur. Düzenleme kapalıyken hat 5 ve 10 dakikalık bekletmeden 105 dakika
+içinde toparlanamamış, seferler arasındaki boşluk 19 ve 24 dakikaya çıkmıştır;
+bekletme olmadan da hat kendiliğinden yığılmakta ve en yoğun duraktaki bekleme
+süresi 2,1 katına çıkmaktadır. Toparlanmayı terminal bekletmesi sağlamaktadır:
+yol boyunca aralık düzeltmesi kapatıldığında 5 dakikalık bekletmeden sonra hat
+57 yerine 28 dakikada toparlanmış, ancak en kısa sefer aralığı 108 saniyeden 24
+saniyeye düşmüştür. Acil frenleme 2,4 m/s² sınırını aşmamış,
 40 km/sa hızdan durma mesafesi 28 m bulunmuştur. Enerji tarafında reaktif volan
 depolama, araç-km başına şebeke enerjisini İzmir'de %22,0, Nijniy hatlarında
 %23,1–23,9, İzmir'de 15 dakikalık ortalama tepe talebi %22,6 azaltmış; anlık
