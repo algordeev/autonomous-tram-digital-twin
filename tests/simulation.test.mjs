@@ -560,7 +560,7 @@ test("every Route 2 stop exposes live arrivals for both directions", () => {
   assert.equal(snapshot.selectedStopId, "STOP-11");
   assert.equal(
     snapshot.stopBoards.find((board) => board.id === "STOP-11")?.label,
-    "Чёрный Пруд",
+    "Chyorny Prud",
   );
 
   const obstaclePoint = engine.getPointOnSegment("N2A01", 0.32)?.point;
@@ -1062,7 +1062,7 @@ test("the real Routes 2 + 21 scenario shares rails and closes both Route 21 term
   assert.equal(route21.segmentIds.indexOf("N21O12") + 1, route21.segmentIds.indexOf("KRS-W-N"));
   assert.deepEqual(
     scenario.switches
-      .filter((turnout) => turnout.label.startsWith("Красносельская"))
+      .filter((turnout) => turnout.label.startsWith("Krasnoselskaya"))
       .map((turnout) => turnout.nodeId)
       .sort(),
     ["A17", "KRS-E-IN", "KRS-W-IN"],
@@ -1806,7 +1806,7 @@ test("Krasnoselskaya admits only one tram into the turnout triangle", () => {
 
   const block = engine.findBlockingCondition(approaching, null);
   assert.equal(block?.kind, "junction");
-  assert.match(block?.status ?? "", /Красносельская/);
+  assert.match(block?.status ?? "", /Krasnoselskaya/);
 });
 
 test("manual forward bypasses interval recovery but preserves the physical rail gap", () => {
@@ -2048,7 +2048,7 @@ test("a selected tram can complete a non-passenger depot run and return to servi
   engine.selectTram(tram.id);
   assert.equal(engine.toggleSelectedTramDepot(), true);
   assert.equal(tram.serviceState, "to-depot");
-  assert.equal(tram.lastPassengerStop, "Полтавская");
+  assert.equal(tram.lastPassengerStop, "Poltavskaya");
   assert.ok(
     engine
       .getSnapshot()

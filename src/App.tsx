@@ -920,7 +920,7 @@ function drawSwitch(
   if (
     zoom >= 5.2 &&
     item.definition.showArmLabels !== false &&
-    !item.definition.label.includes("Красносельская")
+    !item.definition.label.includes("Krasnoselskaya")
   ) {
     const drawArmLabel = (
       geometry: ReturnType<typeof arm>,

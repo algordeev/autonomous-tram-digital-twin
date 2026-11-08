@@ -286,38 +286,38 @@ const PARK_DUBKI_LOOP: LonLat[] = [
 ];
 
 const ROUTE_2_STOPS: StopSite[] = [
-  { id: "srednoy", name: "Рынок Средной", coordinates: [43.9890366, 56.3082128], number: 1, major: true },
-  { id: "studenaya", name: "Студёная", coordinates: [43.9989664, 56.3103082], number: 2 },
-  { id: "ashkhabad", name: "Ашхабадская", coordinates: [44.0063459, 56.3127484], number: 3 },
-  { id: "opera", name: "Оперный театр", coordinates: [44.0165897, 56.3161609], number: 4, major: true },
-  { id: "poltavskaya", name: "Полтавская", coordinates: [44.0226555, 56.3179578], number: 5 },
-  { id: "belinskogo", name: "Белинского", coordinates: [44.0263575, 56.3189095], number: 6 },
-  { id: "sennaya", name: "Сенная площадь", coordinates: [44.033287, 56.3228509], number: 7, major: true },
-  { id: "trudovaya", name: "Трудовая", coordinates: [44.0278623, 56.3239826], number: 8 },
-  { id: "hse", name: "Высшая школа экономики", coordinates: [44.022274, 56.3251257], number: 9 },
-  { id: "river", name: "Речное училище", coordinates: [44.0137652, 56.3265825], number: 10 },
-  { id: "chyorny-prud", name: "Чёрный Пруд", coordinates: [44.0069, 56.324], number: 11, major: true },
-  { id: "pokrovskaya", name: "Большая Покровская", coordinates: [44.0009214, 56.3219726], number: 12 },
-  { id: "dobrolyubova", name: "Добролюбова", coordinates: [43.9933284, 56.3247044], number: 13 },
-  { id: "nizhegorodskaya", name: "Нижегородская", coordinates: [43.9902169, 56.3214902], number: 14 },
-  { id: "maslyakova", name: "Маслякова", coordinates: [43.9869299, 56.3156322], number: 15 },
-  { id: "gorkogo", name: "Максима Горького", coordinates: [43.9853367, 56.3127581], number: 16 },
-  { id: "krasnoselskaya", name: "Красносельская", coordinates: [43.9832854, 56.3089455], number: 17, major: true },
+  { id: "srednoy", name: "Srednoy Market", coordinates: [43.9890366, 56.3082128], number: 1, major: true },
+  { id: "studenaya", name: "Studyonaya", coordinates: [43.9989664, 56.3103082], number: 2 },
+  { id: "ashkhabad", name: "Ashkhabadskaya", coordinates: [44.0063459, 56.3127484], number: 3 },
+  { id: "opera", name: "Opera House", coordinates: [44.0165897, 56.3161609], number: 4, major: true },
+  { id: "poltavskaya", name: "Poltavskaya", coordinates: [44.0226555, 56.3179578], number: 5 },
+  { id: "belinskogo", name: "Belinskogo", coordinates: [44.0263575, 56.3189095], number: 6 },
+  { id: "sennaya", name: "Sennaya Square", coordinates: [44.033287, 56.3228509], number: 7, major: true },
+  { id: "trudovaya", name: "Trudovaya", coordinates: [44.0278623, 56.3239826], number: 8 },
+  { id: "hse", name: "Higher School of Economics", coordinates: [44.022274, 56.3251257], number: 9 },
+  { id: "river", name: "River College", coordinates: [44.0137652, 56.3265825], number: 10 },
+  { id: "chyorny-prud", name: "Chyorny Prud", coordinates: [44.0069, 56.324], number: 11, major: true },
+  { id: "pokrovskaya", name: "Bolshaya Pokrovskaya", coordinates: [44.0009214, 56.3219726], number: 12 },
+  { id: "dobrolyubova", name: "Dobrolyubova", coordinates: [43.9933284, 56.3247044], number: 13 },
+  { id: "nizhegorodskaya", name: "Nizhegorodskaya", coordinates: [43.9902169, 56.3214902], number: 14 },
+  { id: "maslyakova", name: "Maslyakova", coordinates: [43.9869299, 56.3156322], number: 15 },
+  { id: "gorkogo", name: "Maksima Gorkogo", coordinates: [43.9853367, 56.3127581], number: 16 },
+  { id: "krasnoselskaya", name: "Krasnoselskaya", coordinates: [43.9832854, 56.3089455], number: 17, major: true },
 ];
 
 const ROUTE_21_PRIVATE: StopSite[] = [
-  { id: "park-dubki", name: "Парк «Дубки»", coordinates: [43.9212, 56.2652], number: 18, major: true },
-  { id: "nakhimova", name: "Нахимова", coordinates: [43.9262481, 56.2679053], number: 19 },
-  { id: "gleba-uspenskogo", name: "Глеба Успенского", coordinates: [43.9305709, 56.2708227], number: 20 },
-  { id: "oktava", name: "ЖК «Октава»", coordinates: [43.9340522, 56.2738652], number: 21 },
-  { id: "komarova", name: "Комарова", coordinates: [43.9350816, 56.2769949], number: 22 },
-  { id: "goncharova", name: "Гончарова", coordinates: [43.9378947, 56.2807863], number: 23 },
-  { id: "zarechny", name: "Заречный бульвар", coordinates: [43.9400958, 56.2850186], number: 24, major: true },
-  { id: "school-185", name: "Школа №185", coordinates: [43.9406513, 56.2890322], number: 25 },
-  { id: "education", name: "Центр дополнительного образования", coordinates: [43.9423118, 56.2923365], number: 26 },
-  { id: "komsomol-highway", name: "Комсомольское шоссе", coordinates: [43.9428792, 56.2960648], number: 27 },
-  { id: "komsomol-square", name: "Комсомольская площадь", coordinates: [43.9459544, 56.2987958], number: 28, major: true },
-  { id: "malaya-yamskaya", name: "Малая Ямская", coordinates: [43.9797047, 56.3064672], number: 29 },
+  { id: "park-dubki", name: "Park Dubki", coordinates: [43.9212, 56.2652], number: 18, major: true },
+  { id: "nakhimova", name: "Nakhimova", coordinates: [43.9262481, 56.2679053], number: 19 },
+  { id: "gleba-uspenskogo", name: "Gleba Uspenskogo", coordinates: [43.9305709, 56.2708227], number: 20 },
+  { id: "oktava", name: "Oktava Residential", coordinates: [43.9340522, 56.2738652], number: 21 },
+  { id: "komarova", name: "Komarova", coordinates: [43.9350816, 56.2769949], number: 22 },
+  { id: "goncharova", name: "Goncharova", coordinates: [43.9378947, 56.2807863], number: 23 },
+  { id: "zarechny", name: "Zarechny Boulevard", coordinates: [43.9400958, 56.2850186], number: 24, major: true },
+  { id: "school-185", name: "School No. 185", coordinates: [43.9406513, 56.2890322], number: 25 },
+  { id: "education", name: "Further Education Centre", coordinates: [43.9423118, 56.2923365], number: 26 },
+  { id: "komsomol-highway", name: "Komsomolskoye Highway", coordinates: [43.9428792, 56.2960648], number: 27 },
+  { id: "komsomol-square", name: "Komsomolskaya Square", coordinates: [43.9459544, 56.2987958], number: 28, major: true },
+  { id: "malaya-yamskaya", name: "Malaya Yamskaya", coordinates: [43.9797047, 56.3064672], number: 29 },
 ];
 
 const byRoute2Number = (number: number) => ROUTE_2_STOPS[number - 1];
@@ -585,14 +585,14 @@ const routeBSegments = buildSegments(
 // descending sections (102 m total); the counter-clockwise rail is their
 // signed reverse. Unlisted legs remain level until surveyed data is available.
 const ROUTE_2_CLOCKWISE_ELEVATION_METERS: Record<string, number> = {
-  N2B07: -17, // Сенная площадь → Белинского
-  N2B11: -14, // ул. Пискунова
-  N2B12: -7,  // Лыковая дамба, lower branch
-  N2B13: -14, // Лыковая дамба, upper branch
-  N2B14: -19, // Нижегородская → Добролюбова
-  N2B15: -10, // Маслякова → Нижегородская
-  N2B16: -9,  // Горького → Маслякова
-  N2B17: -12, // Красносельская → Горького
+  N2B07: -17, // Sennaya Square → Belinskogo
+  N2B11: -14, // Piskunova St.
+  N2B12: -7,  // Lykova Dam, lower branch
+  N2B13: -14, // Lykova Dam, upper branch
+  N2B14: -19, // Nizhegorodskaya → Dobrolyubova
+  N2B15: -10, // Maslyakova → Nizhegorodskaya
+  N2B16: -9,  // Gorkogo → Maslyakova
+  N2B17: -12, // Krasnoselskaya → Gorkogo
 };
 const ROUTE_2_COUNTERCLOCKWISE_ELEVATION_METERS: Record<string, number> = {
   N2A06: 17,
@@ -761,42 +761,42 @@ const krasnoselskayaSegments: TrackSegment[] = [
     "A17",
     "KRS-E-OUT",
     KRS_NORTH_TO_EAST,
-    "Красносельская · север → восток",
+    "Krasnoselskaya · north → east",
   ),
   junctionSegment(
     "KRS-N-W",
     "A17",
     "KRS-W-OUT",
     KRS_NORTH_TO_WEST,
-    "Красносельская · север → запад",
+    "Krasnoselskaya · north → west",
   ),
   junctionSegment(
     "KRS-E-N",
     "KRS-E-IN",
     "B17",
     KRS_EAST_TO_NORTH,
-    "Красносельская · восток → север",
+    "Krasnoselskaya · east → north",
   ),
   junctionSegment(
     "KRS-E-W",
     "KRS-E-IN",
     "KRS-W-OUT",
     KRS_EAST_TO_WEST,
-    "Красносельская · восток → запад",
+    "Krasnoselskaya · east → west",
   ),
   junctionSegment(
     "KRS-W-N",
     "KRS-W-IN",
     "B17",
     KRS_WEST_TO_NORTH,
-    "Красносельская · запад → север",
+    "Krasnoselskaya · west → north",
   ),
   junctionSegment(
     "KRS-W-E",
     "KRS-W-IN",
     "KRS-E-OUT",
     KRS_WEST_TO_EAST,
-    "Красносельская · запад → восток",
+    "Krasnoselskaya · west → east",
   ),
 ];
 
@@ -1058,17 +1058,17 @@ const trafficControls = [
     "J-OSH",
     "OSH-A",
     "N2A03",
-    "Белинского × Ошарская",
+    "Belinskogo × Osharskaya",
     true,
     0.32,
     0.12,
     0.6,
   ),
-  signalApproach("J-OSH", "OSH-B", "N2B04", "Белинского × Ошарская", true),
-  signalApproach("J-SEN", "SEN-A", "N2A06", "Сенная площадь", true),
-  signalApproach("J-SEN", "SEN-B", "N2B08", "Сенная площадь", true),
-  signalApproach("J-MAS", "MAS-A", "N2A14", "Маслякова × Ильинская", true),
-  signalApproach("J-MAS", "MAS-B", "N2B16", "Маслякова × Ильинская", true),
+  signalApproach("J-OSH", "OSH-B", "N2B04", "Belinskogo × Osharskaya", true),
+  signalApproach("J-SEN", "SEN-A", "N2A06", "Sennaya Square", true),
+  signalApproach("J-SEN", "SEN-B", "N2B08", "Sennaya Square", true),
+  signalApproach("J-MAS", "MAS-A", "N2A14", "Maslyakova × Ilyinskaya", true),
+  signalApproach("J-MAS", "MAS-B", "N2B16", "Maslyakova × Ilyinskaya", true),
   // Krasnoselskaya is not modelled as a single perpendicular road crossing:
   // Krasnoselskaya and Ilyinskaya carry several road movements through the
   // turnout triangle. The rail conflict zone below protects trams there;
@@ -1078,7 +1078,7 @@ const trafficControls = [
     "J-CHP-MERGE",
     "CHP-R2",
     "N2A10",
-    "Чёрный Пруд · merge",
+    "Chyorny Prud · merge",
     true,
     0.935,
     0.735,
@@ -1091,7 +1091,7 @@ const trafficControls = [
     "J-CHP-MERGE",
     "CHP-R21",
     "N21-CHP-LOOP",
-    "Чёрный Пруд · merge",
+    "Chyorny Prud · merge",
     true,
     0.6,
     0.04,
@@ -1105,28 +1105,28 @@ const switches = [
     nodeId: "A17",
     mainSegmentId: "KRS-N-E",
     branchSegmentId: "KRS-N-W",
-    label: "Красносельская · северная стрелка",
+    label: "Krasnoselskaya · north switch",
   },
   {
     id: "SW-KRS-EAST",
     nodeId: "KRS-E-IN",
     mainSegmentId: "KRS-E-N",
     branchSegmentId: "KRS-E-W",
-    label: "Красносельская · восточная стрелка",
+    label: "Krasnoselskaya · east switch",
   },
   {
     id: "SW-KRS-WEST",
     nodeId: "KRS-W-IN",
     mainSegmentId: "KRS-W-E",
     branchSegmentId: "KRS-W-N",
-    label: "Красносельская · западная стрелка",
+    label: "Krasnoselskaya · west switch",
   },
   {
     id: "SW-21-CHP",
     nodeId: "B11",
     mainSegmentId: "N2B11",
     branchSegmentId: "N21-CHP-LOOP",
-    label: "Чёрный Пруд · Route 2 / Route 21",
+    label: "Chyorny Prud · Route 2 / Route 21",
     displayArmLengthPx: 46,
     showArmLabels: false,
   },
@@ -1139,7 +1139,7 @@ const switchReaders: RFIDReader[] = [
     at: 0.72,
     kind: "switch",
     switchId: "SW-21-KRS",
-    label: "Route reader · Красносельская",
+    label: "Route reader · Krasnoselskaya",
     render: false,
   },
   {
@@ -1148,7 +1148,7 @@ const switchReaders: RFIDReader[] = [
     at: 0.72,
     kind: "switch",
     switchId: "SW-KRS-EAST",
-    label: "Route reader · Красносельская восток",
+    label: "Route reader · Krasnoselskaya east",
     render: false,
   },
   {
@@ -1157,7 +1157,7 @@ const switchReaders: RFIDReader[] = [
     at: 0.72,
     kind: "switch",
     switchId: "SW-KRS-WEST",
-    label: "Route reader · Красносельская запад",
+    label: "Route reader · Krasnoselskaya west",
     render: false,
   },
   {
@@ -1166,7 +1166,7 @@ const switchReaders: RFIDReader[] = [
     at: 0.72,
     kind: "switch",
     switchId: "SW-21-CHP",
-    label: "Route reader · Чёрный Пруд",
+    label: "Route reader · Chyorny Prud",
     render: false,
   },
 ];
@@ -1235,9 +1235,9 @@ const turnback2GateIn = pointOnTrack(segmentById(route21InboundSegments, "N21I06
 const depots: NonNullable<ScenarioDefinition["depots"]> = [
   {
     id: "DEPOT-1",
-    label: "Трамвайное депо №1",
+    label: "Tram depot No. 1",
     shortName: "DEPOT 1",
-    note: "Route 2 · off-map service connection from Полтавская",
+    note: "Route 2 · off-map service connection from Poltavskaya",
     kind: "depot",
     point: depot1Point,
     portals: [
@@ -1249,7 +1249,7 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
         portalAt: 0.45,
         exitSegmentId: "N2A05",
         exitProgress: 0.08,
-        lastPassengerStop: "Полтавская",
+        lastPassengerStop: "Poltavskaya",
         trackPoints: [
           depot1CounterclockwiseGate,
           { x: 778, y: 160 },
@@ -1265,7 +1265,7 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
         portalAt: 0.45,
         exitSegmentId: "N2B05",
         exitProgress: 0.08,
-        lastPassengerStop: "Полтавская",
+        lastPassengerStop: "Poltavskaya",
         trackPoints: [
           depot1ClockwiseGate,
           { x: 775, y: 171 },
@@ -1277,9 +1277,9 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
   },
   {
     id: "DEPOT-2",
-    label: "Трамвайное депо №2",
+    label: "Tram depot No. 2",
     shortName: "DEPOT 2",
-    note: "Route 21 · off-map service run via Парк «Дубки»",
+    note: "Route 21 · off-map service run via Park Dubki",
     kind: "depot",
     point: depot2Point,
     portals: [
@@ -1294,7 +1294,7 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
         portalAt: 0.45,
         exitSegmentId: "N21O01",
         exitProgress: 0.08,
-        lastPassengerStop: "Парк «Дубки»",
+        lastPassengerStop: "Park Dubki",
         trackPoints: [
           depot2Gate,
           { x: 218, y: 535 },
@@ -1306,7 +1306,7 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
   },
   {
     id: "TURNBACK-1",
-    label: "Разворотный тупик · Высшая школа экономики",
+    label: "Turnback siding · Higher School of Economics",
     shortName: "TURNBACK 1",
     note: "Route 2 · short-turn siding, not a full depot",
     kind: "turnback",
@@ -1321,7 +1321,7 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
         portalAt: 0.5,
         exitSegmentId: "N2A09",
         exitProgress: 0.45,
-        lastPassengerStop: "Высшая школа экономики",
+        lastPassengerStop: "Higher School of Economics",
         trackPoints: [turnback1GateCCW, { x: 685, y: 88 }, turnback1Point],
       },
       {
@@ -1332,14 +1332,14 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
         portalAt: 0.5,
         exitSegmentId: "N2B09",
         exitProgress: 0.45,
-        lastPassengerStop: "Высшая школа экономики",
+        lastPassengerStop: "Higher School of Economics",
         trackPoints: [turnback1GateCW, { x: 700, y: 92 }, turnback1Point],
       },
     ],
   },
   {
     id: "TURNBACK-2",
-    label: "Разворотный тупик · Заречный бульвар",
+    label: "Turnback siding · Zarechny Boulevard",
     shortName: "TURNBACK 2",
     note: "Route 21 · short-turn siding, not a full depot",
     kind: "turnback",
@@ -1354,7 +1354,7 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
         portalAt: 0.5,
         exitSegmentId: "N21O06",
         exitProgress: 0.45,
-        lastPassengerStop: "Заречный бульвар",
+        lastPassengerStop: "Zarechny Boulevard",
         trackPoints: [turnback2GateOut, { x: 345, y: 405 }, turnback2Point],
       },
       {
@@ -1365,7 +1365,7 @@ const depots: NonNullable<ScenarioDefinition["depots"]> = [
         portalAt: 0.5,
         exitSegmentId: "N21I06",
         exitProgress: 0.45,
-        lastPassengerStop: "Заречный бульвар",
+        lastPassengerStop: "Zarechny Boulevard",
         trackPoints: [turnback2GateIn, { x: 348, y: 388 }, turnback2Point],
       },
     ],
@@ -1454,7 +1454,7 @@ const serviceSchedule: NonNullable<ScenarioDefinition["serviceSchedule"]> = [
 ];
 
 const mapContext: MapContext = {
-  title: "Нижний Новгород · routes 2 + 21",
+  title: "Nizhny Novgorod · routes 2 + 21",
   subtitle: "Shared-track operational topology",
   sourceLabel: "OSM relations 227555 + 240660 · turnout ways mapped",
   lines: [
@@ -1490,53 +1490,53 @@ const route21StopPoint = (id: string) =>
 const combinedSubstations: TractionSubstationDefinition[] = [
   {
     id: "NN-TP27-GLEBA",
-    label: "Тяговая подстанция №27 · Глеба Успенского, 20",
-    sectionLabel: "Парк Дубки — Глеба Успенского",
+    label: "Traction substation No. 27 · Gleba Uspenskogo, 20",
+    sectionLabel: "Park Dubki — Gleba Uspenskogo",
     point: route21StopPoint("gleba-uspenskogo"),
     nominalVoltageV: 600,
     maxPowerKw: 1_800,
     confidence: "verified-address",
-    evidence: "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022",
+    evidence: "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022",
   },
   {
     id: "NN-TP8-OKTYABRSKOY",
-    label: "Тяговая подстанция №8 · Октябрьской Революции, 78А",
-    sectionLabel: "Заречная часть — Комсомольская площадь",
+    label: "Traction substation No. 8 · Oktyabrskoy Revolyutsii, 78A",
+    sectionLabel: "Zarechny side — Komsomolskaya Square",
     point: route21StopPoint("komsomol-square"),
     nominalVoltageV: 600,
     maxPowerKw: 1_800,
     confidence: "verified-address",
-    evidence: "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; marker snapped to route corridor",
+    evidence: "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022; marker snapped to route corridor",
   },
   {
     id: "NN-TP-BELINSKOGO",
-    label: "Тяговая подстанция · Белинского, 105А",
-    sectionLabel: "Красносельская — Белинского",
+    label: "Traction substation · Belinskogo, 105A",
+    sectionLabel: "Krasnoselskaya — Belinskogo",
     point: route2StopPoint("opera"),
     nominalVoltageV: 600,
     maxPowerKw: 1_800,
     confidence: "verified-address",
-    evidence: "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022",
+    evidence: "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022",
   },
   {
     id: "NN-TP-BPECHERSKAYA",
-    label: "Тяговая подстанция №30 · Большая Печёрская, 11Б",
-    sectionLabel: "Сенная — Большая Печёрская",
+    label: "Traction substation No. 30 · Bolshaya Pecherskaya, 11B",
+    sectionLabel: "Sennaya — Bolshaya Pecherskaya",
     point: route2StopPoint("sennaya"),
     nominalVoltageV: 600,
     maxPowerKw: 1_800,
     confidence: "verified-address",
-    evidence: "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; public map listing identifies TP-30",
+    evidence: "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022; public map listing identifies TP-30",
   },
   {
     id: "NN-TP15-LUDILNY",
-    label: "Тяговая подстанция №15 · Лудильный пер., 2З",
-    sectionLabel: "Чёрный Пруд — Нижегородская",
+    label: "Traction substation No. 15 · Ludilny Lane, 2Z",
+    sectionLabel: "Chyorny Prud — Nizhegorodskaya",
     point: route2StopPoint("pokrovskaya"),
     nominalVoltageV: 600,
     maxPowerKw: 1_800,
     confidence: "verified-address",
-    evidence: "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; marker snapped to route corridor",
+    evidence: "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022; marker snapped to route corridor",
   },
 ];
 
@@ -1561,7 +1561,7 @@ export const NIZHNY_ROUTES_2_21_SCENARIO: ScenarioDefinition = {
   junctionConflictZones: [
     {
       id: "KRS-TRIANGLE",
-      label: "Красносельская · стрелочный треугольник",
+      label: "Krasnoselskaya · switch triangle",
       segmentIds: [
         "KRS-N-E",
         "KRS-N-W",
@@ -1684,7 +1684,7 @@ export const NIZHNY_ROUTES_2_21_SCENARIO: ScenarioDefinition = {
   tractionPowerSystem: {
     nominalVoltageV: 600,
     label: "Nizhny Novgorod 600 V DC traction sections",
-    sourceLabel: "Nizhny Novgorod City Duma decision №96 (25 May 2022) · public property addresses",
+    sourceLabel: "Nizhny Novgorod City Duma decision No. 96 (25 May 2022) · public property addresses",
     modelNote: "Five route-relevant substation buildings are verified by address. Exact feeder breakers and section-post boundaries remain reconstructed from nearest-supply midpoints until an operator diagram is available.",
     substations: combinedSubstations,
     sections: buildNearestSubstationSections(

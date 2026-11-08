@@ -28,7 +28,7 @@
         }
       ],
       "lengthMeters": 505.23557219224347,
-      "label": "Route 2 ↺ · Чёрный Пруд → Большая Покровская",
+      "label": "Route 2 ↺ · Chyorny Prud → Bolshaya Pokrovskaya",
       "elevationChangeMeters": 7
     },
     {
@@ -62,7 +62,7 @@
         }
       ],
       "lengthMeters": 586.7257201389351,
-      "label": "Route 2 ↺ · Большая Покровская → Добролюбова",
+      "label": "Route 2 ↺ · Bolshaya Pokrovskaya → Dobrolyubova",
       "elevationChangeMeters": 14
     },
     {
@@ -80,7 +80,7 @@
         }
       ],
       "lengthMeters": 489.9092924458918,
-      "label": "Route 2 ↺ · Добролюбова → Нижегородская",
+      "label": "Route 2 ↺ · Dobrolyubova → Nizhegorodskaya",
       "elevationChangeMeters": 19
     },
     {
@@ -102,7 +102,7 @@
         }
       ],
       "lengthMeters": 682.2246884769615,
-      "label": "Route 2 ↺ · Нижегородская → Маслякова",
+      "label": "Route 2 ↺ · Nizhegorodskaya → Maslyakova",
       "elevationChangeMeters": 10
     },
     {
@@ -120,7 +120,7 @@
         }
       ],
       "lengthMeters": 334.3268376786938,
-      "label": "Route 2 ↺ · Маслякова → Максима Горького",
+      "label": "Route 2 ↺ · Maslyakova → Maksima Gorkogo",
       "elevationChangeMeters": 9
     },
     {
@@ -142,7 +142,7 @@
         }
       ],
       "lengthMeters": 442.41688929640037,
-      "label": "Route 2 ↺ · Максима Горького → Красносельская",
+      "label": "Route 2 ↺ · Maksima Gorkogo → Krasnoselskaya",
       "elevationChangeMeters": 12
     },
     {
@@ -164,7 +164,7 @@
         }
       ],
       "lengthMeters": 457.2432574318251,
-      "label": "Route 2 ↺ · Красносельская → Рынок Средной",
+      "label": "Route 2 ↺ · Krasnoselskaya → Srednoy Market",
       "elevationChangeMeters": 0
     },
     {
@@ -186,7 +186,7 @@
         }
       ],
       "lengthMeters": 655.6494591948507,
-      "label": "Route 2 ↺ · Рынок Средной → Студёная",
+      "label": "Route 2 ↺ · Srednoy Market → Studyonaya",
       "elevationChangeMeters": 0
     },
     {
@@ -204,7 +204,7 @@
         }
       ],
       "lengthMeters": 529.8697262582283,
-      "label": "Route 2 ↺ · Студёная → Ашхабадская",
+      "label": "Route 2 ↺ · Studyonaya → Ashkhabadskaya",
       "elevationChangeMeters": 0
     },
     {
@@ -226,7 +226,7 @@
         }
       ],
       "lengthMeters": 737.186008078206,
-      "label": "Route 2 ↺ · Ашхабадская → Оперный театр",
+      "label": "Route 2 ↺ · Ashkhabadskaya → Opera House",
       "elevationChangeMeters": 0
     },
     {
@@ -244,7 +244,7 @@
         }
       ],
       "lengthMeters": 424.08343892990797,
-      "label": "Route 2 ↺ · Оперный театр → Полтавская",
+      "label": "Route 2 ↺ · Opera House → Poltavskaya",
       "elevationChangeMeters": 0
     },
     {
@@ -266,7 +266,7 @@
         }
       ],
       "lengthMeters": 251.7085153967143,
-      "label": "Route 2 ↺ · Полтавская → Белинского",
+      "label": "Route 2 ↺ · Poltavskaya → Belinskogo",
       "elevationChangeMeters": 0
     },
     {
@@ -292,7 +292,7 @@
         }
       ],
       "lengthMeters": 715.0924881034398,
-      "label": "Route 2 ↺ · Белинского → Сенная площадь",
+      "label": "Route 2 ↺ · Belinskogo → Sennaya Square",
       "elevationChangeMeters": 17
     },
     {
@@ -310,7 +310,7 @@
         }
       ],
       "lengthMeters": 357.3634799380789,
-      "label": "Route 2 ↺ · Сенная площадь → Трудовая",
+      "label": "Route 2 ↺ · Sennaya Square → Trudovaya",
       "elevationChangeMeters": 0
     },
     {
@@ -328,7 +328,7 @@
         }
       ],
       "lengthMeters": 367.247822919837,
-      "label": "Route 2 ↺ · Трудовая → Высшая школа экономики",
+      "label": "Route 2 ↺ · Trudovaya → Higher School of Economics",
       "elevationChangeMeters": 0
     },
     {
@@ -350,7 +350,7 @@
         }
       ],
       "lengthMeters": 567.8459892927546,
-      "label": "Route 2 ↺ · Высшая школа экономики → Речное училище",
+      "label": "Route 2 ↺ · Higher School of Economics → River College",
       "elevationChangeMeters": 0
     },
     {
@@ -376,7 +376,7 @@
         }
       ],
       "lengthMeters": 535.9152138192518,
-      "label": "Route 2 ↺ · Речное училище → Чёрный Пруд",
+      "label": "Route 2 ↺ · River College → Chyorny Prud",
       "elevationChangeMeters": 14
     },
     {
@@ -402,7 +402,7 @@
         }
       ],
       "lengthMeters": 533.4841902066959,
-      "label": "Route 2 ↻ · Чёрный Пруд → Речное училище",
+      "label": "Route 2 ↻ · Chyorny Prud → River College",
       "elevationChangeMeters": -14
     },
     {
@@ -424,7 +424,7 @@
         }
       ],
       "lengthMeters": 563.4933000830532,
-      "label": "Route 2 ↻ · Речное училище → Высшая школа экономики",
+      "label": "Route 2 ↻ · River College → Higher School of Economics",
       "elevationChangeMeters": 0
     },
     {
@@ -442,7 +442,7 @@
         }
       ],
       "lengthMeters": 367.2465209545227,
-      "label": "Route 2 ↻ · Высшая школа экономики → Трудовая",
+      "label": "Route 2 ↻ · Higher School of Economics → Trudovaya",
       "elevationChangeMeters": 0
     },
     {
@@ -460,7 +460,7 @@
         }
       ],
       "lengthMeters": 357.36424509620184,
-      "label": "Route 2 ↻ · Трудовая → Сенная площадь",
+      "label": "Route 2 ↻ · Trudovaya → Sennaya Square",
       "elevationChangeMeters": 0
     },
     {
@@ -486,7 +486,7 @@
         }
       ],
       "lengthMeters": 703.4424431737742,
-      "label": "Route 2 ↻ · Сенная площадь → Белинского",
+      "label": "Route 2 ↻ · Sennaya Square → Belinskogo",
       "elevationChangeMeters": -17
     },
     {
@@ -508,7 +508,7 @@
         }
       ],
       "lengthMeters": 251.95687130800331,
-      "label": "Route 2 ↻ · Белинского → Полтавская",
+      "label": "Route 2 ↻ · Belinskogo → Poltavskaya",
       "elevationChangeMeters": 0
     },
     {
@@ -526,7 +526,7 @@
         }
       ],
       "lengthMeters": 424.08234150699326,
-      "label": "Route 2 ↻ · Полтавская → Оперный театр",
+      "label": "Route 2 ↻ · Poltavskaya → Opera House",
       "elevationChangeMeters": 0
     },
     {
@@ -548,7 +548,7 @@
         }
       ],
       "lengthMeters": 737.3579248587648,
-      "label": "Route 2 ↻ · Оперный театр → Ашхабадская",
+      "label": "Route 2 ↻ · Opera House → Ashkhabadskaya",
       "elevationChangeMeters": 0
     },
     {
@@ -566,7 +566,7 @@
         }
       ],
       "lengthMeters": 529.8615876594835,
-      "label": "Route 2 ↻ · Ашхабадская → Студёная",
+      "label": "Route 2 ↻ · Ashkhabadskaya → Studyonaya",
       "elevationChangeMeters": 0
     },
     {
@@ -588,7 +588,7 @@
         }
       ],
       "lengthMeters": 655.0008844622095,
-      "label": "Route 2 ↻ · Студёная → Рынок Средной",
+      "label": "Route 2 ↻ · Studyonaya → Srednoy Market",
       "elevationChangeMeters": 0
     },
     {
@@ -610,7 +610,7 @@
         }
       ],
       "lengthMeters": 453.0305927290307,
-      "label": "Route 2 ↻ · Рынок Средной → Красносельская",
+      "label": "Route 2 ↻ · Srednoy Market → Krasnoselskaya",
       "elevationChangeMeters": 0
     },
     {
@@ -632,7 +632,7 @@
         }
       ],
       "lengthMeters": 442.3722486782286,
-      "label": "Route 2 ↻ · Красносельская → Максима Горького",
+      "label": "Route 2 ↻ · Krasnoselskaya → Maksima Gorkogo",
       "elevationChangeMeters": -12
     },
     {
@@ -650,7 +650,7 @@
         }
       ],
       "lengthMeters": 334.32656567886227,
-      "label": "Route 2 ↻ · Максима Горького → Маслякова",
+      "label": "Route 2 ↻ · Maksima Gorkogo → Maslyakova",
       "elevationChangeMeters": -9
     },
     {
@@ -672,7 +672,7 @@
         }
       ],
       "lengthMeters": 682.3873259718093,
-      "label": "Route 2 ↻ · Маслякова → Нижегородская",
+      "label": "Route 2 ↻ · Maslyakova → Nizhegorodskaya",
       "elevationChangeMeters": -10
     },
     {
@@ -690,7 +690,7 @@
         }
       ],
       "lengthMeters": 482.00284425573636,
-      "label": "Route 2 ↻ · Нижегородская → Добролюбова",
+      "label": "Route 2 ↻ · Nizhegorodskaya → Dobrolyubova",
       "elevationChangeMeters": -19
     },
     {
@@ -724,7 +724,7 @@
         }
       ],
       "lengthMeters": 586.2158572759911,
-      "label": "Route 2 ↻ · Добролюбова → Большая Покровская",
+      "label": "Route 2 ↻ · Dobrolyubova → Bolshaya Pokrovskaya",
       "elevationChangeMeters": -14
     },
     {
@@ -750,7 +750,7 @@
         }
       ],
       "lengthMeters": 599.4325580338561,
-      "label": "Route 2 ↻ · Большая Покровская → Чёрный Пруд",
+      "label": "Route 2 ↻ · Bolshaya Pokrovskaya → Chyorny Prud",
       "elevationChangeMeters": -7
     },
     {
@@ -772,7 +772,7 @@
         }
       ],
       "lengthMeters": 422.47181532632464,
-      "label": "Route 21 → Chyorny Prud · Парк «Дубки» → Нахимова"
+      "label": "Route 21 → Chyorny Prud · Park Dubki → Nakhimova"
     },
     {
       "id": "N21O02",
@@ -789,7 +789,7 @@
         }
       ],
       "lengthMeters": 420.09099444940153,
-      "label": "Route 21 → Chyorny Prud · Нахимова → Глеба Успенского"
+      "label": "Route 21 → Chyorny Prud · Nakhimova → Gleba Uspenskogo"
     },
     {
       "id": "N21O03",
@@ -814,7 +814,7 @@
         }
       ],
       "lengthMeters": 405.0361656583663,
-      "label": "Route 21 → Chyorny Prud · Глеба Успенского → ЖК «Октава»"
+      "label": "Route 21 → Chyorny Prud · Gleba Uspenskogo → Oktava Residential"
     },
     {
       "id": "N21O04",
@@ -839,7 +839,7 @@
         }
       ],
       "lengthMeters": 356.71432094165795,
-      "label": "Route 21 → Chyorny Prud · ЖК «Октава» → Комарова"
+      "label": "Route 21 → Chyorny Prud · Oktava Residential → Komarova"
     },
     {
       "id": "N21O05",
@@ -856,7 +856,7 @@
         }
       ],
       "lengthMeters": 455.9374383145229,
-      "label": "Route 21 → Chyorny Prud · Комарова → Гончарова"
+      "label": "Route 21 → Chyorny Prud · Komarova → Goncharova"
     },
     {
       "id": "N21O06",
@@ -877,7 +877,7 @@
         }
       ],
       "lengthMeters": 495.19222656268437,
-      "label": "Route 21 → Chyorny Prud · Гончарова → Заречный бульвар"
+      "label": "Route 21 → Chyorny Prud · Goncharova → Zarechny Boulevard"
     },
     {
       "id": "N21O07",
@@ -898,7 +898,7 @@
         }
       ],
       "lengthMeters": 447.6518276319905,
-      "label": "Route 21 → Chyorny Prud · Заречный бульвар → Школа №185"
+      "label": "Route 21 → Chyorny Prud · Zarechny Boulevard → School No. 185"
     },
     {
       "id": "N21O08",
@@ -915,7 +915,7 @@
         }
       ],
       "lengthMeters": 381.4373600512182,
-      "label": "Route 21 → Chyorny Prud · Школа №185 → Центр дополнительного образования"
+      "label": "Route 21 → Chyorny Prud · School No. 185 → Further Education Centre"
     },
     {
       "id": "N21O09",
@@ -944,7 +944,7 @@
         }
       ],
       "lengthMeters": 422.22527896059637,
-      "label": "Route 21 → Chyorny Prud · Центр дополнительного образования → Комсомольское шоссе"
+      "label": "Route 21 → Chyorny Prud · Further Education Centre → Komsomolskoye Highway"
     },
     {
       "id": "N21O10",
@@ -973,7 +973,7 @@
         }
       ],
       "lengthMeters": 384.165949723542,
-      "label": "Route 21 → Chyorny Prud · Комсомольское шоссе → Комсомольская площадь"
+      "label": "Route 21 → Chyorny Prud · Komsomolskoye Highway → Komsomolskaya Square"
     },
     {
       "id": "N21O11",
@@ -1066,7 +1066,7 @@
         }
       ],
       "lengthMeters": 3087.689157988706,
-      "label": "Route 21 → Chyorny Prud · Комсомольская площадь → Малая Ямская"
+      "label": "Route 21 → Chyorny Prud · Komsomolskaya Square → Malaya Yamskaya"
     },
     {
       "id": "N21O12",
@@ -1091,7 +1091,7 @@
         }
       ],
       "lengthMeters": 395.0497849276656,
-      "label": "Route 21 → Chyorny Prud · Малая Ямская → Красносельская"
+      "label": "Route 21 → Chyorny Prud · Malaya Yamskaya → Krasnoselskaya"
     },
     {
       "id": "N21I01",
@@ -1120,7 +1120,7 @@
         }
       ],
       "lengthMeters": 411.87712453355607,
-      "label": "Route 21 → Park Dubki · Красносельская → Малая Ямская"
+      "label": "Route 21 → Park Dubki · Krasnoselskaya → Malaya Yamskaya"
     },
     {
       "id": "N21I02",
@@ -1209,7 +1209,7 @@
         }
       ],
       "lengthMeters": 3080.4700172666107,
-      "label": "Route 21 → Park Dubki · Малая Ямская → Комсомольская площадь"
+      "label": "Route 21 → Park Dubki · Malaya Yamskaya → Komsomolskaya Square"
     },
     {
       "id": "N21I03",
@@ -1250,7 +1250,7 @@
         }
       ],
       "lengthMeters": 506.9902148418646,
-      "label": "Route 21 → Park Dubki · Комсомольская площадь → Комсомольское шоссе"
+      "label": "Route 21 → Park Dubki · Komsomolskaya Square → Komsomolskoye Highway"
     },
     {
       "id": "N21I04",
@@ -1279,7 +1279,7 @@
         }
       ],
       "lengthMeters": 421.7840325458852,
-      "label": "Route 21 → Park Dubki · Комсомольское шоссе → Центр дополнительного образования"
+      "label": "Route 21 → Park Dubki · Komsomolskoye Highway → Further Education Centre"
     },
     {
       "id": "N21I05",
@@ -1296,7 +1296,7 @@
         }
       ],
       "lengthMeters": 381.43678998950014,
-      "label": "Route 21 → Park Dubki · Центр дополнительного образования → Школа №185"
+      "label": "Route 21 → Park Dubki · Further Education Centre → School No. 185"
     },
     {
       "id": "N21I06",
@@ -1317,7 +1317,7 @@
         }
       ],
       "lengthMeters": 448.3000108698366,
-      "label": "Route 21 → Park Dubki · Школа №185 → Заречный бульвар"
+      "label": "Route 21 → Park Dubki · School No. 185 → Zarechny Boulevard"
     },
     {
       "id": "N21I07",
@@ -1338,7 +1338,7 @@
         }
       ],
       "lengthMeters": 494.2384772594322,
-      "label": "Route 21 → Park Dubki · Заречный бульвар → Гончарова"
+      "label": "Route 21 → Park Dubki · Zarechny Boulevard → Goncharova"
     },
     {
       "id": "N21I08",
@@ -1355,7 +1355,7 @@
         }
       ],
       "lengthMeters": 455.93691115365266,
-      "label": "Route 21 → Park Dubki · Гончарова → Комарова"
+      "label": "Route 21 → Park Dubki · Goncharova → Komarova"
     },
     {
       "id": "N21I09",
@@ -1380,7 +1380,7 @@
         }
       ],
       "lengthMeters": 357.40107087546977,
-      "label": "Route 21 → Park Dubki · Комарова → ЖК «Октава»"
+      "label": "Route 21 → Park Dubki · Komarova → Oktava Residential"
     },
     {
       "id": "N21I10",
@@ -1405,7 +1405,7 @@
         }
       ],
       "lengthMeters": 403.5256702183236,
-      "label": "Route 21 → Park Dubki · ЖК «Октава» → Глеба Успенского"
+      "label": "Route 21 → Park Dubki · Oktava Residential → Gleba Uspenskogo"
     },
     {
       "id": "N21I11",
@@ -1422,7 +1422,7 @@
         }
       ],
       "lengthMeters": 420.0913536717958,
-      "label": "Route 21 → Park Dubki · Глеба Успенского → Нахимова"
+      "label": "Route 21 → Park Dubki · Gleba Uspenskogo → Nakhimova"
     },
     {
       "id": "N21I12",
@@ -1447,7 +1447,7 @@
         }
       ],
       "lengthMeters": 434.5724032498203,
-      "label": "Route 21 → Park Dubki · Нахимова → Парк «Дубки»"
+      "label": "Route 21 → Park Dubki · Nakhimova → Park Dubki"
     },
     {
       "id": "KRS-N-E",
@@ -1488,7 +1488,7 @@
         }
       ],
       "lengthMeters": 50.789575780193985,
-      "label": "Красносельская · север → восток"
+      "label": "Krasnoselskaya · north → east"
     },
     {
       "id": "KRS-N-W",
@@ -1521,7 +1521,7 @@
         }
       ],
       "lengthMeters": 40.40384316205265,
-      "label": "Красносельская · север → запад"
+      "label": "Krasnoselskaya · north → west"
     },
     {
       "id": "KRS-E-N",
@@ -1558,7 +1558,7 @@
         }
       ],
       "lengthMeters": 48.23463340822197,
-      "label": "Красносельская · восток → север"
+      "label": "Krasnoselskaya · east → north"
     },
     {
       "id": "KRS-E-W",
@@ -1587,7 +1587,7 @@
         }
       ],
       "lengthMeters": 49.39649064900467,
-      "label": "Красносельская · восток → запад"
+      "label": "Krasnoselskaya · east → west"
     },
     {
       "id": "KRS-W-N",
@@ -1624,7 +1624,7 @@
         }
       ],
       "lengthMeters": 50.474175980099346,
-      "label": "Красносельская · запад → север"
+      "label": "Krasnoselskaya · west → north"
     },
     {
       "id": "KRS-W-E",
@@ -1645,7 +1645,7 @@
         }
       ],
       "lengthMeters": 50.64202773419436,
-      "label": "Красносельская · запад → восток"
+      "label": "Krasnoselskaya · west → east"
     },
     {
       "id": "N21-CHP-LOOP",
@@ -1728,7 +1728,7 @@
       "segmentId": "N2A11",
       "at": 0.6583160434334588,
       "kind": "station",
-      "label": "Большая Покровская",
+      "label": "Bolshaya Pokrovskaya",
       "stationId": "pokrovskaya",
       "stationNumber": 12,
       "routeId": "2",
@@ -1743,7 +1743,7 @@
       "segmentId": "N2A12",
       "at": 0.7023001770535773,
       "kind": "station",
-      "label": "Добролюбова",
+      "label": "Dobrolyubova",
       "stationId": "dobrolyubova",
       "stationNumber": 13,
       "routeId": "2",
@@ -1758,7 +1758,7 @@
       "segmentId": "N2A13",
       "at": 0.6484089300466346,
       "kind": "station",
-      "label": "Нижегородская",
+      "label": "Nizhegorodskaya",
       "stationId": "nizhegorodskaya",
       "stationNumber": 14,
       "routeId": "2",
@@ -1773,7 +1773,7 @@
       "segmentId": "N2A14",
       "at": 0.1454731605254665,
       "kind": "station",
-      "label": "Маслякова",
+      "label": "Maslyakova",
       "stationId": "maslyakova",
       "stationNumber": 15,
       "routeId": "2",
@@ -1788,7 +1788,7 @@
       "segmentId": "N2A15",
       "at": 0.4964263948688179,
       "kind": "station",
-      "label": "Максима Горького",
+      "label": "Maksima Gorkogo",
       "stationId": "gorkogo",
       "stationNumber": 16,
       "routeId": "2",
@@ -1803,7 +1803,7 @@
       "segmentId": "N2A16",
       "at": 0.6133501537329267,
       "kind": "station",
-      "label": "Красносельская",
+      "label": "Krasnoselskaya",
       "stationId": "krasnoselskaya",
       "stationNumber": 17,
       "routeId": "2",
@@ -1818,7 +1818,7 @@
       "segmentId": "N2A17",
       "at": 0.6250768520925516,
       "kind": "station",
-      "label": "Рынок Средной",
+      "label": "Srednoy Market",
       "stationId": "srednoy",
       "stationNumber": 1,
       "routeId": "2",
@@ -1833,7 +1833,7 @@
       "segmentId": "N2A01",
       "at": 0.730967159346882,
       "kind": "station",
-      "label": "Студёная",
+      "label": "Studyonaya",
       "stationId": "studenaya",
       "stationNumber": 2,
       "routeId": "2",
@@ -1848,7 +1848,7 @@
       "segmentId": "N2A02",
       "at": 0.6730389856769716,
       "kind": "station",
-      "label": "Ашхабадская",
+      "label": "Ashkhabadskaya",
       "stationId": "ashkhabad",
       "stationNumber": 3,
       "routeId": "2",
@@ -1863,7 +1863,7 @@
       "segmentId": "N2A03",
       "at": 0.7579584416325139,
       "kind": "station",
-      "label": "Оперный театр",
+      "label": "Opera House",
       "stationId": "opera",
       "stationNumber": 4,
       "routeId": "2",
@@ -1878,7 +1878,7 @@
       "segmentId": "N2A04",
       "at": 0.5977157551737251,
       "kind": "station",
-      "label": "Полтавская",
+      "label": "Poltavskaya",
       "stationId": "poltavskaya",
       "stationNumber": 5,
       "routeId": "2",
@@ -1893,7 +1893,7 @@
       "segmentId": "N2A05",
       "at": 0.3393441114901249,
       "kind": "station",
-      "label": "Белинского",
+      "label": "Belinskogo",
       "stationId": "belinskogo",
       "stationNumber": 6,
       "routeId": "2",
@@ -1908,7 +1908,7 @@
       "segmentId": "N2A06",
       "at": 0.7512527188275321,
       "kind": "station",
-      "label": "Сенная площадь",
+      "label": "Sennaya Square",
       "stationId": "sennaya",
       "stationNumber": 7,
       "routeId": "2",
@@ -1923,7 +1923,7 @@
       "segmentId": "N2A07",
       "at": 0.5272765783797395,
       "kind": "station",
-      "label": "Трудовая",
+      "label": "Trudovaya",
       "stationId": "trudovaya",
       "stationNumber": 8,
       "routeId": "2",
@@ -1938,7 +1938,7 @@
       "segmentId": "N2A08",
       "at": 0.5393268931374309,
       "kind": "station",
-      "label": "Высшая школа экономики",
+      "label": "Higher School of Economics",
       "stationId": "hse",
       "stationNumber": 9,
       "routeId": "2",
@@ -1953,7 +1953,7 @@
       "segmentId": "N2A09",
       "at": 0.6932334593940197,
       "kind": "station",
-      "label": "Речное училище",
+      "label": "River College",
       "stationId": "river",
       "stationNumber": 10,
       "routeId": "2",
@@ -1968,7 +1968,7 @@
       "segmentId": "N2A10",
       "at": 0.6764453109853992,
       "kind": "station",
-      "label": "Чёрный Пруд",
+      "label": "Chyorny Prud",
       "stationId": "chyorny-prud",
       "stationNumber": 11,
       "routeId": "2",
@@ -1984,7 +1984,7 @@
       "segmentId": "N2B11",
       "at": 0.6750848329956904,
       "kind": "station",
-      "label": "Речное училище",
+      "label": "River College",
       "stationId": "river",
       "stationNumber": 10,
       "routeId": "2",
@@ -1999,7 +1999,7 @@
       "segmentId": "N2B10",
       "at": 0.6910569611450258,
       "kind": "station",
-      "label": "Высшая школа экономики",
+      "label": "Higher School of Economics",
       "stationId": "hse",
       "stationNumber": 9,
       "routeId": "2",
@@ -2014,7 +2014,7 @@
       "segmentId": "N2B09",
       "at": 0.5393253485856349,
       "kind": "station",
-      "label": "Трудовая",
+      "label": "Trudovaya",
       "stationId": "trudovaya",
       "stationNumber": 8,
       "routeId": "2",
@@ -2029,7 +2029,7 @@
       "segmentId": "N2B08",
       "at": 0.5272775370072955,
       "kind": "station",
-      "label": "Сенная площадь",
+      "label": "Sennaya Square",
       "stationId": "sennaya",
       "stationNumber": 7,
       "routeId": "2",
@@ -2044,7 +2044,7 @@
       "segmentId": "N2B07",
       "at": 0.7475471336672324,
       "kind": "station",
-      "label": "Белинского",
+      "label": "Belinskogo",
       "stationId": "belinskogo",
       "stationNumber": 6,
       "routeId": "2",
@@ -2059,7 +2059,7 @@
       "segmentId": "N2B06",
       "at": 0.33997068260381413,
       "kind": "station",
-      "label": "Полтавская",
+      "label": "Poltavskaya",
       "stationId": "poltavskaya",
       "stationNumber": 5,
       "routeId": "2",
@@ -2074,7 +2074,7 @@
       "segmentId": "N2B05",
       "at": 0.5977147788530083,
       "kind": "station",
-      "label": "Оперный театр",
+      "label": "Opera House",
       "stationId": "opera",
       "stationNumber": 4,
       "routeId": "2",
@@ -2089,7 +2089,7 @@
       "segmentId": "N2B04",
       "at": 0.7580090453959022,
       "kind": "station",
-      "label": "Ашхабадская",
+      "label": "Ashkhabadskaya",
       "stationId": "ashkhabad",
       "stationNumber": 3,
       "routeId": "2",
@@ -2104,7 +2104,7 @@
       "segmentId": "N2B03",
       "at": 0.6730343475986709,
       "kind": "station",
-      "label": "Студёная",
+      "label": "Studyonaya",
       "stationId": "studenaya",
       "stationNumber": 2,
       "routeId": "2",
@@ -2119,7 +2119,7 @@
       "segmentId": "N2B02",
       "at": 0.7307255206893827,
       "kind": "station",
-      "label": "Рынок Средной",
+      "label": "Srednoy Market",
       "stationId": "srednoy",
       "stationNumber": 1,
       "routeId": "2",
@@ -2134,7 +2134,7 @@
       "segmentId": "N2B01",
       "at": 0.621822968320596,
       "kind": "station",
-      "label": "Красносельская",
+      "label": "Krasnoselskaya",
       "stationId": "krasnoselskaya",
       "stationNumber": 17,
       "routeId": "2",
@@ -2149,7 +2149,7 @@
       "segmentId": "N2B17",
       "at": 0.613313658964669,
       "kind": "station",
-      "label": "Максима Горького",
+      "label": "Maksima Gorkogo",
       "stationId": "gorkogo",
       "stationNumber": 16,
       "routeId": "2",
@@ -2164,7 +2164,7 @@
       "segmentId": "N2B16",
       "at": 0.04,
       "kind": "station",
-      "label": "Маслякова",
+      "label": "Maslyakova",
       "stationId": "maslyakova",
       "stationNumber": 15,
       "routeId": "2",
@@ -2179,7 +2179,7 @@
       "segmentId": "N2B15",
       "at": 0.7405290567242893,
       "kind": "station",
-      "label": "Нижегородская",
+      "label": "Nizhegorodskaya",
       "stationId": "nizhegorodskaya",
       "stationNumber": 14,
       "routeId": "2",
@@ -2194,7 +2194,7 @@
       "segmentId": "N2B14",
       "at": 0.6430517513396481,
       "kind": "station",
-      "label": "Добролюбова",
+      "label": "Dobrolyubova",
       "stationId": "dobrolyubova",
       "stationNumber": 13,
       "routeId": "2",
@@ -2209,7 +2209,7 @@
       "segmentId": "N2B13",
       "at": 0.7020629956284655,
       "kind": "station",
-      "label": "Большая Покровская",
+      "label": "Bolshaya Pokrovskaya",
       "stationId": "pokrovskaya",
       "stationNumber": 12,
       "routeId": "2",
@@ -2224,7 +2224,7 @@
       "segmentId": "N2B12",
       "at": 0.7080808981667572,
       "kind": "station",
-      "label": "Чёрный Пруд",
+      "label": "Chyorny Prud",
       "stationId": "chyorny-prud",
       "stationNumber": 11,
       "routeId": "2",
@@ -2240,7 +2240,7 @@
       "segmentId": "N21O01",
       "at": 0.5962765107740662,
       "kind": "station",
-      "label": "Нахимова",
+      "label": "Nakhimova",
       "stationId": "nakhimova",
       "stationNumber": 19,
       "routeId": "21",
@@ -2255,7 +2255,7 @@
       "segmentId": "N21O02",
       "at": 0.5941301358180592,
       "kind": "station",
-      "label": "Глеба Успенского",
+      "label": "Gleba Uspenskogo",
       "stationId": "gleba-uspenskogo",
       "stationNumber": 20,
       "routeId": "21",
@@ -2270,7 +2270,7 @@
       "segmentId": "N21O03",
       "at": 0.5799735466463152,
       "kind": "station",
-      "label": "ЖК «Октава»",
+      "label": "Oktava Residential",
       "stationId": "oktava",
       "stationNumber": 21,
       "routeId": "21",
@@ -2285,7 +2285,7 @@
       "segmentId": "N21O04",
       "at": 0.5264617984003825,
       "kind": "station",
-      "label": "Комарова",
+      "label": "Komarova",
       "stationId": "komarova",
       "stationNumber": 22,
       "routeId": "21",
@@ -2300,7 +2300,7 @@
       "segmentId": "N21O05",
       "at": 0.6240746612266003,
       "kind": "station",
-      "label": "Гончарова",
+      "label": "Goncharova",
       "stationId": "goncharova",
       "stationNumber": 23,
       "routeId": "21",
@@ -2315,7 +2315,7 @@
       "segmentId": "N21O06",
       "at": 0.6518931509474205,
       "kind": "station",
-      "label": "Заречный бульвар",
+      "label": "Zarechny Boulevard",
       "stationId": "zarechny",
       "stationNumber": 24,
       "routeId": "21",
@@ -2330,7 +2330,7 @@
       "segmentId": "N21O07",
       "at": 0.6175793660971396,
       "kind": "station",
-      "label": "Школа №185",
+      "label": "School No. 185",
       "stationId": "school-185",
       "stationNumber": 25,
       "routeId": "21",
@@ -2345,7 +2345,7 @@
       "segmentId": "N21O08",
       "at": 0.5555340096247632,
       "kind": "station",
-      "label": "Центр дополнительного образования",
+      "label": "Further Education Centre",
       "stationId": "education",
       "stationNumber": 26,
       "routeId": "21",
@@ -2360,7 +2360,7 @@
       "segmentId": "N21O09",
       "at": 0.5960553750029453,
       "kind": "station",
-      "label": "Комсомольское шоссе",
+      "label": "Komsomolskoye Highway",
       "stationId": "komsomol-highway",
       "stationNumber": 27,
       "routeId": "21",
@@ -2375,7 +2375,7 @@
       "segmentId": "N21O10",
       "at": 0.5585133225234014,
       "kind": "station",
-      "label": "Комсомольская площадь",
+      "label": "Komsomolskaya Square",
       "stationId": "komsomol-square",
       "stationNumber": 28,
       "routeId": "21",
@@ -2390,7 +2390,7 @@
       "segmentId": "N21O11",
       "at": 0.923181312362342,
       "kind": "station",
-      "label": "Малая Ямская",
+      "label": "Malaya Yamskaya",
       "stationId": "malaya-yamskaya",
       "stationNumber": 29,
       "routeId": "21",
@@ -2405,7 +2405,7 @@
       "segmentId": "N21O12",
       "at": 0.569987755709584,
       "kind": "station",
-      "label": "Красносельская",
+      "label": "Krasnoselskaya",
       "stationId": "krasnoselskaya",
       "stationNumber": 17,
       "routeId": "21",
@@ -2420,7 +2420,7 @@
       "segmentId": "N21I01",
       "at": 0.5865346289716931,
       "kind": "station",
-      "label": "Малая Ямская",
+      "label": "Malaya Yamskaya",
       "stationId": "malaya-yamskaya",
       "stationNumber": 29,
       "routeId": "21",
@@ -2435,7 +2435,7 @@
       "segmentId": "N21I02",
       "at": 0.9230598742714033,
       "kind": "station",
-      "label": "Комсомольская площадь",
+      "label": "Komsomolskaya Square",
       "stationId": "komsomol-square",
       "stationNumber": 28,
       "routeId": "21",
@@ -2450,7 +2450,7 @@
       "segmentId": "N21I03",
       "at": 0.6594120550730833,
       "kind": "station",
-      "label": "Комсомольское шоссе",
+      "label": "Komsomolskoye Highway",
       "stationId": "komsomol-highway",
       "stationNumber": 27,
       "routeId": "21",
@@ -2465,7 +2465,7 @@
       "segmentId": "N21I04",
       "at": 0.5956589447347231,
       "kind": "station",
-      "label": "Центр дополнительного образования",
+      "label": "Further Education Centre",
       "stationId": "education",
       "stationNumber": 26,
       "routeId": "21",
@@ -2480,7 +2480,7 @@
       "segmentId": "N21I05",
       "at": 0.5555333827279629,
       "kind": "station",
-      "label": "Школа №185",
+      "label": "School No. 185",
       "stationId": "school-185",
       "stationNumber": 25,
       "routeId": "21",
@@ -2495,7 +2495,7 @@
       "segmentId": "N21I06",
       "at": 0.6180961496307975,
       "kind": "station",
-      "label": "Заречный бульвар",
+      "label": "Zarechny Boulevard",
       "stationId": "zarechny",
       "stationNumber": 24,
       "routeId": "21",
@@ -2510,7 +2510,7 @@
       "segmentId": "N21I07",
       "at": 0.6512696403420368,
       "kind": "station",
-      "label": "Гончарова",
+      "label": "Goncharova",
       "stationId": "goncharova",
       "stationNumber": 23,
       "routeId": "21",
@@ -2525,7 +2525,7 @@
       "segmentId": "N21I08",
       "at": 0.6240742554816332,
       "kind": "station",
-      "label": "Комарова",
+      "label": "Komarova",
       "stationId": "komarova",
       "stationNumber": 22,
       "routeId": "21",
@@ -2540,7 +2540,7 @@
       "segmentId": "N21I09",
       "at": 0.527323669293791,
       "kind": "station",
-      "label": "ЖК «Октава»",
+      "label": "Oktava Residential",
       "stationId": "oktava",
       "stationNumber": 21,
       "routeId": "21",
@@ -2555,7 +2555,7 @@
       "segmentId": "N21I10",
       "at": 0.5784948658571496,
       "kind": "station",
-      "label": "Глеба Успенского",
+      "label": "Gleba Uspenskogo",
       "stationId": "gleba-uspenskogo",
       "stationNumber": 20,
       "routeId": "21",
@@ -2570,7 +2570,7 @@
       "segmentId": "N21I11",
       "at": 0.5941304615019452,
       "kind": "station",
-      "label": "Нахимова",
+      "label": "Nakhimova",
       "stationId": "nakhimova",
       "stationNumber": 19,
       "routeId": "21",
@@ -2585,7 +2585,7 @@
       "segmentId": "N21I12",
       "at": 0.6068219960506289,
       "kind": "station",
-      "label": "Парк «Дубки»",
+      "label": "Park Dubki",
       "stationId": "park-dubki",
       "stationNumber": 18,
       "routeId": "21",
@@ -2601,7 +2601,7 @@
       "segmentId": "N2B17",
       "at": 0.613313658964669,
       "kind": "station",
-      "label": "Максима Горького",
+      "label": "Maksima Gorkogo",
       "stationId": "gorkogo",
       "stationNumber": 16,
       "routeId": "21",
@@ -2616,7 +2616,7 @@
       "segmentId": "N2B16",
       "at": 0.04,
       "kind": "station",
-      "label": "Маслякова",
+      "label": "Maslyakova",
       "stationId": "maslyakova",
       "stationNumber": 15,
       "routeId": "21",
@@ -2631,7 +2631,7 @@
       "segmentId": "N2B15",
       "at": 0.7405290567242893,
       "kind": "station",
-      "label": "Нижегородская",
+      "label": "Nizhegorodskaya",
       "stationId": "nizhegorodskaya",
       "stationNumber": 14,
       "routeId": "21",
@@ -2646,7 +2646,7 @@
       "segmentId": "N2B14",
       "at": 0.6430517513396481,
       "kind": "station",
-      "label": "Добролюбова",
+      "label": "Dobrolyubova",
       "stationId": "dobrolyubova",
       "stationNumber": 13,
       "routeId": "21",
@@ -2661,7 +2661,7 @@
       "segmentId": "N2B13",
       "at": 0.7020629956284655,
       "kind": "station",
-      "label": "Большая Покровская",
+      "label": "Bolshaya Pokrovskaya",
       "stationId": "pokrovskaya",
       "stationNumber": 12,
       "routeId": "21",
@@ -2676,7 +2676,7 @@
       "segmentId": "N2B12",
       "at": 0.7080808981667572,
       "kind": "station",
-      "label": "Чёрный Пруд",
+      "label": "Chyorny Prud",
       "stationId": "chyorny-prud",
       "stationNumber": 11,
       "routeId": "21",
@@ -2694,7 +2694,7 @@
       "segmentId": "N2A11",
       "at": 0.6583160434334588,
       "kind": "station",
-      "label": "Большая Покровская",
+      "label": "Bolshaya Pokrovskaya",
       "stationId": "pokrovskaya",
       "stationNumber": 12,
       "routeId": "21",
@@ -2709,7 +2709,7 @@
       "segmentId": "N2A12",
       "at": 0.7023001770535773,
       "kind": "station",
-      "label": "Добролюбова",
+      "label": "Dobrolyubova",
       "stationId": "dobrolyubova",
       "stationNumber": 13,
       "routeId": "21",
@@ -2724,7 +2724,7 @@
       "segmentId": "N2A13",
       "at": 0.6484089300466346,
       "kind": "station",
-      "label": "Нижегородская",
+      "label": "Nizhegorodskaya",
       "stationId": "nizhegorodskaya",
       "stationNumber": 14,
       "routeId": "21",
@@ -2739,7 +2739,7 @@
       "segmentId": "N2A14",
       "at": 0.1454731605254665,
       "kind": "station",
-      "label": "Маслякова",
+      "label": "Maslyakova",
       "stationId": "maslyakova",
       "stationNumber": 15,
       "routeId": "21",
@@ -2754,7 +2754,7 @@
       "segmentId": "N2A15",
       "at": 0.4964263948688179,
       "kind": "station",
-      "label": "Максима Горького",
+      "label": "Maksima Gorkogo",
       "stationId": "gorkogo",
       "stationNumber": 16,
       "routeId": "21",
@@ -2769,7 +2769,7 @@
       "segmentId": "N2A16",
       "at": 0.6133501537329267,
       "kind": "station",
-      "label": "Красносельская",
+      "label": "Krasnoselskaya",
       "stationId": "krasnoselskaya",
       "stationNumber": 17,
       "routeId": "21",
@@ -2784,7 +2784,7 @@
       "segmentId": "N2A03",
       "at": 0.12,
       "kind": "traffic",
-      "label": "Белинского × Ошарская approach detector",
+      "label": "Belinskogo × Osharskaya approach detector",
       "signalId": "SG-OSH-A",
       "render": false
     },
@@ -2793,7 +2793,7 @@
       "segmentId": "N2B04",
       "at": 0.48000000000000004,
       "kind": "traffic",
-      "label": "Белинского × Ошарская approach detector",
+      "label": "Belinskogo × Osharskaya approach detector",
       "signalId": "SG-OSH-B",
       "render": false
     },
@@ -2802,7 +2802,7 @@
       "segmentId": "N2A06",
       "at": 0.48000000000000004,
       "kind": "traffic",
-      "label": "Сенная площадь approach detector",
+      "label": "Sennaya Square approach detector",
       "signalId": "SG-SEN-A",
       "render": false
     },
@@ -2811,7 +2811,7 @@
       "segmentId": "N2B08",
       "at": 0.48000000000000004,
       "kind": "traffic",
-      "label": "Сенная площадь approach detector",
+      "label": "Sennaya Square approach detector",
       "signalId": "SG-SEN-B",
       "render": false
     },
@@ -2820,7 +2820,7 @@
       "segmentId": "N2A14",
       "at": 0.48000000000000004,
       "kind": "traffic",
-      "label": "Маслякова × Ильинская approach detector",
+      "label": "Maslyakova × Ilyinskaya approach detector",
       "signalId": "SG-MAS-A",
       "render": false
     },
@@ -2829,7 +2829,7 @@
       "segmentId": "N2B16",
       "at": 0.48000000000000004,
       "kind": "traffic",
-      "label": "Маслякова × Ильинская approach detector",
+      "label": "Maslyakova × Ilyinskaya approach detector",
       "signalId": "SG-MAS-B",
       "render": false
     },
@@ -2838,7 +2838,7 @@
       "segmentId": "N2A10",
       "at": 0.735,
       "kind": "traffic",
-      "label": "Чёрный Пруд · merge approach detector",
+      "label": "Chyorny Prud · merge approach detector",
       "signalId": "SG-CHP-R2",
       "render": false
     },
@@ -2847,7 +2847,7 @@
       "segmentId": "N21-CHP-LOOP",
       "at": 0.04,
       "kind": "traffic",
-      "label": "Чёрный Пруд · merge approach detector",
+      "label": "Chyorny Prud · merge approach detector",
       "signalId": "SG-CHP-R21",
       "render": false
     },
@@ -2857,7 +2857,7 @@
       "at": 0.72,
       "kind": "switch",
       "switchId": "SW-21-KRS",
-      "label": "Route reader · Красносельская",
+      "label": "Route reader · Krasnoselskaya",
       "render": false
     },
     {
@@ -2866,7 +2866,7 @@
       "at": 0.72,
       "kind": "switch",
       "switchId": "SW-KRS-EAST",
-      "label": "Route reader · Красносельская восток",
+      "label": "Route reader · Krasnoselskaya east",
       "render": false
     },
     {
@@ -2875,7 +2875,7 @@
       "at": 0.72,
       "kind": "switch",
       "switchId": "SW-KRS-WEST",
-      "label": "Route reader · Красносельская запад",
+      "label": "Route reader · Krasnoselskaya west",
       "render": false
     },
     {
@@ -2884,7 +2884,7 @@
       "at": 0.72,
       "kind": "switch",
       "switchId": "SW-21-CHP",
-      "label": "Route reader · Чёрный Пруд",
+      "label": "Route reader · Chyorny Prud",
       "render": false
     }
   ],
@@ -2895,7 +2895,7 @@
       "segmentId": "N2A03",
       "at": 0.32,
       "clearAt": 0.6,
-      "label": "Белинского × Ошарская",
+      "label": "Belinskogo × Osharskaya",
       "render": true,
       "amberSeconds": 3,
       "tramGreenSeconds": 8,
@@ -2907,7 +2907,7 @@
       "segmentId": "N2B04",
       "at": 0.68,
       "clearAt": 0.9600000000000001,
-      "label": "Белинского × Ошарская",
+      "label": "Belinskogo × Osharskaya",
       "render": true,
       "amberSeconds": 3,
       "tramGreenSeconds": 8,
@@ -2919,7 +2919,7 @@
       "segmentId": "N2A06",
       "at": 0.68,
       "clearAt": 0.9600000000000001,
-      "label": "Сенная площадь",
+      "label": "Sennaya Square",
       "render": true,
       "amberSeconds": 3,
       "tramGreenSeconds": 8,
@@ -2931,7 +2931,7 @@
       "segmentId": "N2B08",
       "at": 0.68,
       "clearAt": 0.9600000000000001,
-      "label": "Сенная площадь",
+      "label": "Sennaya Square",
       "render": true,
       "amberSeconds": 3,
       "tramGreenSeconds": 8,
@@ -2943,7 +2943,7 @@
       "segmentId": "N2A14",
       "at": 0.68,
       "clearAt": 0.9600000000000001,
-      "label": "Маслякова × Ильинская",
+      "label": "Maslyakova × Ilyinskaya",
       "render": true,
       "amberSeconds": 3,
       "tramGreenSeconds": 8,
@@ -2955,7 +2955,7 @@
       "segmentId": "N2B16",
       "at": 0.68,
       "clearAt": 0.9600000000000001,
-      "label": "Маслякова × Ильинская",
+      "label": "Maslyakova × Ilyinskaya",
       "render": true,
       "amberSeconds": 3,
       "tramGreenSeconds": 8,
@@ -2967,7 +2967,7 @@
       "segmentId": "N2A10",
       "at": 0.935,
       "clearAt": 0.995,
-      "label": "Чёрный Пруд · merge",
+      "label": "Chyorny Prud · merge",
       "render": true,
       "amberSeconds": 3,
       "tramGreenSeconds": 8,
@@ -2979,7 +2979,7 @@
       "segmentId": "N21-CHP-LOOP",
       "at": 0.6,
       "clearAt": 0.995,
-      "label": "Чёрный Пруд · merge",
+      "label": "Chyorny Prud · merge",
       "render": true,
       "amberSeconds": 3,
       "tramGreenSeconds": 8,
@@ -2992,28 +2992,28 @@
       "nodeId": "A17",
       "mainSegmentId": "KRS-N-E",
       "branchSegmentId": "KRS-N-W",
-      "label": "Красносельская · северная стрелка"
+      "label": "Krasnoselskaya · north switch"
     },
     {
       "id": "SW-KRS-EAST",
       "nodeId": "KRS-E-IN",
       "mainSegmentId": "KRS-E-N",
       "branchSegmentId": "KRS-E-W",
-      "label": "Красносельская · восточная стрелка"
+      "label": "Krasnoselskaya · east switch"
     },
     {
       "id": "SW-KRS-WEST",
       "nodeId": "KRS-W-IN",
       "mainSegmentId": "KRS-W-E",
       "branchSegmentId": "KRS-W-N",
-      "label": "Красносельская · западная стрелка"
+      "label": "Krasnoselskaya · west switch"
     },
     {
       "id": "SW-21-CHP",
       "nodeId": "B11",
       "mainSegmentId": "N2B11",
       "branchSegmentId": "N21-CHP-LOOP",
-      "label": "Чёрный Пруд · Route 2 / Route 21",
+      "label": "Chyorny Prud · Route 2 / Route 21",
       "displayArmLengthPx": 46,
       "showArmLabels": false
     }
@@ -3021,7 +3021,7 @@
   "junctionConflictZones": [
     {
       "id": "KRS-TRIANGLE",
-      "label": "Красносельская · стрелочный треугольник",
+      "label": "Krasnoselskaya · switch triangle",
       "segmentIds": [
         "KRS-N-E",
         "KRS-N-W",
@@ -3035,9 +3035,9 @@
   "depots": [
     {
       "id": "DEPOT-1",
-      "label": "Трамвайное депо №1",
+      "label": "Tram depot No. 1",
       "shortName": "DEPOT 1",
-      "note": "Route 2 · off-map service connection from Полтавская",
+      "note": "Route 2 · off-map service connection from Poltavskaya",
       "kind": "depot",
       "point": {
         "x": 862,
@@ -3054,7 +3054,7 @@
           "portalAt": 0.45,
           "exitSegmentId": "N2A05",
           "exitProgress": 0.08,
-          "lastPassengerStop": "Полтавская",
+          "lastPassengerStop": "Poltavskaya",
           "trackPoints": [
             {
               "x": 704.8622520004383,
@@ -3084,7 +3084,7 @@
           "portalAt": 0.45,
           "exitSegmentId": "N2B05",
           "exitProgress": 0.08,
-          "lastPassengerStop": "Полтавская",
+          "lastPassengerStop": "Poltavskaya",
           "trackPoints": [
             {
               "x": 685.3225029905985,
@@ -3108,9 +3108,9 @@
     },
     {
       "id": "DEPOT-2",
-      "label": "Трамвайное депо №2",
+      "label": "Tram depot No. 2",
       "shortName": "DEPOT 2",
-      "note": "Route 21 · off-map service run via Парк «Дубки»",
+      "note": "Route 21 · off-map service run via Park Dubki",
       "kind": "depot",
       "point": {
         "x": 135,
@@ -3128,7 +3128,7 @@
           "portalAt": 0.45,
           "exitSegmentId": "N21O01",
           "exitProgress": 0.08,
-          "lastPassengerStop": "Парк «Дубки»",
+          "lastPassengerStop": "Park Dubki",
           "trackPoints": [
             {
               "x": 264.9768348355252,
@@ -3152,7 +3152,7 @@
     },
     {
       "id": "TURNBACK-1",
-      "label": "Разворотный тупик · Высшая школа экономики",
+      "label": "Turnback siding · Higher School of Economics",
       "shortName": "TURNBACK 1",
       "note": "Route 2 · short-turn siding, not a full depot",
       "kind": "turnback",
@@ -3172,7 +3172,7 @@
           "portalAt": 0.5,
           "exitSegmentId": "N2A09",
           "exitProgress": 0.45,
-          "lastPassengerStop": "Высшая школа экономики",
+          "lastPassengerStop": "Higher School of Economics",
           "trackPoints": [
             {
               "x": 677.9002529625437,
@@ -3198,7 +3198,7 @@
           "portalAt": 0.5,
           "exitSegmentId": "N2B09",
           "exitProgress": 0.45,
-          "lastPassengerStop": "Высшая школа экономики",
+          "lastPassengerStop": "Higher School of Economics",
           "trackPoints": [
             {
               "x": 708.7880127113579,
@@ -3218,7 +3218,7 @@
     },
     {
       "id": "TURNBACK-2",
-      "label": "Разворотный тупик · Заречный бульвар",
+      "label": "Turnback siding · Zarechny Boulevard",
       "shortName": "TURNBACK 2",
       "note": "Route 21 · short-turn siding, not a full depot",
       "kind": "turnback",
@@ -3238,7 +3238,7 @@
           "portalAt": 0.5,
           "exitSegmentId": "N21O06",
           "exitProgress": 0.45,
-          "lastPassengerStop": "Заречный бульвар",
+          "lastPassengerStop": "Zarechny Boulevard",
           "trackPoints": [
             {
               "x": 335.06137845464195,
@@ -3264,7 +3264,7 @@
           "portalAt": 0.5,
           "exitSegmentId": "N21I06",
           "exitProgress": 0.45,
-          "lastPassengerStop": "Заречный бульвар",
+          "lastPassengerStop": "Zarechny Boulevard",
           "trackPoints": [
             {
               "x": 339.0509507435042,
@@ -3759,7 +3759,7 @@
   "predeployedFleet": true,
   "metersPerReferenceUnit": 14.615893918811306,
   "mapContext": {
-    "title": "Нижний Новгород · routes 2 + 21",
+    "title": "Nizhny Novgorod · routes 2 + 21",
     "subtitle": "Shared-track operational topology",
     "sourceLabel": "OSM relations 227555 + 240660 · turnout ways mapped",
     "lines": [
@@ -4044,13 +4044,13 @@
   "tractionPowerSystem": {
     "nominalVoltageV": 600,
     "label": "Nizhny Novgorod 600 V DC traction sections",
-    "sourceLabel": "Nizhny Novgorod City Duma decision №96 (25 May 2022) · public property addresses",
+    "sourceLabel": "Nizhny Novgorod City Duma decision No. 96 (25 May 2022) · public property addresses",
     "modelNote": "Five route-relevant substation buildings are verified by address. Exact feeder breakers and section-post boundaries remain reconstructed from nearest-supply midpoints until an operator diagram is available.",
     "substations": [
       {
         "id": "NN-TP27-GLEBA",
-        "label": "Тяговая подстанция №27 · Глеба Успенского, 20",
-        "sectionLabel": "Парк Дубки — Глеба Успенского",
+        "label": "Traction substation No. 27 · Gleba Uspenskogo, 20",
+        "sectionLabel": "Park Dubki — Gleba Uspenskogo",
         "point": {
           "x": 292.0638061108184,
           "y": 508.3042038922431
@@ -4058,12 +4058,12 @@
         "nominalVoltageV": 600,
         "maxPowerKw": 1800,
         "confidence": "verified-address",
-        "evidence": "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022"
+        "evidence": "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022"
       },
       {
         "id": "NN-TP8-OKTYABRSKOY",
-        "label": "Тяговая подстанция №8 · Октябрьской Революции, 78А",
-        "sectionLabel": "Заречная часть — Комсомольская площадь",
+        "label": "Traction substation No. 8 · Oktyabrskoy Revolyutsii, 78A",
+        "sectionLabel": "Zarechny side — Komsomolskaya Square",
         "point": {
           "x": 360.1053578062856,
           "y": 285.401239146071
@@ -4071,12 +4071,12 @@
         "nominalVoltageV": 600,
         "maxPowerKw": 1800,
         "confidence": "verified-address",
-        "evidence": "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; marker snapped to route corridor"
+        "evidence": "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022; marker snapped to route corridor"
       },
       {
         "id": "NN-TP-BELINSKOGO",
-        "label": "Тяговая подстанция · Белинского, 105А",
-        "sectionLabel": "Красносельская — Белинского",
+        "label": "Traction substation · Belinskogo, 105A",
+        "sectionLabel": "Krasnoselskaya — Belinskogo",
         "point": {
           "x": 672.5268104323768,
           "y": 146.94576540321577
@@ -4084,12 +4084,12 @@
         "nominalVoltageV": 600,
         "maxPowerKw": 1800,
         "confidence": "verified-address",
-        "evidence": "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022"
+        "evidence": "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022"
       },
       {
         "id": "NN-TP-BPECHERSKAYA",
-        "label": "Тяговая подстанция №30 · Большая Печёрская, 11Б",
-        "sectionLabel": "Сенная — Большая Печёрская",
+        "label": "Traction substation No. 30 · Bolshaya Pecherskaya, 11B",
+        "sectionLabel": "Sennaya — Bolshaya Pecherskaya",
         "point": {
           "x": 746.3793278130179,
           "y": 93.58823498780839
@@ -4097,12 +4097,12 @@
         "nominalVoltageV": 600,
         "maxPowerKw": 1800,
         "confidence": "verified-address",
-        "evidence": "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; public map listing identifies TP-30"
+        "evidence": "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022; public map listing identifies TP-30"
       },
       {
         "id": "NN-TP15-LUDILNY",
-        "label": "Тяговая подстанция №15 · Лудильный пер., 2З",
-        "sectionLabel": "Чёрный Пруд — Нижегородская",
+        "label": "Traction substation No. 15 · Ludilny Lane, 2Z",
+        "sectionLabel": "Chyorny Prud — Nizhegorodskaya",
         "point": {
           "x": 603.2255822054285,
           "y": 100.59383821865777
@@ -4110,13 +4110,13 @@
         "nominalVoltageV": 600,
         "maxPowerKw": 1800,
         "confidence": "verified-address",
-        "evidence": "Решение городской Думы Нижнего Новгорода №96 от 25.05.2022; marker snapped to route corridor"
+        "evidence": "Nizhny Novgorod City Duma decision No. 96 of 25.05.2022; marker snapped to route corridor"
       }
     ],
     "sections": [
       {
         "id": "SECTION-NN-TP27-GLEBA",
-        "label": "Парк Дубки — Глеба Успенского",
+        "label": "Park Dubki — Gleba Uspenskogo",
         "substationId": "NN-TP27-GLEBA",
         "segmentIds": [
           "N21O01",
@@ -4147,7 +4147,7 @@
       },
       {
         "id": "SECTION-NN-TP8-OKTYABRSKOY",
-        "label": "Заречная часть — Комсомольская площадь",
+        "label": "Zarechny side — Komsomolskaya Square",
         "substationId": "NN-TP8-OKTYABRSKOY",
         "segmentIds": [
           "N21O07",
@@ -4175,7 +4175,7 @@
       },
       {
         "id": "SECTION-NN-TP-BELINSKOGO",
-        "label": "Красносельская — Белинского",
+        "label": "Krasnoselskaya — Belinskogo",
         "substationId": "NN-TP-BELINSKOGO",
         "segmentIds": [
           "N2A02",
@@ -4201,7 +4201,7 @@
       },
       {
         "id": "SECTION-NN-TP-BPECHERSKAYA",
-        "label": "Сенная — Большая Печёрская",
+        "label": "Sennaya — Bolshaya Pecherskaya",
         "substationId": "NN-TP-BPECHERSKAYA",
         "segmentIds": [
           "N2A06",
@@ -4227,7 +4227,7 @@
       },
       {
         "id": "SECTION-NN-TP15-LUDILNY",
-        "label": "Чёрный Пруд — Нижегородская",
+        "label": "Chyorny Prud — Nizhegorodskaya",
         "substationId": "NN-TP15-LUDILNY",
         "segmentIds": [
           "N2A11",
