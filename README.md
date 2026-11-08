@@ -118,12 +118,16 @@ on İzmir and Nizhny Novgorod Routes 2 + 21, an independent per-step checker
 found no collision, separation, overtaking, crossing or locked-points
 violation, and headway regulation brought the İzmir service back to its
 timetable pattern within 48–60 minutes of a 2–10-minute hold. Against a
-no-storage reference, reactive wayside flywheels cut grid energy per
-vehicle-km by 22.0% on İzmir and 23.1–23.9% on the Nizhny Novgorod networks,
-and the İzmir peak averaged over 15 minutes (a common billed-demand interval)
-by 22.6%. These are simulator checks and comparative results, not certified
-signalling or calibrated measurements. The fault injection, disturbance,
-braking and energy studies, their limitations and figures are in
+no-storage reference on the same service, reactive wayside flywheels cut grid
+energy per vehicle-km by 22.0% on İzmir and 23.1–23.9% on the Nizhny Novgorod
+networks; across time of day and fleet size the İzmir saving stays in
+21.2–25.1%. Averaged over 15 minutes (a common billed-demand interval), the
+İzmir peak falls by 22.6%, while the instantaneous peak reduction ranges from
+0% to 19.9%. The current predictive controller gives the same results as
+reactive flywheels: its traction guidance does not act while the flywheels
+are installed. These are simulator checks and comparative results, not
+certified signalling or calibrated measurements. The fault injection,
+disturbance, braking and energy studies, their limitations and figures are in
 [docs/RESULTS.md](docs/RESULTS.md):
 
 ```bash
