@@ -215,10 +215,13 @@ function summarize(run, reference) {
     safety_violations: run.safety.totalViolations,
     min_gap_m: run.safety.minGapMeters?.toFixed(2) ?? "",
     core_runtime: "cpp-wasm",
-    git_commit: gitCommit(),
+    git_commit: COMMIT,
   };
 }
 
+// Record the commit before any child runs, so later edits to tracked files
+// (docs, plots) during a long run cannot mark the results dirty.
+const COMMIT = gitCommit();
 const plan = [
   ...Object.keys(MODES).map((mode) => ({ kind: "undisturbed", holdMinutes: 0, mode })),
   ...[2, 5, 10].flatMap((holdMinutes) => ["on", "off"].map((mode) => ({ kind: "hold", holdMinutes, mode }))),
@@ -239,7 +242,7 @@ const series = runs.map((run) => ({
   disturbanceAt: run.disturbanceAt, plannedHeadwaySeconds: run.plannedHeadwaySeconds,
   rolling: rolling(run),
 }));
-await writeFile(`${OUTPUT_DIR}disturbance-series.json`, `${JSON.stringify({ gitCommit: gitCommit(), node: process.version, scenario: SCENARIO, stop: STOP, startMinute: START_MINUTE, onsetSeconds: ONSET_SECONDS, horizonSeconds: HORIZON_SECONDS, rollingSeconds: ROLLING_SECONDS, tolerance: TOLERANCE, series }, null, 2)}\n`, "utf8");
+await writeFile(`${OUTPUT_DIR}disturbance-series.json`, `${JSON.stringify({ gitCommit: COMMIT, node: process.version, scenario: SCENARIO, stop: STOP, startMinute: START_MINUTE, onsetSeconds: ONSET_SECONDS, horizonSeconds: HORIZON_SECONDS, rollingSeconds: ROLLING_SECONDS, tolerance: TOLERANCE, series }, null, 2)}\n`, "utf8");
 
 console.log(`\nWrote ${OUTPUT_DIR}disturbance.csv and disturbance-series.json`);
 for (const row of rows) {

@@ -265,15 +265,19 @@ def fig6_recovery_vs_size(csv_path: Path, out_dir: Path, horizon_minutes: float)
         for x, y, ok in zip(rows["hold_min"], ys, recovered):
             ax.plot([x], [y], marker=style["marker"] if ok else "x", markersize=7, color=style["color"],
                     markerfacecolor=style["color"] if ok else "none", linestyle="none")
-            ax.annotate(f"{y:.0f}" if ok else "not\nrecovered", (x, y), xytext=(0, 7), textcoords="offset points",
-                        ha="center", va="bottom", fontsize=8, color=INK)
+            # Recovered values below their marker (the re-sync line runs above); unrecovered above the horizon.
+            ax.annotate(f"{y:.0f}" if ok else "not\nrecovered", (x, y), xytext=(0, -9 if ok else 7),
+                        textcoords="offset points", ha="center", va="top" if ok else "bottom", fontsize=8, color=INK)
         if mode == "on":
             resync = rows["resync_s"] / 60
             ax.plot(rows["hold_min"], resync, color=style["color"], linestyle=":", linewidth=1.2, marker="o",
                     markersize=4, markerfacecolor="white", label="Regulation on, back on pattern (|ΔCV| ≤ 0.01)")
+            for x, y in zip(rows["hold_min"], resync):
+                ax.annotate(f"{y:.0f}", (x, y), xytext=(0, 5), textcoords="offset points", ha="center",
+                            va="bottom", fontsize=7.5, color=INK_SECONDARY)
     ax.axhline(horizon_minutes, color=INK_SECONDARY, linewidth=0.8, linestyle=":")
-    ax.annotate(f"horizon {horizon_minutes:.0f} min", (1.0, horizon_minutes), xycoords=("axes fraction", "data"),
-                xytext=(-2, 3), textcoords="offset points", ha="right", fontsize=8, color=INK_SECONDARY)
+    ax.annotate(f"horizon {horizon_minutes:.0f} min", (0.5, horizon_minutes), xycoords=("axes fraction", "data"),
+                xytext=(0, -4), textcoords="offset points", ha="center", va="top", fontsize=8, color=INK_SECONDARY)
     ax.set_xticks(sorted(holds["hold_min"].unique()))
     ax.set_xlabel("Hold at Konak İskele (min)", fontsize=9, color=INK)
     ax.set_ylabel("Recovery time (min)", fontsize=9, color=INK)
@@ -290,22 +294,30 @@ def fig7_stopping_distance(csv_path: Path, out_dir: Path) -> None:
     for mode, style, label in (("service", ON_STYLE, "Service brake (1.25 m/s²)"), ("emergency", OFF_STYLE, "Emergency brake (2.4 m/s²)")):
         for load, fill in (("empty", True), ("full", False)):
             rows = df[(df["mode"] == mode) & (df["load"] == load)].sort_values("initial_speed_kmh")
+            # Empty (filled) and full (open) coincide: the brakes reach the commanded
+            # deceleration at either load, so only one legend entry per brake mode.
             ax.plot(rows["initial_speed_kmh"], rows["stopping_distance_m"], color=style["color"],
                     linestyle=style["linestyle"], linewidth=1.6 if fill else 0, marker=style["marker"],
                     markersize=6 if fill else 10, markerfacecolor=style["color"] if fill else "none",
-                    label=f"{label}, {load}")
+                    label=label if fill else None)
             if fill:
+                above = mode == "service"
                 for x, y in zip(rows["initial_speed_kmh"], rows["stopping_distance_m"]):
-                    ax.annotate(f"{y:.0f} m", (x, y), xytext=(-4, 6), textcoords="offset points", ha="right", fontsize=8, color=INK)
+                    first = x == rows["initial_speed_kmh"].min()
+                    offset = ((-4, 14) if first else (-6, 8)) if above else (8, -2)
+                    ax.annotate(f"{y:.0f} m", (x, y), xytext=offset, textcoords="offset points",
+                                ha="left" if (first or not above) else "right", va="bottom" if above else "top",
+                                fontsize=8, color=INK)
     ax.axvline(40, color=INK_SECONDARY, linewidth=0.8, linestyle=":")
-    ax.annotate("line speed limit", (40, 1.0), xycoords=("data", "axes fraction"), xytext=(3, -10),
-                textcoords="offset points", fontsize=8, color=INK_SECONDARY)
+    ax.annotate("line speed limit (40 km/h)", (40, 0.98), xycoords=("data", "axes fraction"), xytext=(4, 0),
+                textcoords="offset points", va="top", fontsize=8, color=INK_SECONDARY)
+    ax.set_xlim(16, 78)
     ax.set_xticks(sorted(df["initial_speed_kmh"].unique()))
     ax.set_xlabel("Initial speed (km/h)", fontsize=9, color=INK)
     ax.set_ylabel("Stopping distance (m)", fontsize=9, color=INK)
-    ax.set_ylim(0, df["stopping_distance_m"].max() * 1.15)
+    ax.set_ylim(0, df["stopping_distance_m"].max() * 1.2)
     style_axes(ax)
-    ax.legend(frameon=False, fontsize=7.5, loc="upper left")
+    ax.legend(frameon=False, fontsize=7.5, loc="upper left", bbox_to_anchor=(0.0, 0.9))
     fig.tight_layout()
     save(fig, out_dir, "fig7_stopping_distance")
 

@@ -224,6 +224,9 @@ if (values.run) {
   process.exit(0);
 }
 
+// Record the commit before any child runs, so later edits to tracked files
+// (docs, plots) during a long run cannot mark the results dirty.
+const COMMIT = gitCommit();
 const networks = values.networks.split(",");
 const ablation = values.ablation;
 const seedCount = ablation ? Math.min(3, Number(values.seeds)) : Number(values.seeds);
@@ -272,12 +275,12 @@ const rows = results.map((result) => ({
   vehicle_km: result.vehicleKm.toFixed(1),
   on_time_pct: result.onTimePercentMean.toFixed(1),
   core_runtime: "cpp-wasm",
-  git_commit: gitCommit(),
+  git_commit: COMMIT,
 }));
 const columns = Object.keys(rows[0]);
 const stem = ablation ? "safety-stress-ablation" : "safety-stress";
 await writeCsv(`${OUTPUT_DIR}${stem}.csv`, columns, rows);
-await writeFile(`${OUTPUT_DIR}${stem}.json`, `${JSON.stringify({ gitCommit: gitCommit(), node: process.version, hours, meanInterval, startMinute, warmupSeconds, results }, null, 2)}\n`, "utf8");
+await writeFile(`${OUTPUT_DIR}${stem}.json`, `${JSON.stringify({ gitCommit: COMMIT, node: process.version, hours, meanInterval, startMinute, warmupSeconds, results }, null, 2)}\n`, "utf8");
 
 const totalViolations = results.reduce((sum, result) => sum + result.oracle.totalViolations, 0);
 console.log(`\nWrote ${OUTPUT_DIR}${stem}.csv and .json`);
