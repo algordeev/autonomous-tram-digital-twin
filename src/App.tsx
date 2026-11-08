@@ -2518,7 +2518,7 @@ export default function Home() {
           </span>
           <div>
             <h1>Autonomous Tram Digital Twin</h1>
-            <p>Arduino control logic · browser simulation</p>
+            <p>Network dispatch &amp; energy research simulator</p>
           </div>
         </div>
         <div className="health-strip" aria-label="System status">
