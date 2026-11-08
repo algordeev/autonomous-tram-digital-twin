@@ -4,6 +4,7 @@
 //
 //   npm run automation:safety                   # 8 seeds × 4 h per network
 //   npm run automation:safety -- --seeds 3 --hours 1
+//   npm run automation:safety -- --ablation     # each fault type alone, 3 seeds
 //
 // Faults (exponential inter-arrival, mean --mean-interval seconds):
 //   dropped-detector      every entry and clear observation of one signal is
@@ -51,6 +52,8 @@ const { values } = parseArgs({
     networks: { type: "string", default: "izmir-konak,nizhny-routes-2-21" },
     jobs: { type: "string" },
     trace: { type: "boolean", default: false },
+    types: { type: "string" },
+    ablation: { type: "boolean", default: false },
   },
 });
 const hours = Number(values.hours);
@@ -61,10 +64,10 @@ const warmupSeconds = Number(values["warmup-minutes"]) * 60;
 const FAULT_TYPES = ["dropped-detector", "duplicate-entry", "wrong-tram-clear", "missing-rear-clear", "foreign-switch-request"];
 
 class FaultInjector {
-  constructor(engine, random, startAt) {
+  constructor(engine, random, startAt, types = FAULT_TYPES) {
     this.engine = engine;
     this.random = random;
-    this.types = FAULT_TYPES.filter((type) => type !== "foreign-switch-request" || engine.scenario.switches.length > 0);
+    this.types = types.filter((type) => type !== "foreign-switch-request" || engine.scenario.switches.length > 0);
     this.signals = engine.scenario.signals.filter((signal) => engine.trafficControllers.has(signal.controllerId ?? signal.id));
     this.switchReaders = engine.scenario.readers.filter((reader) => reader.kind === "switch");
     this.counts = Object.fromEntries(FAULT_TYPES.map((type) => [type, 0]));
@@ -155,12 +158,12 @@ class FaultInjector {
   }
 }
 
-async function runOne(scenarioId, seed) {
+async function runOne(scenarioId, seed, types) {
   await initializeCore();
   const started = Date.now();
   const engine = createEngine({ scenarioId, startMinute });
   const oracle = new SafetyOracle(engine);
-  const injector = seed > 0 ? new FaultInjector(engine, seededRandom(seed), warmupSeconds) : null;
+  const injector = seed > 0 ? new FaultInjector(engine, seededRandom(seed), warmupSeconds, types) : null;
   const events = { clearanceTimeout: 0, unexpectedEntry: 0, staleGrant: 0, switchQueued: 0 };
   const addEvent = engine.addEvent.bind(engine);
   engine.addEvent = (tone, message) => {
@@ -212,29 +215,40 @@ async function runOne(scenarioId, seed) {
 }
 
 if (values.run) {
-  const result = await runOne(values.scenario, Number(values.seed));
+  const types = values.types ? values.types.split(",") : FAULT_TYPES;
+  const unknown = types.filter((type) => !FAULT_TYPES.includes(type));
+  if (unknown.length > 0) throw new Error(`unknown fault types: ${unknown.join(", ")}`);
+  const result = await runOne(values.scenario, Number(values.seed), types);
+  result.faultTypes = types;
   await new Promise((resolve) => process.stdout.write(`${JSON.stringify(result)}\n`, resolve));
   process.exit(0);
 }
 
 const networks = values.networks.split(",");
-const seedCount = Number(values.seeds);
-const seeds = [0, ...Array.from({ length: seedCount }, (_, index) => index + 1)];
-const jobs = networks.flatMap((scenario) => seeds.map((seed) => ({
-  scenario, seed,
-  args: ["--run", "--scenario", scenario, "--seed", String(seed), "--hours", String(hours),
-    "--mean-interval", String(meanInterval), "--start-minute", String(startMinute),
-    "--warmup-minutes", String(values["warmup-minutes"])],
-})));
+const ablation = values.ablation;
+const seedCount = ablation ? Math.min(3, Number(values.seeds)) : Number(values.seeds);
+const seeds = ablation
+  ? Array.from({ length: seedCount }, (_, index) => index + 1)
+  : [0, ...Array.from({ length: seedCount }, (_, index) => index + 1)];
+const typeSets = ablation ? FAULT_TYPES.map((type) => [type]) : [values.types ? values.types.split(",") : FAULT_TYPES];
+const jobs = networks.flatMap((scenario) => typeSets
+  .filter((types) => !(types.length === 1 && types[0] === "foreign-switch-request" && scenario === "izmir-konak"))
+  .flatMap((types) => seeds.map((seed) => ({
+    scenario, seed, types,
+    args: ["--run", "--scenario", scenario, "--seed", String(seed), "--hours", String(hours),
+      "--mean-interval", String(meanInterval), "--start-minute", String(startMinute),
+      "--warmup-minutes", String(values["warmup-minutes"]), "--types", types.join(",")],
+  }))));
 // Longest runs first so the pool finishes evenly.
 jobs.sort((a, b) => (a.scenario === "izmir-konak" ? 0 : 1) - (b.scenario === "izmir-konak" ? 0 : 1));
 const concurrency = Number(values.jobs ?? Math.max(1, availableParallelism() - 1));
 console.log(`${jobs.length} sessions × ${hours} h (${networks.join(", ")}; seeds 0–${seedCount}, 0 = fault-free) on ${concurrency} worker(s).`);
-const results = await runPool(SCRIPT, jobs, concurrency, (job) => `${job.scenario} seed ${job.seed}`);
-results.sort((a, b) => a.scenario.localeCompare(b.scenario) || a.seed - b.seed);
+const results = await runPool(SCRIPT, jobs, concurrency, (job) => `${job.scenario} seed ${job.seed}${ablation ? ` ${job.types[0]}` : ""}`);
+results.sort((a, b) => a.scenario.localeCompare(b.scenario) || a.faultTypes.join().localeCompare(b.faultTypes.join()) || a.seed - b.seed);
 
 const rows = results.map((result) => ({
   scenario: result.scenario,
+  fault_types: result.seed === 0 ? "none" : result.faultTypes.length === FAULT_TYPES.length ? "all" : result.faultTypes.join(" "),
   seed: result.seed,
   hours: result.hours,
   trams: result.trams,
@@ -253,19 +267,22 @@ const rows = results.map((result) => ({
   max_standstill_s: result.oracle.maxStandstillSeconds.toFixed(1),
   max_junction_blocked_s: result.oracle.maxJunctionBlockedSeconds.toFixed(0),
   junctions_blocked_at_end: result.oracle.junctionsBlockedAtEnd.join(" "),
+  max_switch_blocked_s: result.oracle.maxSwitchBlockedSeconds.toFixed(0),
+  switches_blocked_at_end: result.oracle.switchesBlockedAtEnd.join(" "),
   vehicle_km: result.vehicleKm.toFixed(1),
   on_time_pct: result.onTimePercentMean.toFixed(1),
   core_runtime: "cpp-wasm",
   git_commit: gitCommit(),
 }));
 const columns = Object.keys(rows[0]);
-await writeCsv(`${OUTPUT_DIR}safety-stress.csv`, columns, rows);
-await writeFile(`${OUTPUT_DIR}safety-stress.json`, `${JSON.stringify({ gitCommit: gitCommit(), node: process.version, hours, meanInterval, startMinute, warmupSeconds, results }, null, 2)}\n`, "utf8");
+const stem = ablation ? "safety-stress-ablation" : "safety-stress";
+await writeCsv(`${OUTPUT_DIR}${stem}.csv`, columns, rows);
+await writeFile(`${OUTPUT_DIR}${stem}.json`, `${JSON.stringify({ gitCommit: gitCommit(), node: process.version, hours, meanInterval, startMinute, warmupSeconds, results }, null, 2)}\n`, "utf8");
 
 const totalViolations = results.reduce((sum, result) => sum + result.oracle.totalViolations, 0);
-console.log(`\nWrote ${OUTPUT_DIR}safety-stress.csv and .json`);
+console.log(`\nWrote ${OUTPUT_DIR}${stem}.csv and .json`);
 for (const result of results) {
-  console.log(`${result.scenario} seed ${result.seed}: faults ${Object.values(result.faults).reduce((s, v) => s + v, 0)}, violations ${result.oracle.totalViolations}, latches ${result.oracle.allRedLatches} (unrecovered ${result.oracle.unrecoveredLatches}), longest junction block ${result.oracle.maxJunctionBlockedSeconds.toFixed(0)} s${result.oracle.junctionsBlockedAtEnd.length ? ` (still blocked: ${result.oracle.junctionsBlockedAtEnd.join(", ")})` : ""}, ${result.vehicleKm.toFixed(0)} vehicle-km`);
+  console.log(`${result.scenario} seed ${result.seed}${ablation ? ` [${result.faultTypes[0]}]` : ""}: faults ${Object.values(result.faults).reduce((s, v) => s + v, 0)}, violations ${result.oracle.totalViolations}, latches ${result.oracle.allRedLatches} (unrecovered ${result.oracle.unrecoveredLatches}), longest junction block ${result.oracle.maxJunctionBlockedSeconds.toFixed(0)} s${result.oracle.junctionsBlockedAtEnd.length ? ` (still blocked: ${result.oracle.junctionsBlockedAtEnd.join(", ")})` : ""}, ${result.vehicleKm.toFixed(0)} vehicle-km`);
   for (const violation of result.oracle.firstViolations.slice(0, 3)) console.log(`   ${violation.kind} at ${violation.time.toFixed(1)} s: ${violation.detail}`);
 }
 if (totalViolations > 0) {

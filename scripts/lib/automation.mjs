@@ -92,6 +92,10 @@ export class SafetyOracle {
     this.lastPhase = new Map([...engine.trafficControllers.values()].map((controller) => [controller.id, { phase: controller.phase, since: 0 }]));
     this.maxBlockedSeconds = 0;
     this.blockedJunctions = new Map();
+    // Liveness: points are blocked while trams queue for them and the lock owner does not change.
+    this.lockSince = new Map(this.switches.map(({ definition, runtime }) => [definition.id, { lockedBy: runtime.lockedBy, since: 0 }]));
+    this.maxSwitchBlockedSeconds = 0;
+    this.blockedSwitches = new Set();
   }
 
   switchSnapshot(runtime) {
@@ -258,6 +262,12 @@ export class SafetyOracle {
         }
       }
       this.previousSwitch.set(definition.id, this.switchSnapshot(runtime));
+      const lock = this.lockSince.get(definition.id);
+      if (lock.lockedBy !== runtime.lockedBy) this.lockSince.set(definition.id, { lockedBy: runtime.lockedBy, since: now });
+      const switchBlockedFor = runtime.queue.length > 0 && runtime.lockedBy ? now - this.lockSince.get(definition.id).since : 0;
+      this.maxSwitchBlockedSeconds = Math.max(this.maxSwitchBlockedSeconds, switchBlockedFor);
+      if (switchBlockedFor >= 600) this.blockedSwitches.add(definition.id);
+      else this.blockedSwitches.delete(definition.id);
     }
 
     // Network standstill (liveness, not safety).
@@ -290,6 +300,8 @@ export class SafetyOracle {
       maxStandstillSeconds: this.maxStandstillSeconds,
       maxJunctionBlockedSeconds: this.maxBlockedSeconds,
       junctionsBlockedAtEnd: [...this.blockedJunctions.keys()],
+      maxSwitchBlockedSeconds: this.maxSwitchBlockedSeconds,
+      switchesBlockedAtEnd: [...this.blockedSwitches],
     };
   }
 }
